@@ -1,0 +1,33 @@
+{
+    "args": {
+        "num_iterations": 2,
+        "batch_size": 20,
+        "random_seed": 500,
+        "initially_labeled_samples": 25,
+        "dataset": "trec6",
+        "transformer_model_name": "bert-base-uncased",
+        "exp_name": "dev",
+        "query_strategy": "LC",
+        "uncertainty_method": "label_smoothing"
+    },
+    "train_accs": [
+        0.44,
+        0.08888888888888889,
+        0.015384615384615385
+    ],
+    "test_accs": [
+        0.156,
+        0.068,
+        0.018
+    ],
+    "times_elapsed_query_strategy": [
+        0.9693632039998192,
+        9.044892028003233,
+        8.647380533991964
+    ],
+    "times_elapsed_model": [
+        0,
+        12.059535749998759,
+        15.29388428000675
+    ]
+}

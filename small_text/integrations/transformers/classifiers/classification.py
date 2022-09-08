@@ -342,6 +342,8 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         self.enc_ = None
 
+        self.output_hidden_states = False
+
     def fit(self, train_set, validation_set=None, optimizer=None, scheduler=None):
         """
         Trains the model using the given train set.
@@ -424,11 +426,11 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         return res
 
     def initialize_transformer(self, cache_dir):
-
         self.config = AutoConfig.from_pretrained(
             self.transformer_model.config,
             num_labels=self.num_classes,
             cache_dir=cache_dir,
+            output_hidden_states=self.output_hidden_states,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.transformer_model.tokenizer,
@@ -526,16 +528,20 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                     sub_train,
                     optimizer,
                     scheduler,
+                    epoch=epoch,
                     validate_every=validate_every,
                     validation_set=sub_valid,
                 )
             else:
                 train_loss, train_acc = self._train_loop_process_batches(
-                    sub_train, optimizer, scheduler
+                    sub_train,
+                    optimizer,
+                    scheduler,
+                    epoch=epoch,
                 )
 
                 if sub_valid is not None:
-                    valid_loss, valid_acc = self.validate(sub_valid)
+                    valid_loss, valid_acc = self.validate(sub_valid, epoch)
 
             timedelta = datetime.datetime.now() - start_time
 
@@ -582,7 +588,13 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                 break
 
     def _train_loop_process_batches(
-        self, sub_train_, optimizer, scheduler, validate_every=None, validation_set=None
+        self,
+        sub_train_,
+        optimizer,
+        scheduler,
+        epoch,
+        validate_every=None,
+        validation_set=None,
     ):
 
         train_loss = 0.0
@@ -595,14 +607,14 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         )
 
         for i, (x, masks, cls) in enumerate(train_iter):
-            loss, acc = self._train_single_batch(x, masks, cls, optimizer)
+            loss, acc = self._train_single_batch(x, masks, cls, optimizer, epoch=epoch)
             scheduler.step()
 
             train_loss += loss
             train_acc += acc
 
             if validate_every and i % validate_every == 0:
-                valid_loss, valid_acc = self.validate(validation_set)
+                valid_loss, valid_acc = self.validate(validation_set, epoch)
                 valid_losses.append(valid_loss)
                 valid_accs.append(valid_acc)
 
@@ -619,7 +631,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
     def _create_collate_fn(self):
         return partial(transformers_collate_fn, enc=self.enc_)
 
-    def _train_single_batch(self, x, masks, cls, optimizer):
+    def _train_single_batch(self, x, masks, cls, optimizer, epoch):
 
         train_loss = 0.0
         train_acc = 0.0
@@ -629,7 +641,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         x, masks, cls = x.to(self.device), masks.to(self.device), cls.to(self.device)
         outputs = self.model(x, attention_mask=masks)
 
-        logits, loss = self._compute_loss(cls, outputs)
+        logits, loss = self._compute_loss(cls, outputs, epoch=epoch)
 
         loss.backward()
 
@@ -644,7 +656,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         return train_loss, train_acc
 
-    def _compute_loss(self, cls, outputs):
+    def _compute_loss(self, cls, outputs, epoch):
         if self.num_classes == 2:
             logits = outputs.logits
             target = F.one_hot(cls, 2).float()
@@ -685,6 +697,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             valid_loss_txt = f"\n\tLoss: {valid_loss:.4f}(valid)\t|\tAcc: {valid_acc * 100:.1f}%(valid)"
         else:
             valid_loss_txt = ""
+        
         self.logger.info(
             f"Epoch: {epoch + 1} | {format_timedelta(timedelta)}\n"
             f"\tTrain Set Size: {len(sub_train)}\n"
@@ -693,7 +706,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             verbosity=VERBOSITY_MORE_VERBOSE,
         )
 
-    def validate(self, validation_set):
+    def validate(self, validation_set, epoch):
 
         valid_loss = 0.0
         acc = 0.0
@@ -715,7 +728,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
             with torch.no_grad():
                 outputs = self.model(x, attention_mask=masks)
-                _, loss = self._compute_loss(cls, outputs)
+                _, loss = self._compute_loss(cls, outputs, epoch=epoch)
 
                 valid_loss += loss.item()
                 acc += self.sum_up_accuracy_(outputs.logits, cls)

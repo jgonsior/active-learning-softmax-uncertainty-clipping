@@ -11,6 +11,8 @@ import numpy as np
 
 from functools import partial
 
+from small_text.utils.logging import VERBOSITY_MORE_VERBOSE
+
 
 try:
     import torch
@@ -28,7 +30,7 @@ class UncertaintyBaseClass(TransformerBasedClassification):
         raise NotImplementedError
 
 
-# to be fixed: temp_scaling, label_smoothing, inhibited
+# to be fixed: temp_scaling
 
 # works
 class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
@@ -83,7 +85,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
         device=None,
         memory_fix=1,
         class_weight=None,
-        verbosity=...,
+        verbosity=VERBOSITY_MORE_VERBOSE,
         cache_dir=".active_learning_lib_cache/",
     ):
         super().__init__(
@@ -109,7 +111,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
 
         self.temperature = torch.nn.ParameterDict(torch.ones(1) * 1.5)
 
-    def _compute_loss(self, cls, outputs, validate=False):
+    def _compute_loss(self, cls, outputs, epoch=None, validate=False):
         if self.num_classes == 2:
             logits = outputs.logits
             target = F.one_hot(cls, 2).float()
@@ -234,6 +236,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
         return np.array(predictions)
 
 
+# works
 class LabelSmoothingUncertaintyClassifier(SoftmaxUncertaintyClassifier):
     def get_default_criterion(self):
         if self.multi_label or self.num_classes == 2:
@@ -297,7 +300,50 @@ class MonteCarloDropoutUncertaintyClassifier(UncertaintyBaseClass):
         return np.array(predictions)
 
 
+# works
 class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
+    def __init__(
+        self,
+        transformer_model,
+        num_classes,
+        multi_label=False,
+        num_epochs=10,
+        lr=0.00002,
+        mini_batch_size=12,
+        validation_set_size=0.1,
+        validations_per_epoch=1,
+        no_validation_set_action="sample",
+        early_stopping_no_improvement=5,
+        early_stopping_acc=-1,
+        model_selection=True,
+        fine_tuning_arguments=None,
+        device=None,
+        memory_fix=1,
+        class_weight=None,
+        verbosity=VERBOSITY_MORE_VERBOSE,
+        cache_dir=".active_learning_lib_cache/",
+    ):
+        super().__init__(
+            transformer_model,
+            num_classes,
+            multi_label,
+            num_epochs,
+            lr,
+            mini_batch_size,
+            validation_set_size,
+            validations_per_epoch,
+            no_validation_set_action,
+            early_stopping_no_improvement,
+            early_stopping_acc,
+            model_selection,
+            fine_tuning_arguments,
+            device,
+            memory_fix,
+            class_weight,
+            verbosity,
+            cache_dir,
+        )
+        self.output_hidden_states = True
 
     # we also changed the activation function of BERT from GELU to pdf in 11th layer (second to last) and use these outputs for our loss (see _compute_loss)
 
@@ -339,6 +385,7 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
         )
 
         predictions = []
+
         logits_transform = (
             torch.sigmoid if self.multi_label else partial(self.inhibitedSoftmax)
         )  # partial(F.softmax, dim=1)
@@ -348,14 +395,14 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
                 text, masks = text.to(self.device), masks.to(self.device)
                 outputs = self.model(text, attention_mask=masks)
 
-                predictions += logits_transform(outputs.logits).to("cpu").tolist()
+                predictions += logits_transform(outputs.logits).to(self.device).tolist()
                 del text, masks
 
         return np.array(predictions)
 
     # we compute the loss like it is shown in the paper
 
-    def _compute_loss(self, cls, outputs):
+    def _compute_loss(self, cls, outputs, epoch):
 
         if self.num_classes == 2:
             logits = outputs.logits
@@ -364,11 +411,12 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
             logits = outputs.logits.view(-1, self.num_classes)
             target = cls
 
-        #  we take the 11th layer output
-        hiddenOutput = outputs.hidden_states[11][1]
+        #  we take the last layer output
+        hiddenOutput = outputs.hidden_states[-1][1]
 
-        minimization = torch.nn.Linear(in_features=768, out_features=6, bias=True)
-
+        minimization = torch.nn.Linear(
+            in_features=768, out_features=6, bias=True, device=self.device
+        )
         layerOutput = minimization(hiddenOutput)
 
         loss = (
@@ -380,6 +428,7 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
 
 #     Effective Deep Learning Implementation (Survoy (?) et al. - Kaplan)
+# works
 class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
         if len(test_set) == 0:
