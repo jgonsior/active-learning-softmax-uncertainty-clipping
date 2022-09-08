@@ -1,0 +1,13 @@
+{
+    "args": {
+        "num_iterations": 2,
+        "batch_size": 20,
+        "random_seed": 502,
+        "initially_labeled_samples": 25,
+        "dataset": "trec6",
+        "transformer_model_name": "bert-base-uncased",
+        "exp_name": "dev",
+        "query_strategy": "LC",
+        "uncertainty_method": "softmax"
+    }
+}

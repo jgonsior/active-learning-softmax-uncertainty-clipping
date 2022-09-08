@@ -162,6 +162,7 @@ def perform_active_learning(
     y_probas_train = []
     times_elapsed = []
     times_elapsed_model = []
+    queried_indices = []
 
     # calculate passive accuracy before
     print("Initial Performance")
@@ -181,6 +182,7 @@ def perform_active_learning(
     y_probas_train.append(y_proba_train)
     times_elapsed.append(time_elapsed)
     times_elapsed_model.append(0)
+    queried_indices.append(indices_labeled)
 
     for i in range(num_iterations):
         start = timer()
@@ -220,6 +222,7 @@ def perform_active_learning(
         y_probas_train.append(y_proba_train)
         times_elapsed.append(time_elapsed)
         times_elapsed_model.append(time_elapsed_model)
+        queried_indices.append(indices_queried)
 
     return (
         train_accs,
@@ -230,6 +233,7 @@ def perform_active_learning(
         y_probas_test,
         times_elapsed,
         times_elapsed_model,
+        queried_indices,
     )
 
 
@@ -345,6 +349,7 @@ if __name__ == "__main__":
         y_probas_test,
         times_elapsed,
         times_elapsed_model,
+        queried_indices,
     ) = main(
         num_iterations=args.num_iterations,
         batch_size=args.batch_size,
@@ -378,4 +383,5 @@ if __name__ == "__main__":
         y_probas_test=y_probas_test,
         times_elapsed=times_elapsed,
         times_elapsed_model=times_elapsed_model,
+        queried_indices=queried_indices,
     )
