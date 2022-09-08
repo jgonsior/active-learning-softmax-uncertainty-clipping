@@ -30,8 +30,6 @@ class UncertaintyBaseClass(TransformerBasedClassification):
         raise NotImplementedError
 
 
-# to be fixed: temp_scaling
-
 # works
 class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
@@ -64,8 +62,8 @@ class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
         return np.array(predictions)
 
 
-# .local/lib/python3.8/site-packages/small_text/integrations/transformers/classifiers/classification.py
 #  Implementation for Calibration - Temperature Scaling: https://github.com/shreydesai/calibration/blob/master/calibrate.py
+# works
 class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
     def __init__(
         self,
@@ -108,8 +106,10 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
             verbosity,
             cache_dir,
         )
+        self.temperature = 1
 
-        self.temperature = torch.nn.ParameterDict(torch.ones(1) * 1.5)
+    def _temperature_scale(self, logits):
+        return logits / self.temperature
 
     def _compute_loss(self, cls, outputs, epoch=None, validate=False):
         if self.num_classes == 2:
