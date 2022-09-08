@@ -104,16 +104,44 @@ def main(
 
 
 def _evaluate(active_learner, train, test):
-    y_pred = active_learner.classifier.predict(train)
+    y_pred_train = active_learner.classifier.predict(train)
     y_pred_test = active_learner.classifier.predict(test)
+    y_proba_test = active_learner.classifier.predict_proba(test)
+    y_proba_train = active_learner.classifier.predict_proba(train)
 
     test_acc = accuracy_score(y_pred_test, test.y)
-    train_acc = accuracy_score(y_pred, train.y)
-    print(f"Train accuracy: {train_acc}")
-    print(f"Test accuracy: {test_acc}")
+    train_acc = accuracy_score(y_pred_train, train.y)
+    test_ece = _expected_calibration_error(y_pred_test, y_proba_test, test.y)
+    train_ece = _expected_calibration_error(y_pred_train, y_proba_train, train.y)
+
+    print(f"Train acc: {train_acc}")
+    print(f"Test acc: {test_acc}")
+    print(f"Test ece: {train_ece}")
+    print(f"Test ece: {test_ece}")
 
     print("---")
-    return (train_acc, test_acc)
+    return (train_acc, test_acc, train_ece, test_ece)
+
+
+def _expected_calibration_error(y_pred, probas, y_true, n_bins=10):
+    proba = np.amax(probas, axis=1)
+
+    intervals = np.linspace(0, 1, n_bins + 1)
+    accuracy = (y_pred == y_true).astype(int)
+
+    num_predictions = y_pred.shape[0]
+    error = 0
+
+    for lower, upper in zip(intervals[:-1], intervals[1:]):
+        mask = np.logical_and(proba > lower, proba <= upper)
+        bin_size = mask.sum()
+        if bin_size > 0:
+            proba_bin_mean = proba[mask].mean()
+            acc_bin_mean = accuracy[mask].mean()
+
+            error += bin_size / num_predictions * np.abs(acc_bin_mean - proba_bin_mean)
+
+    return error
 
 
 def perform_active_learning(
@@ -121,19 +149,25 @@ def perform_active_learning(
 ):
     test_accs = []
     train_accs = []
+    test_eces = []
+    train_eces = []
     times_elapsed = []
     times_elapsed_model = []
 
     # calculate passive accuracy before
     print("Initial Performance")
     start = timer()
-    train_acc, test_acc = _evaluate(active_learner, train[indices_labeled], test)
+    train_acc, test_acc, train_ece, test_ece = _evaluate(
+        active_learner, train[indices_labeled], test
+    )
     end = timer()
 
     time_elapsed = end - start
 
     train_accs.append(train_acc)
     test_accs.append(test_acc)
+    train_eces.append(train_ece)
+    test_eces.append(test_ece)
     times_elapsed.append(time_elapsed)
     times_elapsed_model.append(0)
 
@@ -158,10 +192,14 @@ def perform_active_learning(
                 i, len(indices_labeled), time_elapsed
             )
         )
-        train_acc, test_acc = _evaluate(active_learner, train[indices_labeled], test)
+        train_acc, test_acc, train_ece, test_ece = _evaluate(
+            active_learner, train[indices_labeled], test
+        )
 
         train_accs.append(train_acc)
         test_accs.append(test_acc)
+        train_eces.append(train_ece)
+        test_eces.append(test_ece)
         times_elapsed.append(time_elapsed)
         times_elapsed_model.append(time_elapsed_model)
 
