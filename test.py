@@ -111,8 +111,12 @@ def _evaluate(active_learner, train, test):
 
     test_acc = accuracy_score(y_pred_test, test.y)
     train_acc = accuracy_score(y_pred_train, train.y)
-    test_ece = _expected_calibration_error(y_pred_test, y_proba_test, test.y)
-    train_ece = _expected_calibration_error(y_pred_train, y_proba_train, train.y)
+    test_ece, acc_bins_test, proba_bins_test = _expected_calibration_error(
+        y_pred_test, y_proba_test, test.y
+    )
+    train_ece, acc_bins_train, proba_bins_train = _expected_calibration_error(
+        y_pred_train, y_proba_train, train.y
+    )
 
     print(f"Train acc: {train_acc}")
     print(f"Test acc: {test_acc}")
@@ -127,6 +131,10 @@ def _evaluate(active_learner, train, test):
         test_ece,
         y_proba_test,
         y_proba_train,
+        acc_bins_train,
+        proba_bins_train,
+        acc_bins_test,
+        proba_bins_test,
     )
 
 
@@ -139,6 +147,9 @@ def _expected_calibration_error(y_pred, probas, y_true, n_bins=10):
     num_predictions = y_pred.shape[0]
     error = 0
 
+    acc_bins = []
+    proba_bins = []
+
     for lower, upper in zip(intervals[:-1], intervals[1:]):
         mask = np.logical_and(proba > lower, proba <= upper)
         bin_size = mask.sum()
@@ -148,7 +159,13 @@ def _expected_calibration_error(y_pred, probas, y_true, n_bins=10):
 
             error += bin_size / num_predictions * np.abs(acc_bin_mean - proba_bin_mean)
 
-    return error
+            acc_bins.append(acc_bin_mean)
+            proba_bins.append(proba_bin_mean)
+        else:
+            acc_bins.append(np.NaN)
+            proba_bins.append(np.NaN)
+
+    return error, acc_bins, proba_bins
 
 
 def perform_active_learning(
@@ -163,13 +180,26 @@ def perform_active_learning(
     times_elapsed = []
     times_elapsed_model = []
     queried_indices = []
+    acc_binss_train = []
+    proba_binss_train = []
+    acc_binss_test = []
+    proba_binss_test = []
 
     # calculate passive accuracy before
     print("Initial Performance")
     start = timer()
-    train_acc, test_acc, train_ece, test_ece, y_proba_test, y_proba_train = _evaluate(
-        active_learner, train[indices_labeled], test
-    )
+    (
+        train_acc,
+        test_acc,
+        train_ece,
+        test_ece,
+        y_proba_test,
+        y_proba_train,
+        acc_bins_train,
+        proba_bins_train,
+        acc_bins_test,
+        proba_bins_test,
+    ) = _evaluate(active_learner, train[indices_labeled], test)
     end = timer()
 
     time_elapsed = end - start
@@ -183,6 +213,10 @@ def perform_active_learning(
     times_elapsed.append(time_elapsed)
     times_elapsed_model.append(0)
     queried_indices.append(indices_labeled)
+    acc_binss_train.append(acc_bins_train)
+    acc_binss_test.append(acc_bins_test)
+    proba_binss_test.append(proba_bins_test)
+    proba_binss_train.append(proba_bins_train)
 
     for i in range(num_iterations):
         start = timer()
@@ -212,6 +246,10 @@ def perform_active_learning(
             test_ece,
             y_proba_test,
             y_proba_train,
+            acc_bins_train,
+            proba_bins_train,
+            acc_bins_test,
+            proba_bins_test,
         ) = _evaluate(active_learner, train[indices_labeled], test)
 
         train_accs.append(train_acc)
@@ -223,6 +261,10 @@ def perform_active_learning(
         times_elapsed.append(time_elapsed)
         times_elapsed_model.append(time_elapsed_model)
         queried_indices.append(indices_queried)
+        acc_binss_train.append(acc_bins_train)
+        acc_binss_test.append(acc_bins_test)
+        proba_binss_test.append(proba_bins_test)
+        proba_binss_train.append(proba_bins_train)
 
     return (
         train_accs,
@@ -234,6 +276,10 @@ def perform_active_learning(
         times_elapsed,
         times_elapsed_model,
         queried_indices,
+        acc_binss_train,
+        proba_binss_train,
+        acc_binss_test,
+        proba_binss_test,
     )
 
 
@@ -350,6 +396,10 @@ if __name__ == "__main__":
         times_elapsed,
         times_elapsed_model,
         queried_indices,
+        acc_binss_train,
+        proba_binss_train,
+        acc_binss_test,
+        proba_binss_test,
     ) = main(
         num_iterations=args.num_iterations,
         batch_size=args.batch_size,
@@ -384,4 +434,8 @@ if __name__ == "__main__":
         times_elapsed=times_elapsed,
         times_elapsed_model=times_elapsed_model,
         queried_indices=queried_indices,
+        acc_bins_train=acc_binss_train,
+        proba_bins_train=proba_binss_train,
+        acc_bins_test=acc_binss_test,
+        proba_bins_test=proba_binss_test,
     )
