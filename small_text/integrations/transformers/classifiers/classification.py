@@ -443,6 +443,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             from_tf=False,
             config=self.config,
             cache_dir=cache_dir,
+            # output_hidden_states=True,  # silvio
         )
         transformers_logging.set_verbosity(previous_verbosity)
 
@@ -526,16 +527,17 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                     sub_train,
                     optimizer,
                     scheduler,
+                    epoch=epoch,
                     validate_every=validate_every,
                     validation_set=sub_valid,
                 )
             else:
                 train_loss, train_acc = self._train_loop_process_batches(
-                    sub_train, optimizer, scheduler
+                    sub_train, optimizer, scheduler, epoch=epoch
                 )
 
                 if sub_valid is not None:
-                    valid_loss, valid_acc = self.validate(sub_valid)
+                    valid_loss, valid_acc = self.validate(sub_valid, epoch)
 
             timedelta = datetime.datetime.now() - start_time
 
@@ -582,7 +584,13 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                 break
 
     def _train_loop_process_batches(
-        self, sub_train_, optimizer, scheduler, validate_every=None, validation_set=None
+        self,
+        sub_train_,
+        optimizer,
+        scheduler,
+        epoch,
+        validate_every=None,
+        validation_set=None,
     ):
 
         train_loss = 0.0
@@ -595,14 +603,14 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         )
 
         for i, (x, masks, cls) in enumerate(train_iter):
-            loss, acc = self._train_single_batch(x, masks, cls, optimizer)
+            loss, acc = self._train_single_batch(x, masks, cls, optimizer, epoch)
             scheduler.step()
 
             train_loss += loss
             train_acc += acc
 
             if validate_every and i % validate_every == 0:
-                valid_loss, valid_acc = self.validate(validation_set)
+                valid_loss, valid_acc = self.validate(validation_set, epoch)
                 valid_losses.append(valid_loss)
                 valid_accs.append(valid_acc)
 
@@ -619,7 +627,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
     def _create_collate_fn(self):
         return partial(transformers_collate_fn, enc=self.enc_)
 
-    def _train_single_batch(self, x, masks, cls, optimizer):
+    def _train_single_batch(self, x, masks, cls, optimizer, epoch):
 
         train_loss = 0.0
         train_acc = 0.0
@@ -629,7 +637,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         x, masks, cls = x.to(self.device), masks.to(self.device), cls.to(self.device)
         outputs = self.model(x, attention_mask=masks)
 
-        logits, loss = self._compute_loss(cls, outputs)
+        logits, loss = self._compute_loss(cls, outputs, epoch)
 
         loss.backward()
 
@@ -644,14 +652,84 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         return train_loss, train_acc
 
-    def _compute_loss(self, cls, outputs):
+    def _compute_loss(self, cls, outputs, epoch):
         if self.num_classes == 2:
             logits = outputs.logits
             target = F.one_hot(cls, 2).float()
         else:
             logits = outputs.logits.view(-1, self.num_classes)
             target = cls
-        loss = self.criterion(logits, target)
+        """#####################################################################################
+        Silvio
+        #####################################################################################"""
+        # loss = self.criterion(logits, target)
+
+        evidence = F.relu(logits)
+        alpha = evidence + 1
+
+        # Ich glaube, dass annealing_step = die num_classes ist -> das nehmen wir jetzt mal an
+
+        y = F.one_hot(cls, self.num_classes).float()  # = target
+
+        # KL Divergence:
+        def _kl_divergence(alpha, num_classes):
+            ones = torch.ones([1, num_classes], dtype=torch.float32, device=self.device)
+            sum_alpha = torch.sum(alpha, dim=1, keepdim=True)
+            first_term = (
+                torch.lgamma(sum_alpha)
+                - torch.lgamma(alpha).sum(dim=1, keepdim=True)
+                + torch.lgamma(ones).sum(dim=1, keepdim=True)
+                - torch.lgamma(ones.sum(dim=1, keepdim=True))
+            )
+            second_term = (
+                (alpha - ones)
+                .mul(torch.digamma(alpha) - torch.digamma(sum_alpha))
+                .sum(dim=1, keepdim=True)
+            )
+            kl = first_term + second_term
+
+            return kl
+
+        # Loglikelihood loss
+
+        def _loglikelihood_loss(y, alpha):
+
+            y = y.to(self.device)
+            alpha = alpha.to(self.device)
+            S = torch.sum(alpha, dim=1, keepdim=True)
+            loglikelihood_err = torch.sum((y - (alpha / S)) ** 2, dim=1, keepdim=True)
+            loglikelihood_var = torch.sum(
+                alpha * (S - alpha) / (S * S * (S + 1)), dim=1, keepdim=True
+            )
+            loglikelihood = loglikelihood_err + loglikelihood_var
+
+            return loglikelihood
+
+        def _mse_loss(y, alpha, epoch_num, num_classes, annealing_step):
+
+            y = y.to(self.device)
+            alpha = alpha.to(self.device)
+            loglikelihood = _loglikelihood_loss(y, alpha)
+
+            annealing_coef = torch.min(
+                torch.tensor(1.0, dtype=torch.float32),
+                torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
+            )
+
+            kl_alpha = (alpha - 1) * (1 - y) + 1
+            kl_div = annealing_coef * _kl_divergence(kl_alpha, num_classes)
+
+            return loglikelihood + kl_div
+
+        loss = torch.mean(
+            _mse_loss(
+                y=y,
+                alpha=alpha,
+                epoch_num=epoch,
+                num_classes=self.num_classes,
+                annealing_step=self.num_classes,
+            )
+        )
 
         return logits, loss
 
@@ -693,7 +771,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             verbosity=VERBOSITY_MORE_VERBOSE,
         )
 
-    def validate(self, validation_set):
+    def validate(self, validation_set, epoch):
 
         valid_loss = 0.0
         acc = 0.0
@@ -706,6 +784,9 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             train=False,
         )
 
+        logits_list = []
+        labels_list = []
+
         for x, masks, cls in valid_iter:
             x, masks, cls = (
                 x.to(self.device),
@@ -715,13 +796,54 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
             with torch.no_grad():
                 outputs = self.model(x, attention_mask=masks)
-                _, loss = self._compute_loss(cls, outputs)
+                _, loss = self._compute_loss(cls, outputs, epoch)
+
+                logits_list.append(outputs.logits)
+                labels_list.append(F.one_hot(cls, self.num_classes))
 
                 valid_loss += loss.item()
                 acc += self.sum_up_accuracy_(outputs.logits, cls)
                 del outputs, x, masks, cls
 
         return valid_loss / len(validation_set), acc / len(validation_set)
+
+    def _perform_model_selection(self, sub_valid):
+        if sub_valid is not None:
+            if self.model_selection:
+                self._select_best_model()
+            else:
+                self._select_last_model()
+
+    def _select_best_model(self):
+        model_path, _ = self.model_selection_manager.select_best()
+        self.model.load_state_dict(torch.load(model_path))
+
+    def _select_last_model(self):
+        model_path, _ = self.model_selection_manager.select_last()
+        self.model.load_state_dict(torch.load(model_path))
+
+    def _log_epoch(
+        self,
+        epoch,
+        timedelta,
+        sub_train,
+        sub_valid,
+        train_acc,
+        train_loss,
+        valid_acc,
+        valid_loss,
+    ):
+        if sub_valid is not None:
+            valid_loss_txt = f"\n\tLoss: {valid_loss:.4f}(valid)\t|\tAcc: {valid_acc * 100:.1f}%(valid)"
+        else:
+            valid_loss_txt = ""
+        self.logger.info(
+            f"Epoch: {epoch + 1} | {format_timedelta(timedelta)}\n"
+            f"\tTrain Set Size: {len(sub_train)}\n"
+            f"\tLoss: {train_loss:.4f}(train)\t|\tAcc: {train_acc * 100:.1f}%(train)"
+            f"{valid_loss_txt}",
+            verbosity=VERBOSITY_MORE_VERBOSE,
+        )
 
     def predict(self, data_set, return_proba=False):
         """
@@ -763,7 +885,11 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         with torch.no_grad():
             for text, masks, _ in test_iter:
-                text, masks = text.to(self.device), masks.to(self.device)
+                text, masks, label = (
+                    text.to(self.device),
+                    masks.to(self.device),
+                    label.to(self.device),
+                )
                 outputs = self.model(text, attention_mask=masks)
 
                 predictions += logits_transform(outputs.logits).to("cpu").tolist()

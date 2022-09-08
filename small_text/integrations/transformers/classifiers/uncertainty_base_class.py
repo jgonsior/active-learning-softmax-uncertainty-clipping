@@ -1,4 +1,5 @@
 import abc
+from typing_extensions import Self
 
 from small_text.integrations.pytorch.exceptions import PytorchNotFoundError
 from small_text.integrations.transformers.classifiers.classification import (
@@ -15,6 +16,8 @@ try:
     import torch
     import torch.nn.functional as F  # noqa: N812
     from small_text.integrations.pytorch.utils.data import dataloader
+    from torch.nn.modules import CrossEntropyLoss, BCEWithLogitsLoss, BCELoss
+
 except ImportError:
     raise PytorchNotFoundError("Could not import pytorch")
 
@@ -25,6 +28,9 @@ class UncertaintyBaseClass(TransformerBasedClassification):
         raise NotImplementedError
 
 
+# to be fixed: temp_scaling, label_smoothing, inhibited
+
+# works
 class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
         if len(test_set) == 0:
@@ -69,6 +75,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
         mini_batch_size=12,
         validation_set_size=0.1,
         validations_per_epoch=1,
+        no_validation_set_action="sample",
         early_stopping_no_improvement=5,
         early_stopping_acc=-1,
         model_selection=True,
@@ -88,6 +95,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
             mini_batch_size,
             validation_set_size,
             validations_per_epoch,
+            no_validation_set_action,
             early_stopping_no_improvement,
             early_stopping_acc,
             model_selection,
@@ -194,35 +202,48 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
 
         return F.kl_div(output, target, reduction="sum").item()
 
-
-class LabelSmoothingUncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
-        raise NotImplementedError
+        if len(test_set) == 0:
+            return empty_result(
+                self.multi_label,
+                self.num_classes,
+                return_prediction=False,
+                return_proba=True,
+            )
+        self.model.eval()
+        test_iter = dataloader(
+            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+        )
+        predictions = []
+        logits_transform = (
+            torch.sigmoid if self.multi_label else partial(F.softmax, dim=1)
+        )
 
-    def _compute_loss(self, cls, outputs, epoch, validate=False):
-        if self.num_classes == 2:
-            logits = outputs.logits
-            target = F.one_hot(cls, 2).float()
+        with torch.no_grad():
+            for text, masks, label in test_iter:
+                text, masks, label = (
+                    text.to(self.device),
+                    masks.to(self.device),
+                    label.to(self.device),
+                )
+                outputs = self.model(text, attention_mask=masks)
+
+                predictions += logits_transform(outputs.logits).to("cpu").tolist()
+                del text, masks
+
+        return np.array(predictions)
+
+
+class LabelSmoothingUncertaintyClassifier(SoftmaxUncertaintyClassifier):
+    def get_default_criterion(self):
+        if self.multi_label or self.num_classes == 2:
+            print("ERROR-" * 200)
+            return BCEWithLogitsLoss(pos_weight=self.class_weights_)
         else:
-            logits = outputs.logits.view(-1, self.num_classes)
-            target = cls
-
-        for elem in range(len(target)):
-            for i in range(len(target[elem])):
-                if target[elem][i] == 1:
-                    target[elem][i] = target[elem][i] - 0.4
-                else:
-                    target[elem][i] = target[elem][i] + (0.4 / (self.num_classes - 1))
-
-        def cross_entropy_one_hot(input, target):
-            _, labels = target.max(dim=0)
-            return torch.nn.CrossEntropyLoss()(input, labels)
-
-        # lossFunc = torch.nn.CrossEntropyLoss(weight = self.class_weights_, label_smoothing = 0.2)
-        loss = self.criterion(logits, target)
-        # loss = lossFunc(logits, target)
+            return CrossEntropyLoss(weight=self.class_weights_, label_smoothing=0.2)
 
 
+# works
 class MonteCarloDropoutUncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
         if len(test_set) == 0:
@@ -361,7 +382,35 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 #     Effective Deep Learning Implementation (Survoy (?) et al. - Kaplan)
 class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
-        raise NotImplementedError
+        if len(test_set) == 0:
+            return empty_result(
+                self.multi_label,
+                self.num_classes,
+                return_prediction=False,
+                return_proba=True,
+            )
+        self.model.eval()
+        test_iter = dataloader(
+            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+        )
+        predictions = []
+        logits_transform = (
+            torch.sigmoid if self.multi_label else partial(F.softmax, dim=1)
+        )
+
+        with torch.no_grad():
+            for text, masks, label in test_iter:
+                text, masks, label = (
+                    text.to(self.device),
+                    masks.to(self.device),
+                    label.to(self.device),
+                )
+                outputs = self.model(text, attention_mask=masks)
+
+                predictions += logits_transform(outputs.logits).to("cpu").tolist()
+                del text, masks
+
+        return np.array(predictions)
 
     def _compute_loss(self, cls, outputs, epoch):
 

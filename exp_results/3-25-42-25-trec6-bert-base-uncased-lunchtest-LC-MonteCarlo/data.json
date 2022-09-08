@@ -1,0 +1,37 @@
+{
+    "args": {
+        "num_iterations": 3,
+        "batch_size": 25,
+        "random_seed": 42,
+        "initially_labeled_samples": 25,
+        "dataset": "trec6",
+        "transformer_model_name": "bert-base-uncased",
+        "exp_name": "lunchtest",
+        "query_strategy": "LC",
+        "uncertainty_method": "MonteCarlo"
+    },
+    "train_accs": [
+        0.24,
+        0.64,
+        0.26666666666666666,
+        0.26
+    ],
+    "test_accs": [
+        0.168,
+        0.328,
+        0.226,
+        0.132
+    ],
+    "times_elapsed_query_strategy": [
+        0.6889323770010378,
+        5.937823690997902,
+        6.0270700010005385,
+        6.062424763003946
+    ],
+    "times_elapsed_model": [
+        0,
+        14.875279020001472,
+        12.82836985999893,
+        13.203633011995407
+    ]
+}
