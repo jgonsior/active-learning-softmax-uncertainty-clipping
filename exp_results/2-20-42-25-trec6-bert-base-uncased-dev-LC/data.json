@@ -1,0 +1,24 @@
+{
+    "args": {
+        "num_iterations": 2,
+        "batch_size": 20,
+        "random_seed": 42,
+        "initially_labeled_samples": 25,
+        "dataset": "trec6",
+        "transformer_model_name": "bert-base-uncased",
+        "exp_name": "dev",
+        "query_strategy_name": "LC"
+    },
+    "train_accs": [
+        0.2222222222222222,
+        0.13846153846153847
+    ],
+    "test_accs": [
+        0.09,
+        0.094
+    ],
+    "times_elapsed": [
+        12.603857644135132,
+        9.918802487896755
+    ]
+}
