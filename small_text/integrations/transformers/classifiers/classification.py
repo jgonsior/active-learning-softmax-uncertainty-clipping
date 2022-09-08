@@ -169,8 +169,8 @@ class TransformerBasedEmbeddingMixin(EmbeddingMixin):
             Embedding method to use [avg, cls].
         hidden_layer_index : int
             Index of the hidden layer.
-        pbar : str or None
-            The progress bar to use, or None otherwise.
+        pbar : 'tqdm' or None
+            Displays a progress bar if 'tqdm' is passed.
 
         Returns
         -------
@@ -443,7 +443,6 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             from_tf=False,
             config=self.config,
             cache_dir=cache_dir,
-            # output_hidden_states=True,  # silvio
         )
         transformers_logging.set_verbosity(previous_verbosity)
 
@@ -527,17 +526,16 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                     sub_train,
                     optimizer,
                     scheduler,
-                    epoch=epoch,
                     validate_every=validate_every,
                     validation_set=sub_valid,
                 )
             else:
                 train_loss, train_acc = self._train_loop_process_batches(
-                    sub_train, optimizer, scheduler, epoch=epoch
+                    sub_train, optimizer, scheduler
                 )
 
                 if sub_valid is not None:
-                    valid_loss, valid_acc = self.validate(sub_valid, epoch)
+                    valid_loss, valid_acc = self.validate(sub_valid)
 
             timedelta = datetime.datetime.now() - start_time
 
@@ -584,13 +582,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                 break
 
     def _train_loop_process_batches(
-        self,
-        sub_train_,
-        optimizer,
-        scheduler,
-        epoch,
-        validate_every=None,
-        validation_set=None,
+        self, sub_train_, optimizer, scheduler, validate_every=None, validation_set=None
     ):
 
         train_loss = 0.0
@@ -603,14 +595,14 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         )
 
         for i, (x, masks, cls) in enumerate(train_iter):
-            loss, acc = self._train_single_batch(x, masks, cls, optimizer, epoch)
+            loss, acc = self._train_single_batch(x, masks, cls, optimizer)
             scheduler.step()
 
             train_loss += loss
             train_acc += acc
 
             if validate_every and i % validate_every == 0:
-                valid_loss, valid_acc = self.validate(validation_set, epoch)
+                valid_loss, valid_acc = self.validate(validation_set)
                 valid_losses.append(valid_loss)
                 valid_accs.append(valid_acc)
 
@@ -627,7 +619,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
     def _create_collate_fn(self):
         return partial(transformers_collate_fn, enc=self.enc_)
 
-    def _train_single_batch(self, x, masks, cls, optimizer, epoch):
+    def _train_single_batch(self, x, masks, cls, optimizer):
 
         train_loss = 0.0
         train_acc = 0.0
@@ -637,7 +629,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         x, masks, cls = x.to(self.device), masks.to(self.device), cls.to(self.device)
         outputs = self.model(x, attention_mask=masks)
 
-        logits, loss = self._compute_loss(cls, outputs, epoch)
+        logits, loss = self._compute_loss(cls, outputs)
 
         loss.backward()
 
@@ -701,7 +693,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             verbosity=VERBOSITY_MORE_VERBOSE,
         )
 
-    def validate(self, validation_set, epoch):
+    def validate(self, validation_set):
 
         valid_loss = 0.0
         acc = 0.0
@@ -723,51 +715,13 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
             with torch.no_grad():
                 outputs = self.model(x, attention_mask=masks)
-                _, loss = self._compute_loss(cls, outputs, epoch)
+                _, loss = self._compute_loss(cls, outputs)
 
                 valid_loss += loss.item()
                 acc += self.sum_up_accuracy_(outputs.logits, cls)
                 del outputs, x, masks, cls
 
         return valid_loss / len(validation_set), acc / len(validation_set)
-
-    def _perform_model_selection(self, sub_valid):
-        if sub_valid is not None:
-            if self.model_selection:
-                self._select_best_model()
-            else:
-                self._select_last_model()
-
-    def _select_best_model(self):
-        model_path, _ = self.model_selection_manager.select_best()
-        self.model.load_state_dict(torch.load(model_path))
-
-    def _select_last_model(self):
-        model_path, _ = self.model_selection_manager.select_last()
-        self.model.load_state_dict(torch.load(model_path))
-
-    def _log_epoch(
-        self,
-        epoch,
-        timedelta,
-        sub_train,
-        sub_valid,
-        train_acc,
-        train_loss,
-        valid_acc,
-        valid_loss,
-    ):
-        if sub_valid is not None:
-            valid_loss_txt = f"\n\tLoss: {valid_loss:.4f}(valid)\t|\tAcc: {valid_acc * 100:.1f}%(valid)"
-        else:
-            valid_loss_txt = ""
-        self.logger.info(
-            f"Epoch: {epoch + 1} | {format_timedelta(timedelta)}\n"
-            f"\tTrain Set Size: {len(sub_train)}\n"
-            f"\tLoss: {train_loss:.4f}(train)\t|\tAcc: {train_acc * 100:.1f}%(train)"
-            f"{valid_loss_txt}",
-            verbosity=VERBOSITY_MORE_VERBOSE,
-        )
 
     def predict(self, data_set, return_proba=False):
         """
@@ -809,10 +763,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         with torch.no_grad():
             for text, masks, _ in test_iter:
-                text, masks = (
-                    text.to(self.device),
-                    masks.to(self.device),
-                )
+                text, masks = text.to(self.device), masks.to(self.device)
                 outputs = self.model(text, attention_mask=masks)
 
                 predictions += logits_transform(outputs.logits).to("cpu").tolist()

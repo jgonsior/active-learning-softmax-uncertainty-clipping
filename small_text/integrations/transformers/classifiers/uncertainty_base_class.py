@@ -109,7 +109,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
 
         self.temperature = torch.nn.ParameterDict(torch.ones(1) * 1.5)
 
-    def _compute_loss(self, cls, outputs, epoch, validate=False):
+    def _compute_loss(self, cls, outputs, validate=False):
         if self.num_classes == 2:
             logits = outputs.logits
             target = F.one_hot(cls, 2).float()
