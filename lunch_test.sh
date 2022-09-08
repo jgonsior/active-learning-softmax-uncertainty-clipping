@@ -1,5 +1,5 @@
 #!/bin/sh
-NUM_ITER=3
+NUM_ITER=2
 BATCH_SIZE=25
 EXP_NAME=lunchtest
 RANDOM_SEED=42

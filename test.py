@@ -120,7 +120,14 @@ def _evaluate(active_learner, train, test):
     print(f"Test ece: {test_ece}")
 
     print("---")
-    return (train_acc, test_acc, train_ece, test_ece)
+    return (
+        train_acc,
+        test_acc,
+        train_ece,
+        test_ece,
+        y_proba_test,
+        y_proba_train,
+    )
 
 
 def _expected_calibration_error(y_pred, probas, y_true, n_bins=10):
@@ -151,13 +158,15 @@ def perform_active_learning(
     train_accs = []
     test_eces = []
     train_eces = []
+    y_probas_test = []
+    y_probas_train = []
     times_elapsed = []
     times_elapsed_model = []
 
     # calculate passive accuracy before
     print("Initial Performance")
     start = timer()
-    train_acc, test_acc, train_ece, test_ece = _evaluate(
+    train_acc, test_acc, train_ece, test_ece, y_proba_test, y_proba_train = _evaluate(
         active_learner, train[indices_labeled], test
     )
     end = timer()
@@ -168,6 +177,8 @@ def perform_active_learning(
     test_accs.append(test_acc)
     train_eces.append(train_ece)
     test_eces.append(test_ece)
+    y_probas_test.append(y_proba_test)
+    y_probas_train.append(y_proba_train)
     times_elapsed.append(time_elapsed)
     times_elapsed_model.append(0)
 
@@ -192,18 +203,34 @@ def perform_active_learning(
                 i, len(indices_labeled), time_elapsed
             )
         )
-        train_acc, test_acc, train_ece, test_ece = _evaluate(
-            active_learner, train[indices_labeled], test
-        )
+        (
+            train_acc,
+            test_acc,
+            train_ece,
+            test_ece,
+            y_proba_test,
+            y_proba_train,
+        ) = _evaluate(active_learner, train[indices_labeled], test)
 
         train_accs.append(train_acc)
         test_accs.append(test_acc)
         train_eces.append(train_ece)
         test_eces.append(test_ece)
+        y_probas_test.append(y_proba_test)
+        y_probas_train.append(y_proba_train)
         times_elapsed.append(time_elapsed)
         times_elapsed_model.append(time_elapsed_model)
 
-    return train_accs, test_accs, times_elapsed, times_elapsed_model
+    return (
+        train_accs,
+        test_accs,
+        train_eces,
+        test_eces,
+        y_probas_train,
+        y_probas_test,
+        times_elapsed,
+        times_elapsed_model,
+    )
 
 
 def initialize_active_learner(active_learner, y_train, initially_labeled_samples: int):
@@ -302,13 +329,23 @@ if __name__ == "__main__":
     exp_results_dir = Path(
         "exp_results/" + "-".join([str(a) for a in vars(args).values()])
     )
-    exp_results_dir_data = Path(exp_results_dir / "data.json")
+    exp_results_dir_args = Path(exp_results_dir / "args.json")
+    exp_results_dir_metrics = Path(exp_results_dir / "metrics.npz")
 
-    if exp_results_dir_data.exists():
+    if exp_results_dir_metrics.exists():
         print("Experiment has already been run, exiting!")
         exit(0)
 
-    train_accs, test_accs, times_elapsed, times_elapsed_model = main(
+    (
+        train_accs,
+        test_accs,
+        train_eces,
+        test_eces,
+        y_probas_train,
+        y_probas_test,
+        times_elapsed,
+        times_elapsed_model,
+    ) = main(
         num_iterations=args.num_iterations,
         batch_size=args.batch_size,
         dataset=args.dataset,
@@ -322,15 +359,23 @@ if __name__ == "__main__":
     exp_results_dir.mkdir(parents=True, exist_ok=True)
 
     # save args
-    exp_results_dir_data.write_text(
+    exp_results_dir_args.write_text(
         json.dumps(
             {
                 "args": vars(args),
-                "train_accs": train_accs,
-                "test_accs": test_accs,
-                "times_elapsed_query_strategy": times_elapsed,
-                "times_elapsed_model": times_elapsed_model,
             },
             indent=4,
         )
+    )
+
+    np.savez_compressed(
+        exp_results_dir_metrics,
+        train_accs=train_accs,
+        test_accs=test_accs,
+        train_eces=train_eces,
+        test_eces=test_eces,
+        y_probas_train=y_probas_train,
+        y_probas_test=y_probas_test,
+        times_elapsed=times_elapsed,
+        times_elapsed_model=times_elapsed_model,
     )
