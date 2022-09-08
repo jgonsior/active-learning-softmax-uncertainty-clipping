@@ -652,84 +652,14 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         return train_loss, train_acc
 
-    def _compute_loss(self, cls, outputs, epoch):
+    def _compute_loss(self, cls, outputs):
         if self.num_classes == 2:
             logits = outputs.logits
             target = F.one_hot(cls, 2).float()
         else:
             logits = outputs.logits.view(-1, self.num_classes)
             target = cls
-        """#####################################################################################
-        Silvio
-        #####################################################################################"""
-        # loss = self.criterion(logits, target)
-
-        evidence = F.relu(logits)
-        alpha = evidence + 1
-
-        # Ich glaube, dass annealing_step = die num_classes ist -> das nehmen wir jetzt mal an
-
-        y = F.one_hot(cls, self.num_classes).float()  # = target
-
-        # KL Divergence:
-        def _kl_divergence(alpha, num_classes):
-            ones = torch.ones([1, num_classes], dtype=torch.float32, device=self.device)
-            sum_alpha = torch.sum(alpha, dim=1, keepdim=True)
-            first_term = (
-                torch.lgamma(sum_alpha)
-                - torch.lgamma(alpha).sum(dim=1, keepdim=True)
-                + torch.lgamma(ones).sum(dim=1, keepdim=True)
-                - torch.lgamma(ones.sum(dim=1, keepdim=True))
-            )
-            second_term = (
-                (alpha - ones)
-                .mul(torch.digamma(alpha) - torch.digamma(sum_alpha))
-                .sum(dim=1, keepdim=True)
-            )
-            kl = first_term + second_term
-
-            return kl
-
-        # Loglikelihood loss
-
-        def _loglikelihood_loss(y, alpha):
-
-            y = y.to(self.device)
-            alpha = alpha.to(self.device)
-            S = torch.sum(alpha, dim=1, keepdim=True)
-            loglikelihood_err = torch.sum((y - (alpha / S)) ** 2, dim=1, keepdim=True)
-            loglikelihood_var = torch.sum(
-                alpha * (S - alpha) / (S * S * (S + 1)), dim=1, keepdim=True
-            )
-            loglikelihood = loglikelihood_err + loglikelihood_var
-
-            return loglikelihood
-
-        def _mse_loss(y, alpha, epoch_num, num_classes, annealing_step):
-
-            y = y.to(self.device)
-            alpha = alpha.to(self.device)
-            loglikelihood = _loglikelihood_loss(y, alpha)
-
-            annealing_coef = torch.min(
-                torch.tensor(1.0, dtype=torch.float32),
-                torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
-            )
-
-            kl_alpha = (alpha - 1) * (1 - y) + 1
-            kl_div = annealing_coef * _kl_divergence(kl_alpha, num_classes)
-
-            return loglikelihood + kl_div
-
-        loss = torch.mean(
-            _mse_loss(
-                y=y,
-                alpha=alpha,
-                epoch_num=epoch,
-                num_classes=self.num_classes,
-                annealing_step=self.num_classes,
-            )
-        )
+        loss = self.criterion(logits, target)
 
         return logits, loss
 
@@ -784,9 +714,6 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             train=False,
         )
 
-        logits_list = []
-        labels_list = []
-
         for x, masks, cls in valid_iter:
             x, masks, cls = (
                 x.to(self.device),
@@ -797,9 +724,6 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             with torch.no_grad():
                 outputs = self.model(x, attention_mask=masks)
                 _, loss = self._compute_loss(cls, outputs, epoch)
-
-                logits_list.append(outputs.logits)
-                labels_list.append(F.one_hot(cls, self.num_classes))
 
                 valid_loss += loss.item()
                 acc += self.sum_up_accuracy_(outputs.logits, cls)
@@ -885,10 +809,9 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
 
         with torch.no_grad():
             for text, masks, _ in test_iter:
-                text, masks, label = (
+                text, masks = (
                     text.to(self.device),
                     masks.to(self.device),
-                    label.to(self.device),
                 )
                 outputs = self.model(text, attention_mask=masks)
 
