@@ -354,6 +354,7 @@ if __name__ == "__main__":
         choices=[
             "softmax",
             "temp_scaling",
+            "temp_scaling2",
             "label_smoothing",
             "MonteCarlo",
             "inhibited",

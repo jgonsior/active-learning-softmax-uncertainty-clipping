@@ -547,6 +547,11 @@ class EvidentialDeepLearning2UncertaintyClassifier(UncertaintyBaseClass):
         raise NotImplementedError
 
 
+class TemperatureScaling2UncertaintyClassifier(UncertaintyBaseClass):
+    def predict_proba(self, test_set):
+        raise NotImplementedError
+
+
 class BayesianUncertaintyClassifier(UncertaintyBaseClass):
     def predict_proba(self, test_set):
         raise NotImplementedError

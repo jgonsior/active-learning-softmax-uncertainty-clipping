@@ -26,13 +26,13 @@ param_grid = {
         "model_calibration",
     ],
     "query_strategy": ["LC", "MM", "Ent", "Rand"],
-    "exp_name": ["baseline"],  # ["lunchtest"],  # baseline
+    "exp_name": ["lunchtest"],  # ["lunchtest"],  # baseline
     "transformer_model_name": ["bert-base-uncased"],
     "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb"],
     "initially_labeled_samples": [25],
-    "random_seed": [42, 43, 44, 45, 46],
+    "random_seed": [42],  # , 43, 44, 45, 46],
     "batch_size": [25],
-    "num_iterations": [20],  # 20 2
+    "num_iterations": [2],  # 20 2
 }
 
 param_list = []

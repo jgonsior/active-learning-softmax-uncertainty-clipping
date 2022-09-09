@@ -14,6 +14,7 @@ from small_text.integrations.transformers.classifiers.uncertainty_base_class imp
     MonteCarloDropoutUncertaintyClassifier,
     SoftmaxUncertaintyClassifier,
     TemperatureScalingUncertaintyClassifier,
+    TemperatureScaling2UncertaintyClassifier,
     TrustScoreUncertaintyClassifier,
 )
 
@@ -81,6 +82,10 @@ class UncertaintyBasedClassificationFactory(TransformerBasedClassificationFactor
                 )
             case "model_calibration":
                 return ModelCalibrationUncertaintyClassifier(
+                    self.transformer_model, self.num_classes, **self.kwargs
+                )
+            case "temp_scaling2":
+                return TemperatureScaling2UncertaintyClassifier(
                     self.transformer_model, self.num_classes, **self.kwargs
                 )
             case _:
