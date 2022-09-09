@@ -1,5 +1,6 @@
 """Example of a binary active learning text classification.
 """
+from collections import OrderedDict
 import json
 from pathlib import Path
 import random
@@ -52,13 +53,14 @@ def main(
     initially_labeled_samples: int,
     query_strategy_name: str,
     uncertainty_method: str,
+    gpu_device: int,
 ):
     train, test, num_classes = load_my_dataset(dataset, transformer_model_name)
 
     cpu_cuda = "cpu"
     if torch.cuda.is_available():
-        cpu_cuda = "cuda"
-        print("cuda available")
+        cpu_cuda = "cuda:" + str(gpu_device)
+        print(f"cuda available, using {cpu_cuda}")
 
     transformer_model = TransformerModelArguments(transformer_model_name)
     clf_factory = UncertaintyBasedClassificationFactory(
@@ -363,6 +365,7 @@ if __name__ == "__main__":
             "model_calibration",
         ],
     )
+    parser.add_argument("--gpu_device", type=int, choices=[0, 1])
 
     args = parser.parse_args()
 
@@ -376,13 +379,18 @@ if __name__ == "__main__":
     np.random.seed(seed)
     random.seed(seed)
 
+    arg_dict = OrderedDict(sorted(vars(args).items(), key=lambda t: t[0]))
+    del arg_dict["gpu_device"]
+
     exp_results_dir = Path(
-        "exp_results/" + "-".join([str(a) for a in vars(args).values()])
+        "exp_results/" + "-".join([str(a) for a in arg_dict.values()])
     )
     exp_results_dir_args = Path(exp_results_dir / "args.json")
     exp_results_dir_metrics = Path(exp_results_dir / "metrics.npz")
-
+    print(exp_results_dir_metrics)
     if exp_results_dir_metrics.exists():
+        print(arg_dict)
+        print(exp_results_dir_metrics)
         print("Experiment has already been run, exiting!")
         exit(0)
 
@@ -408,6 +416,7 @@ if __name__ == "__main__":
         initially_labeled_samples=args.initially_labeled_samples,
         query_strategy_name=args.query_strategy,
         uncertainty_method=args.uncertainty_method,
+        gpu_device=args.gpu_device,
     )
 
     # create exp_results_dir

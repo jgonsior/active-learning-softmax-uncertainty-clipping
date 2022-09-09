@@ -417,6 +417,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         optimizer, scheduler = self._get_optimizer_and_scheduler(
             optimizer, scheduler, self.num_epochs, sub_train
         )
+
         self.model = self.model.to(self.device)
 
         with tempfile.TemporaryDirectory(dir=get_tmp_dir_base()) as tmp_dir:
@@ -697,7 +698,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             valid_loss_txt = f"\n\tLoss: {valid_loss:.4f}(valid)\t|\tAcc: {valid_acc * 100:.1f}%(valid)"
         else:
             valid_loss_txt = ""
-        
+
         self.logger.info(
             f"Epoch: {epoch + 1} | {format_timedelta(timedelta)}\n"
             f"\tTrain Set Size: {len(sub_train)}\n"
