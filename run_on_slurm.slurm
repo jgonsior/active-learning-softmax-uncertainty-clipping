@@ -26,7 +26,7 @@ export HF_DATASETS_CACHE="./hf-cache"
 mkdir -p $TRANSFORMERS_CACHE
 
 source /scratch/ws/1/s5968580-btw/python-env/env/bin/activate
-pip install dill scipy numpy sciki-learn tqdm torchtext transformers datasets matplotlib seaborn
+#pip install dill scikit-learn tqdm torchtext transformers datasets matplotlib seaborn
 python /scratch/ws/1/s5968580-btw/code/test.py --num_iterations 5 --batch_size 20 --exp_name test_taurus --dataset trec6 --random_seed 2000 --query_strategy LC
 #/scratch/ws/1/s5968580-btw/venv/bin/python /scratch/ws/1/s5968580-btw/code/test.py --num_iterations 5 --batch_size 20 --exp_name test_taurus --dataset trec6 --random_seed 2000 --query_strategy LC
 
