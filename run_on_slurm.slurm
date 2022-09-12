@@ -17,8 +17,16 @@
 export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 OUTFILE=""
 
-module load Python/3.10.4-GCCcore-11.3.0-bare
-source /scratch/ws/1/s5968580-btw/venv/bin/activate
+module load modenv/hiera  GCC/10.2.0  CUDA/11.1.1  OpenMPI/4.0.5
+module load PyTorch/1.9.0
+
+export HF_MODULE_CACHE='./hf-cache'
+export TRANSFORMERS_CACHE="./hf-cache"
+export HF_DATASETS_CACHE="./hf-cache"
+mkdir -p $TRANSFORMERS_CACHE
+
+source /scratch/ws/1/s5968580-btw/python-env/env/bin/activate
+pip install dill scipy numpy sciki-learn tqdm torchtext transformers datasets matplotlib seaborn
 python /scratch/ws/1/s5968580-btw/code/test.py --num_iterations 5 --batch_size 20 --exp_name test_taurus --dataset trec6 --random_seed 2000 --query_strategy LC
 #/scratch/ws/1/s5968580-btw/venv/bin/python /scratch/ws/1/s5968580-btw/code/test.py --num_iterations 5 --batch_size 20 --exp_name test_taurus --dataset trec6 --random_seed 2000 --query_strategy LC
 
