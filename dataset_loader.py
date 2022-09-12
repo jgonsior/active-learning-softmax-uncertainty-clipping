@@ -5,26 +5,25 @@ from small_text.integrations.transformers.datasets import TransformersDataset
 
 
 def load_my_dataset(dataset: str, transformer_model_name: str):
-    match dataset:
-        case "ag_news":
-            # works
-            raw_dataset = datasets.load_dataset("ag_news")
-        case "trec6":
-            # works
-            raw_dataset = datasets.load_dataset("trec")
-            raw_dataset = raw_dataset.rename_column("label-coarse", "label")
-        case "subj":
-            # works
-            raw_dataset = datasets.load_dataset("SetFit/subj")
-        case "rotten":
-            # works
-            raw_dataset = datasets.load_dataset("rotten_tomatoes")
-        case "imdb":
-            # works
-            raw_dataset = datasets.load_dataset("imdb")
-        case _:
-            print("dataset not known")
-            exit(-1)
+    if dataset == "ag_news":
+        # works
+        raw_dataset = datasets.load_dataset("ag_news")
+    elif dataset == "trec6":
+        # works
+        raw_dataset = datasets.load_dataset("trec")
+        raw_dataset = raw_dataset.rename_column("label-coarse", "label")
+    elif dataset == "subj":
+        # works
+        raw_dataset = datasets.load_dataset("SetFit/subj")
+    elif dataset == "rotten":
+        # works
+        raw_dataset = datasets.load_dataset("rotten_tomatoes")
+    elif dataset == "imdb":
+        # works
+        raw_dataset = datasets.load_dataset("imdb")
+    else:
+        print("dataset not known")
+        exit(-1)
 
     print("First 3 training samples:\n")
     for i in range(3):

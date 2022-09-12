@@ -78,18 +78,17 @@ def main(
 
     query_strategy: QueryStrategy
 
-    match query_strategy_name:
-        case "LC":
-            query_strategy = LeastConfidence()
-        case "Rand":
-            query_strategy = RandomSampling()
-        case "Ent":
-            query_strategy = PredictionEntropy()
-        case "MM":
-            query_strategy = BreakingTies()
-        case _:
-            print("Query Stategy not found")
-            exit(-1)
+    if query_strategy_name == "LC":
+        query_strategy = LeastConfidence()
+    elif query_strategy_name == "Rand":
+        query_strategy = RandomSampling()
+    elif query_strategy_name == "Ent":
+        query_strategy = PredictionEntropy()
+    elif query_strategy_name == "MM":
+        query_strategy = BreakingTies()
+    else:
+        print("Query Stategy not found")
+        exit(-1)
     active_learner = PoolBasedActiveLearner(clf_factory, query_strategy, train)
     labeled_indices = initialize_active_learner(
         active_learner, train.y, initially_labeled_samples

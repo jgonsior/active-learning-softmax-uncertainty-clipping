@@ -39,54 +39,53 @@ class UncertaintyBasedClassificationFactory(TransformerBasedClassificationFactor
         super().__init__(transformer_model, num_classes, kwargs)
 
     def new(self):
-        match self.uncertainty_method:
-            case "softmax":
-                return SoftmaxUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "temp_scaling":
-                return TemperatureScalingUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "label_smoothing":
-                return LabelSmoothingUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "MonteCarlo":
-                return MonteCarloDropoutUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "inhibited":
-                return InhibitedSoftmaxUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "evidential1":
-                return EvidentialDeepLearning1UncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "evidential2":
-                return EvidentialDeepLearning2UncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "bayesian":
-                return BayesianUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "ensembles":
-                return EnsemblesUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "trustscore":
-                return TrustScoreUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "model_calibration":
-                return ModelCalibrationUncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case "temp_scaling2":
-                return TemperatureScaling2UncertaintyClassifier(
-                    self.transformer_model, self.num_classes, **self.kwargs
-                )
-            case _:
-                return super().new()
+        if self.uncertainty_method == "softmax":
+            return SoftmaxUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "temp_scaling":
+            return TemperatureScalingUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "label_smoothing":
+            return LabelSmoothingUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "MonteCarlo":
+            return MonteCarloDropoutUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "inhibited":
+            return InhibitedSoftmaxUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "evidential1":
+            return EvidentialDeepLearning1UncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "evidential2":
+            return EvidentialDeepLearning2UncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "bayesian":
+            return BayesianUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "ensembles":
+            return EnsemblesUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "trustscore":
+            return TrustScoreUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "model_calibration":
+            return ModelCalibrationUncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        elif self.uncertainty_method == "temp_scaling2":
+            return TemperatureScaling2UncertaintyClassifier(
+                self.transformer_model, self.num_classes, **self.kwargs
+            )
+        else:
+            return super().new()
