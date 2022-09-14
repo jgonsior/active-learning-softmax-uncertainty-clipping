@@ -14,7 +14,16 @@ class QueryStrategy(ABC):
     """Abstract base class for Query Strategies."""
 
     @abstractmethod
-    def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10):
+    def query(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n=10,
+        save_scores=False,
+    ):
         """
         Queries instances from the unlabeled pool.
 
@@ -60,7 +69,16 @@ class QueryStrategy(ABC):
 class RandomSampling(QueryStrategy):
     """Randomly selects instances."""
 
-    def query(self, clf, _dataset, indices_unlabeled, indices_labeled, y, n=10):
+    def query(
+        self,
+        clf,
+        _dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n=10,
+        save_scores=False,
+    ):
         self._validate_query_input(indices_unlabeled, n)
         return np.random.choice(indices_unlabeled, size=n, replace=False)
 
@@ -78,7 +96,18 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         self.lower_is_better = lower_is_better
         self.scores_ = None
 
-    def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10):
+    def query(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n=10,
+        save_scores=False,
+    ):
+        self.save_scores = save_scores
+        self.last_score = None
         self._validate_query_input(indices_unlabeled, n)
 
         confidence = self.score(clf, dataset, indices_unlabeled, indices_labeled, y)
@@ -120,6 +149,8 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         if not self.lower_is_better:
             confidence = -confidence
 
+        if self.save_scores:
+            self.last_score = confidence
         return confidence
 
     @abstractmethod
@@ -219,7 +250,16 @@ class SubsamplingQueryStrategy(QueryStrategy):
 
         self.subsampled_indices_ = None
 
-    def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10):
+    def query(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n=10,
+        save_scores=False,
+    ):
         self._validate_query_input(indices_unlabeled, n)
 
         subsampled_indices = np.random.choice(
@@ -269,6 +309,7 @@ class EmbeddingBasedQueryStrategy(QueryStrategy):
         pbar="tqdm",
         embeddings=None,
         embed_kwargs=dict(),
+        save_scores=False,
     ):
         self._validate_query_input(indices_unlabeled, n)
 
@@ -506,6 +547,7 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
         pbar="tqdm",
         embeddings=None,
         embed_kwargs=dict(),
+        save_scores=False,
     ):
 
         return super().query(

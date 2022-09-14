@@ -187,6 +187,7 @@ def perform_active_learning(
     proba_binss_train = []
     acc_binss_test = []
     proba_binss_test = []
+    confidence_scores = []
 
     # calculate passive accuracy before
     print("Initial Performance")
@@ -220,13 +221,16 @@ def perform_active_learning(
     acc_binss_test.append(acc_bins_test)
     proba_binss_test.append(proba_bins_test)
     proba_binss_train.append(proba_bins_train)
+    confidence_scores.append(np.empty(1))
 
     for i in range(num_iterations):
         start = timer()
-        indices_queried = active_learner.query(num_samples=batch_size)
+        indices_queried = active_learner.query(num_samples=batch_size, save_scores=True)
         end = timer()
 
         time_elapsed = end - start
+
+        confidence_scores.append(active_learner.last_scores)
 
         y = train.y[indices_queried]
 
@@ -283,6 +287,7 @@ def perform_active_learning(
         proba_binss_train,
         acc_binss_test,
         proba_binss_test,
+        confidence_scores,
     )
 
 
@@ -420,6 +425,7 @@ if __name__ == "__main__":
         proba_binss_train,
         acc_binss_test,
         proba_binss_test,
+        confidence_scores,
     ) = main(
         num_iterations=args.num_iterations,
         batch_size=args.batch_size,
@@ -460,4 +466,5 @@ if __name__ == "__main__":
         proba_bins_train=proba_binss_train,
         acc_bins_test=acc_binss_test,
         proba_bins_test=proba_binss_test,
+        confidence_scores=confidence_scores,
     )
