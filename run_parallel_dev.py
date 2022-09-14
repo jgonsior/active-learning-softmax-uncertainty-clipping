@@ -14,16 +14,16 @@ param_grid = {
     "uncertainty_method": [
         "softmax",
         "temp_scaling",
-        "temp_scaling2",
+        # "temp_scaling2",
         "label_smoothing",
         "MonteCarlo",
         "inhibited",
         "evidential1",
-        "evidential2",
-        "bayesian",
-        "ensembles",
-        "trustscore",
-        "model_calibration",
+        # "evidential2",
+        # "bayesian",
+        # "ensembles",
+        # "trustscore",
+        # "model_calibration",
     ],
     "query_strategy": ["LC", "MM", "Ent", "Rand"],
     "exp_name": ["lunchtest"],  # ["lunchtest"],  # baseline
@@ -74,7 +74,7 @@ def run_code(
     print(cli)
     print("#" * 100)
     print("\n")
-    os.system(cli)
+    # os.system(cli)
 
 
 with parallel_backend("loky", n_jobs=10):

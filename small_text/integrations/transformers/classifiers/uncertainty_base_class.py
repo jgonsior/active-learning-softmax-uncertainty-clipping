@@ -540,31 +540,73 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
         return logits, loss
 
 
-class EvidentialDeepLearning2UncertaintyClassifier(UncertaintyBaseClass):
+class Student2UncertaintyClassifier(UncertaintyBaseClass):
+    def predict_proba(self, test_set, logit=False):
+        if len(test_set) == 0:
+            return empty_result(
+                self.multi_label,
+                self.num_classes,
+                return_prediction=False,
+                return_proba=True,
+            )
+
+        self.model.eval()
+        test_iter = dataloader(
+            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+        )
+        # print("test_set.data",test_set.data[0]) #standart werte,mask optional label tuple
+        predictions = []
+        logits_transform = (
+            torch.sigmoid if self.multi_label else partial(F.softmax, dim=1)
+        )
+
+        # Dieser If Teil für keine LogIt Prediction
+        if logit:
+            with torch.no_grad():
+                for text, masks, _ in test_iter:
+                    text, masks = text.to(self.device), masks.to(self.device)
+                    outputs = self.model(text, attention_mask=masks)
+
+                    predictions += outputs.logits.to("cpu").tolist()
+                    del text, masks
+            return np.array(predictions)
+
+        with torch.no_grad():
+            for text, masks, _ in test_iter:
+                text, masks = text.to(self.device), masks.to(self.device)
+                outputs = self.model(text, attention_mask=masks)
+                # print(text.shape,masks.shape) #sollte batchsize,60(embeddmax) sein
+                predictions += logits_transform(outputs.logits).to("cpu").tolist()
+                del text, masks
+
+        return np.array(predictions)
+
+
+class EvidentialDeepLearning2UncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError
 
 
-class TemperatureScaling2UncertaintyClassifier(UncertaintyBaseClass):
+class TemperatureScaling2UncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError
 
 
-class BayesianUncertaintyClassifier(UncertaintyBaseClass):
+class BayesianUncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError
 
 
-class EnsemblesUncertaintyClassifier(UncertaintyBaseClass):
+class EnsemblesUncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError
 
 
-class TrustScoreUncertaintyClassifier(UncertaintyBaseClass):
+class TrustScoreUncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError
 
 
-class ModelCalibrationUncertaintyClassifier(UncertaintyBaseClass):
+class ModelCalibrationUncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError

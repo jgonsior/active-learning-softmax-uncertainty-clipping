@@ -4,7 +4,10 @@ import numpy as np
 from scipy.stats import entropy
 from sklearn.preprocessing import normalize
 
-from small_text.query_strategies.exceptions import EmptyPoolException, PoolExhaustedException
+from small_text.query_strategies.exceptions import (
+    EmptyPoolException,
+    PoolExhaustedException,
+)
 
 
 class QueryStrategy(ABC):
@@ -42,11 +45,16 @@ class QueryStrategy(ABC):
     @staticmethod
     def _validate_query_input(indices_unlabeled, n):
         if len(indices_unlabeled) == 0:
-            raise EmptyPoolException('No unlabeled indices available. Cannot query an empty pool.')
+            raise EmptyPoolException(
+                "No unlabeled indices available. Cannot query an empty pool."
+            )
 
         if n > len(indices_unlabeled):
-            raise PoolExhaustedException('Pool exhausted: {} available / {} requested'
-                                         .format(len(indices_unlabeled), n))
+            raise PoolExhaustedException(
+                "Pool exhausted: {} available / {} requested".format(
+                    len(indices_unlabeled), n
+                )
+            )
 
 
 class RandomSampling(QueryStrategy):
@@ -57,7 +65,7 @@ class RandomSampling(QueryStrategy):
         return np.random.choice(indices_unlabeled, size=n, replace=False)
 
     def __str__(self):
-        return 'RandomSampling()'
+        return "RandomSampling()"
 
 
 class ConfidenceBasedQueryStrategy(QueryStrategy):
@@ -105,7 +113,9 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             subsequent methods do not need to differentiate maximization/minimization.
         """
 
-        confidence = self.get_confidence(clf, dataset, indices_unlabeled, indices_labeled, y)
+        confidence = self.get_confidence(
+            clf, dataset, indices_unlabeled, indices_labeled, y
+        )
         self.scores_ = confidence
         if not self.lower_is_better:
             confidence = -confidence
@@ -136,7 +146,7 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         pass
 
     def __str__(self):
-        return 'ConfidenceBasedQueryStrategy()'
+        return "ConfidenceBasedQueryStrategy()"
 
 
 class BreakingTies(ConfidenceBasedQueryStrategy):
@@ -144,8 +154,8 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
     most likely predicted class [LUO05]_.
     """
 
-    def __init__(self):
-        super().__init__(lower_is_better=True)
+    def __init__(self, lower_is_better=True):
+        super().__init__(lower_is_better=lower_is_better)
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         proba = clf.predict_proba(dataset)
@@ -157,41 +167,44 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
         return proba[ind[-1]] - proba[ind[-2]]
 
     def __str__(self):
-        return 'BreakingTies()'
+        return "BreakingTies()"
 
 
 class LeastConfidence(ConfidenceBasedQueryStrategy):
     """Selects instances with the least prediction confidence (regarding the most likely class)
     [LG94]_."""
 
-    def __init__(self):
-        super().__init__(lower_is_better=True)
+    def __init__(self, lower_is_better=True):
+        super().__init__(lower_is_better=lower_is_better)
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         proba = clf.predict_proba(dataset)
+
         return np.amax(proba, axis=1)
 
     def __str__(self):
-        return 'LeastConfidence()'
+        return "LeastConfidence()"
 
 
 class PredictionEntropy(ConfidenceBasedQueryStrategy):
     """Selects instances with the largest prediction entropy [HOL08]_."""
-    def __init__(self):
-        super().__init__(lower_is_better=False)
+
+    def __init__(self, lower_is_better=False):
+        super().__init__(lower_is_better=lower_is_better)
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         proba = clf.predict_proba(dataset)
         return np.apply_along_axis(lambda x: entropy(x), 1, proba)
 
     def __str__(self):
-        return 'PredictionEntropy()'
+        return "PredictionEntropy()"
 
 
 class SubsamplingQueryStrategy(QueryStrategy):
     """A decorator that first subsamples randomly from the unlabeled pool and then applies
     the `base_query_strategy` on the sampled subset.
     """
+
     def __init__(self, base_query_strategy, subsample_size=4096):
         """
         Parameters
@@ -209,20 +222,18 @@ class SubsamplingQueryStrategy(QueryStrategy):
     def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10):
         self._validate_query_input(indices_unlabeled, n)
 
-        subsampled_indices = np.random.choice(indices_unlabeled,
-                                              self.subsample_size,
-                                              replace=False)
+        subsampled_indices = np.random.choice(
+            indices_unlabeled, self.subsample_size, replace=False
+        )
         subset = dataset[np.concatenate([subsampled_indices, indices_labeled])]
         subset_indices_unlabeled = np.arange(self.subsample_size)
-        subset_indices_labeled = np.arange(self.subsample_size,
-                                  self.subsample_size + indices_labeled.shape[0])
+        subset_indices_labeled = np.arange(
+            self.subsample_size, self.subsample_size + indices_labeled.shape[0]
+        )
 
-        indices = self.base_query_strategy.query(clf,
-                                                 subset,
-                                                 subset_indices_unlabeled,
-                                                 subset_indices_labeled,
-                                                 y,
-                                                 n=n)
+        indices = self.base_query_strategy.query(
+            clf, subset, subset_indices_unlabeled, subset_indices_labeled, y, n=n
+        )
 
         self.subsampled_indices_ = indices
 
@@ -230,13 +241,15 @@ class SubsamplingQueryStrategy(QueryStrategy):
 
     @property
     def scores_(self):
-        if hasattr(self.base_query_strategy, 'scores_'):
-            return self.base_query_strategy.scores_[:self.subsample_size]
+        if hasattr(self.base_query_strategy, "scores_"):
+            return self.base_query_strategy.scores_[: self.subsample_size]
         return None
 
     def __str__(self):
-        return f'SubsamplingQueryStrategy(base_query_strategy={self.base_query_strategy}, ' \
-               f'subsample_size={self.subsample_size})'
+        return (
+            f"SubsamplingQueryStrategy(base_query_strategy={self.base_query_strategy}, "
+            f"subsample_size={self.subsample_size})"
+        )
 
 
 class EmbeddingBasedQueryStrategy(QueryStrategy):
@@ -244,36 +257,78 @@ class EmbeddingBasedQueryStrategy(QueryStrategy):
 
     To use this class, create a subclass and implement `sample()`.
     """
-    def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10, pbar='tqdm',
-              embeddings=None, embed_kwargs=dict()):
+
+    def query(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n=10,
+        pbar="tqdm",
+        embeddings=None,
+        embed_kwargs=dict(),
+    ):
         self._validate_query_input(indices_unlabeled, n)
 
         if len(indices_unlabeled) == n:
             return np.array(indices_unlabeled)
 
         if embeddings is not None:
-            sampled_indices = self.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n,
-                                          embeddings)
+            sampled_indices = self.sample(
+                clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings
+            )
         else:
             try:
-                embeddings, proba = clf.embed(dataset, return_proba=True, pbar=pbar, **embed_kwargs) \
-                    if embeddings is None else embeddings
-                sampled_indices = self.sample(clf, dataset, indices_unlabeled, indices_labeled,
-                                              y, n, embeddings, embeddings_proba=proba)
+                embeddings, proba = (
+                    clf.embed(dataset, return_proba=True, pbar=pbar, **embed_kwargs)
+                    if embeddings is None
+                    else embeddings
+                )
+                sampled_indices = self.sample(
+                    clf,
+                    dataset,
+                    indices_unlabeled,
+                    indices_labeled,
+                    y,
+                    n,
+                    embeddings,
+                    embeddings_proba=proba,
+                )
             except TypeError as e:
-                if 'got an unexpected keyword argument \'return_proba\'' in e.args[0]:
-                    embeddings = clf.embed(dataset, pbar=pbar,
-                                           **embed_kwargs) if embeddings is None else embeddings
-                    sampled_indices = self.sample(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                                  n, embeddings)
+                if "got an unexpected keyword argument 'return_proba'" in e.args[0]:
+                    embeddings = (
+                        clf.embed(dataset, pbar=pbar, **embed_kwargs)
+                        if embeddings is None
+                        else embeddings
+                    )
+                    sampled_indices = self.sample(
+                        clf,
+                        dataset,
+                        indices_unlabeled,
+                        indices_labeled,
+                        y,
+                        n,
+                        embeddings,
+                    )
                 else:
                     raise e
 
         return indices_unlabeled[sampled_indices]
 
     @abstractmethod
-    def sample(self, clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
         """Samples from the given embeddings.
 
         Parameters
@@ -303,7 +358,7 @@ class EmbeddingBasedQueryStrategy(QueryStrategy):
         pass
 
     def __str__(self):
-        return 'EmbeddingBasedQueryStrategy()'
+        return "EmbeddingBasedQueryStrategy()"
 
 
 class EmbeddingKMeans(EmbeddingBasedQueryStrategy):
@@ -320,8 +375,17 @@ class EmbeddingKMeans(EmbeddingBasedQueryStrategy):
         """
         self.normalize = normalize
 
-    def sample(self, clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
         """Samples from the given embeddings.
 
         Parameters
@@ -350,21 +414,26 @@ class EmbeddingKMeans(EmbeddingBasedQueryStrategy):
 
         if self.normalize:
             from sklearn.preprocessing import normalize
+
             embeddings = normalize(embeddings, axis=1)
 
         km = KMeans(n_clusters=n)
         km.fit(embeddings[indices_unlabeled])
 
-        indices = self._get_nearest_to_centers(km.cluster_centers_,
-                                               embeddings[indices_unlabeled],
-                                               normalized=self.normalize)
+        indices = self._get_nearest_to_centers(
+            km.cluster_centers_,
+            embeddings[indices_unlabeled],
+            normalized=self.normalize,
+        )
 
         # fall back to an iterative version if one or more vectors are most similar
         # to multiple cluster centers
         if np.unique(indices).shape[0] < n:
-            indices = self._get_nearest_to_centers_iterative(km.cluster_centers_,
-                                                             embeddings[indices_unlabeled],
-                                                             normalized=self.normalize)
+            indices = self._get_nearest_to_centers_iterative(
+                km.cluster_centers_,
+                embeddings[indices_unlabeled],
+                normalized=self.normalize,
+            )
 
         return indices
 
@@ -378,8 +447,10 @@ class EmbeddingKMeans(EmbeddingBasedQueryStrategy):
         sim = np.matmul(centers, vectors.T)
 
         if not normalized:
-            sim = sim / np.dot(np.linalg.norm(centers, axis=1)[:, np.newaxis],
-                               np.linalg.norm(vectors, axis=1)[np.newaxis, :])
+            sim = sim / np.dot(
+                np.linalg.norm(centers, axis=1)[:, np.newaxis],
+                np.linalg.norm(vectors, axis=1)[np.newaxis, :],
+            )
         return sim
 
     @staticmethod
@@ -387,21 +458,25 @@ class EmbeddingKMeans(EmbeddingBasedQueryStrategy):
         indices = np.empty(cluster_centers.shape[0], dtype=int)
 
         for i in range(cluster_centers.shape[0]):
-            sim = EmbeddingKMeans._similarity(cluster_centers[None, i], vectors, normalized)
+            sim = EmbeddingKMeans._similarity(
+                cluster_centers[None, i], vectors, normalized
+            )
             sim[0, indices[0:i]] = -np.inf
             indices[i] = sim.argmax()
 
         return indices
 
     def __str__(self):
-        return f'EmbeddingKMeans(normalize={self.normalize})'
+        return f"EmbeddingKMeans(normalize={self.normalize})"
 
 
 class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
     """Contrastive Active Learning [MVB+21]_ selects instances whose k-nearest neighbours
     exhibit the largest mean Kullback-Leibler divergence."""
 
-    def __init__(self, k=10, embed_kwargs=dict(), normalize=True, batch_size=100, pbar='tqdm'):
+    def __init__(
+        self, k=10, embed_kwargs=dict(), normalize=True, batch_size=100, pbar="tqdm"
+    ):
         """
         Parameters
         ----------
@@ -420,20 +495,49 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
         self.batch_size = batch_size
         self.pbar = pbar
 
-    def query(self, clf, dataset, x_indices_unlabeled, x_indices_labeled, y, n=10, pbar='tqdm',
-              embeddings=None, embed_kwargs=dict()):
+    def query(
+        self,
+        clf,
+        dataset,
+        x_indices_unlabeled,
+        x_indices_labeled,
+        y,
+        n=10,
+        pbar="tqdm",
+        embeddings=None,
+        embed_kwargs=dict(),
+    ):
 
-        return super().query(clf, dataset, x_indices_unlabeled, x_indices_labeled, y, n=n,
-                             embed_kwargs=self.embed_kwargs, pbar=self.pbar)
+        return super().query(
+            clf,
+            dataset,
+            x_indices_unlabeled,
+            x_indices_labeled,
+            y,
+            n=n,
+            embed_kwargs=self.embed_kwargs,
+            pbar=self.pbar,
+        )
 
-    def sample(self, _clf, dataset, indices_unlabeled, _indices_labeled, _y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        _clf,
+        dataset,
+        indices_unlabeled,
+        _indices_labeled,
+        _y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
         from sklearn.neighbors import NearestNeighbors
 
         if embeddings_proba is None:
-            raise ValueError('Error: embeddings_proba is None. '
-                             'This strategy requires a classifier whose embed() method '
-                             'supports the return_proba kwarg.')
+            raise ValueError(
+                "Error: embeddings_proba is None. "
+                "This strategy requires a classifier whose embed() method "
+                "supports the return_proba kwarg."
+            )
 
         if self.normalize:
             embeddings = normalize(embeddings, axis=1)
@@ -441,11 +545,13 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
         nn = NearestNeighbors(n_neighbors=n)
         nn.fit(embeddings)
 
-        return self._contrastive_active_learning(dataset, embeddings, embeddings_proba,
-                                                 indices_unlabeled, nn, n)
+        return self._contrastive_active_learning(
+            dataset, embeddings, embeddings_proba, indices_unlabeled, nn, n
+        )
 
-    def _contrastive_active_learning(self, dataset, embeddings, embeddings_proba,
-                                     indices_unlabeled, nn, n):
+    def _contrastive_active_learning(
+        self, dataset, embeddings, embeddings_proba, indices_unlabeled, nn, n
+    ):
         from scipy.special import rel_entr
 
         scores = []
@@ -455,18 +561,26 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
 
         num_batches = int(np.ceil(len(dataset) / self.batch_size))
         offset = 0
-        for batch_idx in np.array_split(np.arange(indices_unlabeled.shape[0]), num_batches,
-                                        axis=0):
+        for batch_idx in np.array_split(
+            np.arange(indices_unlabeled.shape[0]), num_batches, axis=0
+        ):
 
-            nn_indices = nn.kneighbors(embeddings_unlabeled[batch_idx],
-                                       n_neighbors=self.k,
-                                       return_distance=False)
+            nn_indices = nn.kneighbors(
+                embeddings_unlabeled[batch_idx],
+                n_neighbors=self.k,
+                return_distance=False,
+            )
 
-            kl_divs = np.apply_along_axis(lambda v: np.mean([
-                rel_entr(embeddings_proba[i], embeddings_unlabelled_proba[v])
-                for i in nn_indices[v - offset]]),
+            kl_divs = np.apply_along_axis(
+                lambda v: np.mean(
+                    [
+                        rel_entr(embeddings_proba[i], embeddings_unlabelled_proba[v])
+                        for i in nn_indices[v - offset]
+                    ]
+                ),
                 0,
-                batch_idx[None, :])
+                batch_idx[None, :],
+            )
 
             scores.extend(kl_divs.tolist())
             offset += batch_idx.shape[0]
@@ -477,6 +591,8 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
         return indices
 
     def __str__(self):
-        return f'ContrastiveActiveLearning(k={self.k}, ' \
-               f'embed_kwargs={str(self.embed_kwargs)}, ' \
-               f'normalize={self.normalize})'
+        return (
+            f"ContrastiveActiveLearning(k={self.k}, "
+            f"embed_kwargs={str(self.embed_kwargs)}, "
+            f"normalize={self.normalize})"
+        )

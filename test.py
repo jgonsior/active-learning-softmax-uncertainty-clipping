@@ -54,6 +54,7 @@ def main(
     query_strategy_name: str,
     uncertainty_method: str,
     gpu_device: int,
+    lower_is_better: bool,
 ):
     train, test, num_classes = load_my_dataset(dataset, transformer_model_name)
 
@@ -79,13 +80,14 @@ def main(
     query_strategy: QueryStrategy
 
     if query_strategy_name == "LC":
-        query_strategy = LeastConfidence()
+        print("lower", str(lower_is_better))
+        query_strategy = LeastConfidence(lower_is_better=lower_is_better)
     elif query_strategy_name == "Rand":
         query_strategy = RandomSampling()
     elif query_strategy_name == "Ent":
-        query_strategy = PredictionEntropy()
+        query_strategy = PredictionEntropy(lower_is_better=lower_is_better)
     elif query_strategy_name == "MM":
-        query_strategy = BreakingTies()
+        query_strategy = BreakingTies(lower_is_better=lower_is_better)
     else:
         print("Query Stategy not found")
         exit(-1)
@@ -346,6 +348,11 @@ if __name__ == "__main__":
         default="LC",
         choices=["LC", "MM", "Ent", "Rand"],
     )
+
+    parser.add_argument(
+        "--lower_is_better", type=str, default="True", choices=["True", "False"]
+    )
+
     parser.add_argument(
         "--uncertainty_method",
         type=str,
@@ -394,6 +401,11 @@ if __name__ == "__main__":
         print("Experiment has already been run, exiting!")
         exit(0)
 
+    if args.lower_is_better == "True":
+        args.lower_is_better = True
+    else:
+        args.lower_is_better = False
+
     (
         train_accs,
         test_accs,
@@ -417,6 +429,7 @@ if __name__ == "__main__":
         query_strategy_name=args.query_strategy,
         uncertainty_method=args.uncertainty_method,
         gpu_device=args.gpu_device,
+        lower_is_better=args.lower_is_better,
     )
 
     # create exp_results_dir
