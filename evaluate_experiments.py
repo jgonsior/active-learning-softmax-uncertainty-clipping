@@ -6,7 +6,13 @@ from typing import Any, Dict, Tuple
 from matplotlib import pyplot as plt
 import numpy as np
 
-from run_parallel import done_param_list, open_param_list, param_grid
+from run_experiment import (
+    full_param_grid,
+    dev_param_grid,
+    baselines_param_grid,
+    my_methods_param_grid,
+    generate_workload,
+)
 from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
@@ -49,6 +55,7 @@ def table_stats(
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
+
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
         for uncertainty_method in param_grid["uncertainty_method"]:
@@ -79,8 +86,6 @@ def table_stats(
                                 Path(exp_results_dir / "args.json").read_text()
                             )
                             metric_values = metrics[metric].tolist()
-                            # auc_value = sum(metric_values) / len(metric_values)
-                            # grouped_data[key].append(auc_value)
                             grouped_data[key].append(metric_values)
 
                     if len(grouped_data[key]) == 0:
@@ -89,17 +94,27 @@ def table_stats(
     def _learning_curves_plot(data):
         df_data = []
         for k, v in grouped_data.items():
-            print(v)
-            for i, value in enumerate(v[0]):
-                df_data.append((k, value, i))
+            for i, value in enumerate(v):
+                for j, val in enumerate(value):
+                    df_data.append((k, val, i, j))
 
-        data_df = pd.DataFrame(df_data, columns=["Strategy", "Metric", "Iteration"])
+        data_df = pd.DataFrame(
+            df_data, columns=["Strategy", metric, "Random Seed", "Iteration"]
+        )
 
-        print(data_df)
+        sns.lineplot(x="Iteration", y=metric, hue="Strategy", data=data_df)
 
-        sns.lineplot(x="Iteration", y="Metric", hue="Strategy", data=data_df)
-        plt.show()
-        exit(-1)
+        plots_path = Path("plots/")
+        plots_path.mkdir(exist_ok=True)
+
+        plt.savefig(
+            f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.jpg"
+        )
+        plt.savefig(
+            f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.pdf",
+            dpi=300,
+        )
+        plt.clf()
 
     def _barplot(data):
         pass
@@ -112,11 +127,13 @@ def table_stats(
         table_data.append((k, v, np.mean(v), np.std(v)))
 
     df = pd.DataFrame(table_data, columns=["Strategy", "Values", "Mean", "Std"])
+    df["Values"] = df["Values"].apply(lambda x: [sum(v) / len(v) for v in x])
     df.sort_values(by="Mean", inplace=True)
     print(tabulate(df, headers="keys"))
 
 
-def display_run_experiment_stats():
+def display_run_experiment_stats(param_grid):
+    done_param_list, open_param_list = generate_workload(param_grid)
     print("Open:")
     print(tabulate(open_param_list))
 
@@ -130,58 +147,70 @@ def display_run_experiment_stats():
     print(tabulate(param_grid, floatfmt=".2f", numalign="right", headers="keys"))
 
 
-# display_run_experiment_stats()
+# display_run_experiment_stats(param_grid=dev_param_grid)
+# display_run_experiment_stats(param_grid=my_methods_param_grid)
+# display_run_experiment_stats(param_grid=baselines_param_grid)
 
-for exp_name in param_grid["exp_name"]:
-    for transformer_model_name in param_grid["transformer_model_name"]:
-        for dataset in param_grid["dataset"]:
-            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
-                for batch_size in param_grid["batch_size"]:
-                    for num_iteration in param_grid["num_iterations"]:
-                        print(
-                            f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
-                        )
-                        table_stats(
-                            exp_name,
-                            transformer_model_name,
-                            dataset,
-                            initially_labeled_samples,
-                            batch_size,
-                            param_grid,
-                            num_iteration,
-                            metric="test_accs",
-                        )
 
-                        table_stats(
-                            exp_name,
-                            transformer_model_name,
-                            dataset,
-                            initially_labeled_samples,
-                            batch_size,
-                            param_grid,
-                            num_iteration,
-                            metric="train_accs",
-                        )
+def tables_plots(param_grid):
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for dataset in param_grid["dataset"]:
+                for initially_labeled_samples in param_grid[
+                    "initially_labeled_samples"
+                ]:
+                    for batch_size in param_grid["batch_size"]:
+                        for num_iteration in param_grid["num_iterations"]:
+                            print(
+                                f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
+                            )
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="test_accs",
+                            )
 
-                        table_stats(
-                            exp_name,
-                            transformer_model_name,
-                            dataset,
-                            initially_labeled_samples,
-                            batch_size,
-                            param_grid,
-                            num_iteration,
-                            metric="times_elapsed",
-                        )
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="train_accs",
+                            )
 
-                        table_stats(
-                            exp_name,
-                            transformer_model_name,
-                            dataset,
-                            initially_labeled_samples,
-                            batch_size,
-                            param_grid,
-                            num_iteration,
-                            metric="times_elapsed_model",
-                        )
-                        print()
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="times_elapsed",
+                            )
+
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="times_elapsed_model",
+                            )
+                            print()
+
+
+# tables_plots(baselines_param_grid)
+# tables_plots(my_methods_param_grid)
+tables_plots(full_param_grid)
+# tables_plots(dev_param_grid)

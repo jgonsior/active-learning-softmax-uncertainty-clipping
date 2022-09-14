@@ -1,12 +1,8 @@
 import argparse
-from ast import Param
-from cmath import exp
 from collections import OrderedDict
-import multiprocessing
-import os
+import copy
 from pathlib import Path
 import random
-import sys
 from joblib import Parallel, delayed, parallel_backend
 from sklearn.model_selection import ParameterGrid
 
@@ -37,15 +33,15 @@ full_param_grid = {
     "lower_is_better": ["True", "False"],
 }
 
-dev_param_grid = full_param_grid.copy()
+dev_param_grid = copy.deepcopy(full_param_grid)
 dev_param_grid["num_iterations"] = [2]
 dev_param_grid["random_seed"] = [42]
 dev_param_grid["exp_name"] = ["lunchtest"]
 
-baselines_param_grid = full_param_grid.copy()
+baselines_param_grid = copy.deepcopy(full_param_grid)
 baselines_param_grid["uncertainty_method"] = ["softmax"]
 
-my_methods_param_grid = full_param_grid.copy()
+my_methods_param_grid = copy.deepcopy(full_param_grid)
 my_methods_param_grid["uncertainty_method"].remove("softmax")
 
 
