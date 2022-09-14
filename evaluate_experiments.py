@@ -41,17 +41,16 @@ def table_stats(
     batch_size: int,
     param_grid: Dict[str, Any],
     num_iterations: int,
+    metric="test_accs",
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
-    metric = "test_accs"
-
+    print(f"Metric: {metric}")
     grouped_data = {}
-    # group by query_strategy - uncertainty_method - lower_is_better - uncertainty_clipping in combination
     for query_strategy in param_grid["query_strategy"]:
         for uncertainty_method in param_grid["uncertainty_method"]:
             for lower_is_better in param_grid["lower_is_better"]:
                 for uncertainty_clipping in param_grid["uncertainty_clipping"]:
-                    key = f"{query_strategy}-{uncertainty_method}-{lower_is_better}-{uncertainty_clipping}"
+                    key = f"{query_strategy} ({uncertainty_method}) {lower_is_better}/{uncertainty_clipping}"
                     grouped_data[key] = []
                     for random_seed in param_grid["random_seed"]:
                         # check if this configuration is available
@@ -90,12 +89,6 @@ def table_stats(
     df = pd.DataFrame(table_data, columns=["Strategy", "Values", "Mean", "Std"])
     df.sort_values(by="Mean", inplace=True)
     print(tabulate(df, headers="keys"))
-    """print(
-        json.dumps(
-            grouped_data,
-            indent=4,
-        )
-    )"""
 
 
 def display_run_experiment_stats():
@@ -131,5 +124,39 @@ for exp_name in param_grid["exp_name"]:
                             batch_size,
                             param_grid,
                             num_iteration,
+                            metric="test_accs",
+                        )
+
+                        table_stats(
+                            exp_name,
+                            transformer_model_name,
+                            dataset,
+                            initially_labeled_samples,
+                            batch_size,
+                            param_grid,
+                            num_iteration,
+                            metric="train_accs",
+                        )
+
+                        table_stats(
+                            exp_name,
+                            transformer_model_name,
+                            dataset,
+                            initially_labeled_samples,
+                            batch_size,
+                            param_grid,
+                            num_iteration,
+                            metric="times_elapsed",
+                        )
+
+                        table_stats(
+                            exp_name,
+                            transformer_model_name,
+                            dataset,
+                            initially_labeled_samples,
+                            batch_size,
+                            param_grid,
+                            num_iteration,
+                            metric="times_elapsed_model",
                         )
                         print()
