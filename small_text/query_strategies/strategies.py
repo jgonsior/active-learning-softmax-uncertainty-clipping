@@ -209,6 +209,10 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
+        if self.predict_proba_with_labeled_data:
+            clf.tell_me_so_far_labeled_data(
+                X=dataset[_indices_labeled], Y=_y[_indices_labeled]
+            )
         proba = clf.predict_proba(dataset)
         return np.apply_along_axis(lambda x: self._best_versus_second_best(x), 1, proba)
 
@@ -231,6 +235,8 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
+        if self.predict_proba_with_labeled_data:
+            clf.tell_me_so_far_labeled_data(X=dataset.x, Y=_y)
         proba = clf.predict_proba(dataset)
 
         return np.amax(proba, axis=1)
@@ -248,6 +254,10 @@ class PredictionEntropy(ConfidenceBasedQueryStrategy):
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
+        if self.predict_proba_with_labeled_data:
+            clf.tell_me_so_far_labeled_data(
+                X=dataset[_indices_labeled], Y=_y[_indices_labeled]
+            )
         proba = clf.predict_proba(dataset)
         return np.apply_along_axis(lambda x: entropy(x), 1, proba)
 
@@ -386,7 +396,6 @@ class QBC_VE(QBC_Base):
             Learning (ICML), pages 150-157. Morgan Kaufmann, 1995.
         """
         score = []
-        print(np.shape(ensemble_probas))
         committee_size = len(ensemble_probas)
         input_shape = np.shape(ensemble_probas[0])
 

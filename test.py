@@ -106,6 +106,11 @@ def main(
 
     active_learner = PoolBasedActiveLearner(clf_factory, query_strategy, train)
 
+    if uncertainty_method == "trustscore":
+        active_learner.query_strategy.predict_proba_with_labeled_data = True
+    else:
+        active_learner.query_strategy.predict_proba_with_labeled_data = False
+
     labeled_indices = initialize_active_learner(
         active_learner, train.y, initially_labeled_samples
     )
@@ -121,10 +126,15 @@ def main(
 
 
 def _evaluate(active_learner, train, test):
+    if active_learner.query_strategy.predict_proba_with_labeled_data:
+        active_learner.classifier.tell_me_so_far_labeled_data(X=train.x, Y=train.y)
     y_pred_train = active_learner.classifier.predict(train)
+    y_proba_train = active_learner.classifier.predict_proba(train)
+
+    if active_learner.query_strategy.predict_proba_with_labeled_data:
+        active_learner.classifier.tell_me_so_far_labeled_data(X=test.x, Y=test.y)
     y_pred_test = active_learner.classifier.predict(test)
     y_proba_test = active_learner.classifier.predict_proba(test)
-    y_proba_train = active_learner.classifier.predict_proba(train)
 
     test_acc = accuracy_score(y_pred_test, test.y)
     train_acc = accuracy_score(y_pred_train, train.y)
@@ -206,6 +216,7 @@ def perform_active_learning(
     # calculate passive accuracy before
     print("Initial Performance")
     start = timer()
+
     (
         train_acc,
         test_acc,

@@ -9,15 +9,20 @@ from small_text.utils.classification import empty_result
 import numpy as np
 
 from functools import partial
-
 from small_text.utils.logging import VERBOSITY_MORE_VERBOSE
-
+from small_text.integrations.transformers.classifiers.trust_score import TrustScore
 
 try:
     import torch
     import torch.nn.functional as F  # noqa: N812
     from small_text.integrations.pytorch.utils.data import dataloader
     from torch.nn.modules import CrossEntropyLoss, BCEWithLogitsLoss, BCELoss
+    from small_text.utils.classification import (
+        empty_result,
+        get_splits,
+        prediction_result,
+    )
+
 
 except ImportError:
     raise PytorchNotFoundError("Could not import pytorch")
@@ -25,14 +30,14 @@ except ImportError:
 
 class UncertaintyBaseClass(TransformerBasedClassification):
     @abc.abstractmethod
-    def predict_proba(self, test_set):
+    def predict_proba(self, to_be_predicted_data):
         raise NotImplementedError
 
 
 # works
 class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba(self, test_set):
-        if len(test_set) == 0:
+    def predict_proba(self, to_be_predicted_data):
+        if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
                 self.num_classes,
@@ -42,7 +47,10 @@ class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
         self.model.eval()
         test_iter = dataloader(
-            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
         )
 
         predictions = []
@@ -203,8 +211,8 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
 
         return F.kl_div(output, target, reduction="sum").item()
 
-    def predict_proba(self, test_set):
-        if len(test_set) == 0:
+    def predict_proba(self, to_be_predicted_data):
+        if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
                 self.num_classes,
@@ -213,7 +221,10 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
             )
         self.model.eval()
         test_iter = dataloader(
-            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
         )
         predictions = []
         logits_transform = (
@@ -247,8 +258,8 @@ class LabelSmoothingUncertaintyClassifier(SoftmaxUncertaintyClassifier):
 
 # works
 class MonteCarloDropoutUncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba(self, test_set):
-        if len(test_set) == 0:
+    def predict_proba(self, to_be_predicted_data):
+        if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
                 self.num_classes,
@@ -258,7 +269,10 @@ class MonteCarloDropoutUncertaintyClassifier(UncertaintyBaseClass):
 
         self.model.eval()
         test_iter = dataloader(
-            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
         )
 
         predictions = []
@@ -369,8 +383,8 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
     # We not only use this softmax for the loss but also for the prediction
 
-    def predict_proba(self, test_set):
-        if len(test_set) == 0:
+    def predict_proba(self, to_be_predicted_data):
+        if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
                 self.num_classes,
@@ -380,7 +394,10 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
         self.model.eval()
         test_iter = dataloader(
-            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
         )
 
         predictions = []
@@ -429,8 +446,8 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 #     Effective Deep Learning Implementation (Survoy (?) et al. - Kaplan)
 # works
 class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba(self, test_set):
-        if len(test_set) == 0:
+    def predict_proba(self, to_be_predicted_data):
+        if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
                 self.num_classes,
@@ -439,7 +456,10 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
             )
         self.model.eval()
         test_iter = dataloader(
-            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
         )
         predictions = []
         logits_transform = (
@@ -542,8 +562,8 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
 
 
 class Student2UncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba(self, test_set, logit=False):
-        if len(test_set) == 0:
+    def predict_proba(self, to_be_predicted_data, logit=False):
+        if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
                 self.num_classes,
@@ -553,9 +573,12 @@ class Student2UncertaintyClassifier(UncertaintyBaseClass):
 
         self.model.eval()
         test_iter = dataloader(
-            test_set.data, self.mini_batch_size, self._create_collate_fn(), train=False
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
         )
-        # print("test_set.data",test_set.data[0]) #standart werte,mask optional label tuple
+        # print("to_be_predicted_data.data",to_be_predicted_data.data[0]) #standart werte,mask optional label tuple
         predictions = []
         logits_transform = (
             torch.sigmoid if self.multi_label else partial(F.softmax, dim=1)
@@ -584,25 +607,87 @@ class Student2UncertaintyClassifier(UncertaintyBaseClass):
 
 
 class EvidentialDeepLearning2UncertaintyClassifier(Student2UncertaintyClassifier):
-    def predict_proba(self, test_set):
+    def predict_proba(self, to_be_predicted_data):
         raise NotImplementedError
 
 
 class TemperatureScaling2UncertaintyClassifier(Student2UncertaintyClassifier):
-    def predict_proba(self, test_set):
+    def predict_proba(self, to_be_predicted_data):
         raise NotImplementedError
 
 
 class BayesianUncertaintyClassifier(Student2UncertaintyClassifier):
-    def predict_proba(self, test_set):
+    def predict_proba(self, to_be_predicted_data):
         raise NotImplementedError
 
 
 class TrustScoreUncertaintyClassifier(Student2UncertaintyClassifier):
-    def predict_proba(self, test_set):
-        raise NotImplementedError
+    def _predict_softmax(self, to_be_predicted_data):
+        if len(to_be_predicted_data) == 0:
+            return empty_result(
+                self.multi_label,
+                self.num_classes,
+                return_prediction=False,
+                return_proba=True,
+            )
+
+        self.model.eval()
+        test_iter = dataloader(
+            to_be_predicted_data.data,
+            self.mini_batch_size,
+            self._create_collate_fn(),
+            train=False,
+        )
+
+        predictions = []
+        logits_transform = (
+            torch.sigmoid if self.multi_label else partial(F.softmax, dim=1)
+        )
+
+        with torch.no_grad():
+            for text, masks, *_ in test_iter:
+                text, masks = text.to(self.device), masks.to(self.device)
+                outputs = self.model(text, attention_mask=masks)
+
+                predictions += logits_transform(outputs.logits).to("cpu").tolist()
+                del text, masks
+
+        probas = np.array(predictions)
+        predictions = prediction_result(
+            probas, self.multi_label, self.num_classes, enc=self.enc_
+        )
+
+        return predictions
+
+    def tell_me_so_far_labeled_data(self, X, Y):
+        self.so_far_labeled_X = X
+        self.so_far_labeled_Y = Y
+
+    def predict_proba(self, to_be_predicted_data):
+        if type(self.so_far_labeled_X[0]) == torch.Tensor:
+            self.so_far_labeled_X = np.array(
+                [aaa.numpy().tolist()[0] for aaa in self.so_far_labeled_X]
+            )
+            to_be_predicted_data_X = np.array(
+                [aaa.numpy().tolist()[0] for aaa in to_be_predicted_data.x]
+            )
+        else:
+            to_be_predicted_data_X = np.array(
+                [aaa.numpy().tolist()[0] for aaa in to_be_predicted_data.x]
+            )
+
+        k = 1
+        trust_model = TrustScore(k=k, alpha=0.1, filtering="density")
+        trust_model.fit(self.so_far_labeled_X, self.so_far_labeled_Y)
+
+        # Compute trusts score, given (unlabeled) testing examples and (hard) model predictions.
+        trust_score = trust_model.get_score(
+            to_be_predicted_data_X, self._predict_softmax(to_be_predicted_data)
+        )
+
+        return np.reshape(np.array(trust_score), (len(trust_score), 1))
 
 
 class ModelCalibrationUncertaintyClassifier(Student2UncertaintyClassifier):
-    def predict_proba(self, test_set):
+    def predict_proba(self, to_be_predicted_data):
         raise NotImplementedError

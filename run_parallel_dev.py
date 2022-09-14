@@ -22,11 +22,11 @@ param_grid = {
         # "evidential2",
         # "bayesian",
         # "ensembles",
-        # "trustscore",
+        "trustscore",
         # "model_calibration",
     ],
-    # "query_strategy": ["LC", "MM", "Ent", "Rand", "QBC_KLD", "QBC_VE"],
-    "query_strategy": ["QBC_KLD", "QBC_VE"],
+    "query_strategy": ["LC", "MM", "Ent", "Rand", "QBC_KLD", "QBC_VE"],
+    # "query_strategy": ["QBC_KLD", "QBC_VE"],
     "exp_name": ["lunchtest"],  # ["lunchtest"],  # baseline
     "transformer_model_name": ["bert-base-uncased"],
     "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb"],
@@ -75,7 +75,7 @@ def run_code(
     print(cli)
     print("#" * 100)
     print("\n")
-    # os.system(cli)
+    os.system(cli)
 
 
 with parallel_backend("loky", n_jobs=10):

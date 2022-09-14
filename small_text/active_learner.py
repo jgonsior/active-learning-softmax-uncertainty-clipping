@@ -204,6 +204,7 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
         indices = np.arange(size)
 
         representation = self.dataset if representation is None else representation
+
         self.indices_queried = self.query_strategy.query(
             self._clf,
             representation,
