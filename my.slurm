@@ -9,8 +9,8 @@
 #SBATCH --mail-user=julius.gonsior@tu-dresden.de
 #SBATCH --mem=120GB
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --output /scratch/ws/1/s5968580-btw/out_baselines.txt
-#SBATCH --error /scratch/ws/1/s5968580-btw/error_baselines.txt
+#SBATCH --output /scratch/ws/1/s5968580-btw/out_my.txt
+#SBATCH --error /scratch/ws/1/s5968580-btw/error_my.txt
 
 
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
@@ -30,5 +30,5 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_baselines.py --taurus 1
+python /scratch/ws/1/s5968580-btw/code/run_parallel.py --taurus 1  --workload my
 exit 0

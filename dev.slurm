@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=alpha,hpdlf
-#SBATCH --time=8:59:59   # walltime
+#SBATCH --time=100:59:59   # walltime
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --ntasks=1      # limit to one node
 #SBATCH --cpus-per-task=8  # number of processor cores (i.e. threads)
@@ -30,5 +30,5 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_parallel_dev.py --taurus 1
+python /scratch/ws/1/s5968580-btw/code/run_parallel.py --taurus 1 --workload dev
 exit 0
