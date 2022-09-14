@@ -15,6 +15,7 @@ transformers=">=4.0.0"
 datasets = "*"
 matplotlib = "*"
 seaborn = "*"
+tabulate = "*"
 
 [dev-packages]
 black="*"

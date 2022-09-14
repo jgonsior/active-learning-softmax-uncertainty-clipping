@@ -10,6 +10,13 @@ import sys
 from joblib import Parallel, delayed, parallel_backend
 from sklearn.model_selection import ParameterGrid
 
+
+# erstmal nur LC, Rand ausprobieren
+# später dann die beiden QBCs ausprobieren
+# dann das ganze auch für neues bert modell
+# dann das ganze für Ent, MM -> hier aber ohne lower is better!
+
+
 param_grid = {
     "uncertainty_method": [
         "softmax",
@@ -34,9 +41,12 @@ param_grid = {
     "random_seed": [42],  # , 43, 44, 45, 46],
     "batch_size": [25],
     "num_iterations": [2],  # 20 2
+    "uncertainty_clipping": [1.0],
+    "lower_is_better": ["True", "False"],
 }
 
-param_list = []
+done_param_list = []
+open_param_list = []
 
 for params in list(ParameterGrid(param_grid)):
     if params["query_strategy"] == "Rand" and params["uncertainty_method"] != "softmax":
@@ -50,10 +60,10 @@ for params in list(ParameterGrid(param_grid)):
 
     if exp_results_dir_metrics.exists():
         # print("Experiment has already been run, exiting!")
+        done_param_list.append((params, exp_results_dir))
         continue
-    print(params)
-    param_list.append(params)
-# exit(-1)
+    # print(params)
+    open_param_list.append(params)
 
 
 def run_code(
@@ -78,5 +88,6 @@ def run_code(
     os.system(cli)
 
 
-with parallel_backend("loky", n_jobs=10):
-    Parallel()(delayed(run_code)(**params) for params in param_list)
+if __name__ == "__main__":
+    with parallel_backend("loky", n_jobs=10):
+        Parallel()(delayed(run_code)(**params) for params in open_param_list)
