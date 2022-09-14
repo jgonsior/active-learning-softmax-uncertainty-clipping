@@ -1,13 +1,17 @@
 from collections import OrderedDict
+import enum
 import json
 from pathlib import Path
 from typing import Any, Dict, Tuple
+from matplotlib import pyplot as plt
 import numpy as np
 
-from sklearn.decomposition import randomized_svd
-from run_parallel_dev import done_param_list, open_param_list, param_grid
+from run_parallel import done_param_list, open_param_list, param_grid
 from tabulate import tabulate
 import pandas as pd
+import seaborn as sns
+
+sns.set_theme(style="white")
 
 
 def runtime_plots():
@@ -75,11 +79,32 @@ def table_stats(
                                 Path(exp_results_dir / "args.json").read_text()
                             )
                             metric_values = metrics[metric].tolist()
-                            auc_value = sum(metric_values) / len(metric_values)
-                            grouped_data[key].append(auc_value)
+                            # auc_value = sum(metric_values) / len(metric_values)
+                            # grouped_data[key].append(auc_value)
+                            grouped_data[key].append(metric_values)
 
                     if len(grouped_data[key]) == 0:
                         del grouped_data[key]
+
+    def _learning_curves_plot(data):
+        df_data = []
+        for k, v in grouped_data.items():
+            print(v)
+            for i, value in enumerate(v[0]):
+                df_data.append((k, value, i))
+
+        data_df = pd.DataFrame(df_data, columns=["Strategy", "Metric", "Iteration"])
+
+        print(data_df)
+
+        sns.lineplot(x="Iteration", y="Metric", hue="Strategy", data=data_df)
+        plt.show()
+        exit(-1)
+
+    def _barplot(data):
+        pass
+
+    _learning_curves_plot(grouped_data)
 
     table_data = []
 
