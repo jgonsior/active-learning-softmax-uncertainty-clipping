@@ -1,8 +1,13 @@
 from abc import ABC, abstractmethod
+import abc
+import collections
+import random
 
 import numpy as np
 from scipy.stats import entropy
+from sklearn import ensemble
 from sklearn.preprocessing import normalize
+import torch
 
 from small_text.query_strategies.exceptions import (
     EmptyPoolException,
@@ -92,9 +97,10 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
     To use this class, create a subclass and implement `get_confidence()`.
     """
 
-    def __init__(self, lower_is_better=False):
+    def __init__(self, lower_is_better=False, uncertainty_clipping=1.0):
         self.lower_is_better = lower_is_better
         self.scores_ = None
+        self.uncertainty_clipping = uncertainty_clipping
 
     def query(
         self,
@@ -107,7 +113,7 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         save_scores=False,
     ):
         self.save_scores = save_scores
-        self.last_score = None
+        self.last_scores = None
         self._validate_query_input(indices_unlabeled, n)
 
         confidence = self.score(clf, dataset, indices_unlabeled, indices_labeled, y)
@@ -145,12 +151,24 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         confidence = self.get_confidence(
             clf, dataset, indices_unlabeled, indices_labeled, y
         )
+
+        # TODO: uncertainty clipping Z301-304, war früher in "get_confidence" klasse
+        """         
+        proba = np.amax(proba, axis=1)
+
+        
+        wert = np.percentile(proba, 5) # schwelle ab den 10% - 90% ist
+        for x in range(len(proba)):
+            if proba[x] < wert:
+                proba[x] = 1 #lower score bekommen hohen wert
+        """
+
         self.scores_ = confidence
         if not self.lower_is_better:
             confidence = -confidence
 
         if self.save_scores:
-            self.last_score = confidence
+            self.last_scores = confidence
         return confidence
 
     @abstractmethod
@@ -185,8 +203,10 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
     most likely predicted class [LUO05]_.
     """
 
-    def __init__(self, lower_is_better=True):
-        super().__init__(lower_is_better=lower_is_better)
+    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
+        super().__init__(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         proba = clf.predict_proba(dataset)
@@ -205,8 +225,10 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
     """Selects instances with the least prediction confidence (regarding the most likely class)
     [LG94]_."""
 
-    def __init__(self, lower_is_better=True):
-        super().__init__(lower_is_better=lower_is_better)
+    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
+        super().__init__(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         proba = clf.predict_proba(dataset)
@@ -220,8 +242,10 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
 class PredictionEntropy(ConfidenceBasedQueryStrategy):
     """Selects instances with the largest prediction entropy [HOL08]_."""
 
-    def __init__(self, lower_is_better=False):
-        super().__init__(lower_is_better=lower_is_better)
+    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
+        super().__init__(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         proba = clf.predict_proba(dataset)
@@ -229,6 +253,178 @@ class PredictionEntropy(ConfidenceBasedQueryStrategy):
 
     def __str__(self):
         return "PredictionEntropy()"
+
+
+class QBC_Base(ConfidenceBasedQueryStrategy):
+    def __init__(
+        self,
+        clf_factory,
+        lower_is_better=True,
+        uncertainty_clipping=1.0,
+        amount_of_ensembles=5,
+    ):
+        super().__init__(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
+        self.amount_of_ensembles = amount_of_ensembles
+        self.factory = clf_factory
+
+    @abc.abstractmethod
+    def calculate_vote(self, ensemble_probas):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_probas(self, clf, dataset):
+        raise NotImplementedError
+
+    def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
+        ensemble_probas = [self.get_probas(clf, dataset)]
+
+        current_seed = random.randint(0, 1000000)
+
+        for i in range(self.amount_of_ensembles - 1):
+            seed = current_seed + i
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+
+            new_classifier = self.factory.new()
+            new_classifier.fit(dataset[_indices_labeled])
+            new_probas = self.get_probas(new_classifier, dataset)
+            ensemble_probas.append(new_probas)
+
+            del new_classifier
+
+        seed = current_seed
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+
+        proba = self.calculate_vote(ensemble_probas)
+
+        return np.array(proba)
+
+    def __str__(self):
+        return "PredictionEntropy()"
+
+
+class QBC_KLD(QBC_Base):
+    def get_probas(self, clf, dataset):
+        return clf.predict_proba(dataset)
+
+    # source: alipy
+    def calculate_vote(self, ensemble_probas):
+
+        """Calculate the average Kullback-Leibler (KL) divergence for measuring the
+        level of disagreement in QBC.
+        Parameters
+        ----------
+        predict_matrices: list
+            The prediction matrix for each committee.
+            Each committee predict matrix should have the shape [n_samples, n_classes] for probabilistic output
+            or [n_samples] for class output.
+        Returns
+        -------
+        score: list
+            Score for each instance. Shape [n_samples]
+        References
+        ----------
+        [1] A. McCallum and K. Nigam. Employing EM in pool-based active learning for
+            text classification. In Proceedings of the International Conference on Machine
+            Learning (ICML), pages 359-367. Morgan Kaufmann, 1998.
+        """
+        score = []
+
+        committee_size = len(ensemble_probas)
+        input_shape = np.shape(ensemble_probas[0])
+        if len(input_shape) == 2:
+            label_num = input_shape[1]
+            # calc kl div for each instance
+            for i in range(input_shape[0]):
+                instance_mat = np.array(
+                    [X[i, :] for X in ensemble_probas if X is not None]
+                )
+                tmp = 0
+                # calc each label
+                for lab in range(label_num):
+                    committee_consensus = (
+                        np.sum(instance_mat[:, lab]) / committee_size + 1e-9
+                    )
+                    for committee in range(committee_size):
+                        tmp += instance_mat[committee, lab] * np.log(
+                            (instance_mat[committee, lab] + 1e-9) / committee_consensus
+                        )
+                score.append(tmp)
+        else:
+            raise Exception(
+                "A 2D probabilistic prediction matrix must be provided, with the shape like [n_samples, n_class]"
+            )
+        return score
+
+
+class QBC_VE(QBC_Base):
+    def get_probas(self, clf, dataset):
+        return clf.predict(dataset)
+
+    def calculate_vote(self, ensemble_probas):
+        # source: alipy
+        """Calculate the vote entropy for measuring the level of disagreement in QBC.
+        Parameters
+        ----------
+        predict_matrices: list
+            The prediction matrix for each committee.
+            Each committee predict matrix should have the shape [n_samples, n_classes] for probabilistic output
+            or [n_samples] for class output.
+        Returns
+        -------
+        score: list
+            Score for each instance. Shape [n_samples]
+        References
+        ----------
+        [1] I. Dagan and S. Engelson. Committee-based sampling for training probabilistic
+            classifiers. In Proceedings of the International Conference on Machine
+            Learning (ICML), pages 150-157. Morgan Kaufmann, 1995.
+        """
+        score = []
+        print(np.shape(ensemble_probas))
+        committee_size = len(ensemble_probas)
+        input_shape = np.shape(ensemble_probas[0])
+
+        if len(input_shape) == 2:
+            ele_uni = np.unique(ensemble_probas)
+            if not (len(ele_uni) == 2 and 0 in ele_uni and 1 in ele_uni):
+                raise ValueError("The predicted label matrix must only contain 0 and 1")
+            # calc each instance
+            for i in range(input_shape[0]):
+                instance_mat = np.array(
+                    [X[i, :] for X in ensemble_probas if X is not None]
+                )
+                voting = np.sum(instance_mat, axis=0)
+                tmp = 0
+                # calc each label
+                for vote in voting:
+                    if vote != 0:
+                        tmp += (
+                            vote
+                            / len(ensemble_probas)
+                            * np.log((vote + 1e-9) / len(ensemble_probas))
+                        )
+                score.append(-tmp)
+        else:
+            input_mat = np.array([X for X in ensemble_probas if X is not None])
+            # label_arr = np.unique(input_mat)
+            # calc each instance's score
+            for i in range(input_shape[0]):
+                count_dict = collections.Counter(input_mat[:, i])
+                tmp = 0
+                for key in count_dict:
+                    tmp += (
+                        count_dict[key]
+                        / committee_size
+                        * np.log((count_dict[key] + 1e-9) / committee_size)
+                    )
+                score.append(-tmp)
+        return score
 
 
 class SubsamplingQueryStrategy(QueryStrategy):

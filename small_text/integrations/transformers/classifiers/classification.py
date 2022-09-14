@@ -441,6 +441,7 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
         # Suppress "Some weights of the model checkpoint at [model name] were not [...]"-warnings
         previous_verbosity = transformers_logging.get_verbosity()
         transformers_logging.set_verbosity_error()
+
         self.model = AutoModelForSequenceClassification.from_pretrained(
             self.transformer_model.model,
             from_tf=False,

@@ -25,18 +25,12 @@ from small_text.integrations.transformers.classifiers.factories import (
     UncertaintyBasedClassificationFactory,
 )
 from small_text.query_strategies import (
-    # DeepEnsemble,
-    # TrustScore2,
-    # TrustScore,
-    # EvidentialConfidence2,
-    # BT_Temp,
-    # TemperatureScaling,
     BreakingTies,
     RandomSampling,
     PredictionEntropy,
-    # FalkenbergConfidence2,
-    # FalkenbergConfidence,
     LeastConfidence,
+    QBC_VE,
+    QBC_KLD,
 )
 
 from small_text.integrations.transformers import TransformerModelArguments
@@ -55,6 +49,7 @@ def main(
     uncertainty_method: str,
     gpu_device: int,
     lower_is_better: bool,
+    uncertainty_clipping: float,
 ):
     train, test, num_classes = load_my_dataset(dataset, transformer_model_name)
 
@@ -77,21 +72,40 @@ def main(
         ),
     )
 
-    query_strategy: QueryStrategy
+    query_strategy: ConfidenceBasedQueryStrategy
 
     if query_strategy_name == "LC":
-        print("lower", str(lower_is_better))
-        query_strategy = LeastConfidence(lower_is_better=lower_is_better)
+        query_strategy = LeastConfidence(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
     elif query_strategy_name == "Rand":
         query_strategy = RandomSampling()
     elif query_strategy_name == "Ent":
-        query_strategy = PredictionEntropy(lower_is_better=lower_is_better)
+        query_strategy = PredictionEntropy(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
     elif query_strategy_name == "MM":
-        query_strategy = BreakingTies(lower_is_better=lower_is_better)
+        query_strategy = BreakingTies(
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+        )
+    elif query_strategy_name == "QBC_VE":
+        query_strategy = QBC_VE(
+            lower_is_better=lower_is_better,
+            uncertainty_clipping=uncertainty_clipping,
+            clf_factory=clf_factory,
+        )
+    elif query_strategy_name == "QBC_KLD":
+        query_strategy = QBC_KLD(
+            lower_is_better=lower_is_better,
+            uncertainty_clipping=uncertainty_clipping,
+            clf_factory=clf_factory,
+        )
     else:
         print("Query Stategy not found")
         exit(-1)
+
     active_learner = PoolBasedActiveLearner(clf_factory, query_strategy, train)
+
     labeled_indices = initialize_active_learner(
         active_learner, train.y, initially_labeled_samples
     )
@@ -225,6 +239,7 @@ def perform_active_learning(
 
     for i in range(num_iterations):
         start = timer()
+
         indices_queried = active_learner.query(num_samples=batch_size, save_scores=True)
         end = timer()
 
@@ -351,12 +366,14 @@ if __name__ == "__main__":
         "--query_strategy",
         type=str,
         default="LC",
-        choices=["LC", "MM", "Ent", "Rand"],
+        choices=["LC", "MM", "Ent", "Rand", "QBC_VE", "QBC_KLD"],
     )
 
     parser.add_argument(
         "--lower_is_better", type=str, default="True", choices=["True", "False"]
     )
+
+    parser.add_argument("--uncertainty_clipping", type=float, default=1.0)
 
     parser.add_argument(
         "--uncertainty_method",
@@ -372,7 +389,6 @@ if __name__ == "__main__":
             "evidential1",
             "evidential2",
             "bayesian",
-            "ensembles",
             "trustscore",
             "model_calibration",
         ],
@@ -436,6 +452,7 @@ if __name__ == "__main__":
         uncertainty_method=args.uncertainty_method,
         gpu_device=args.gpu_device,
         lower_is_better=args.lower_is_better,
+        uncertainty_clipping=args.uncertainty_clipping,
     )
 
     # create exp_results_dir

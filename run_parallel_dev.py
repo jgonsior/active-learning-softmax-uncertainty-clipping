@@ -25,7 +25,8 @@ param_grid = {
         # "trustscore",
         # "model_calibration",
     ],
-    "query_strategy": ["LC", "MM", "Ent", "Rand"],
+    # "query_strategy": ["LC", "MM", "Ent", "Rand", "QBC_KLD", "QBC_VE"],
+    "query_strategy": ["QBC_KLD", "QBC_VE"],
     "exp_name": ["lunchtest"],  # ["lunchtest"],  # baseline
     "transformer_model_name": ["bert-base-uncased"],
     "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb"],

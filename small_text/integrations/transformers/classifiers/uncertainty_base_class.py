@@ -1,4 +1,5 @@
 import abc
+import collections
 from small_text.integrations.pytorch.exceptions import PytorchNotFoundError
 from small_text.integrations.transformers.classifiers.classification import (
     TransformerBasedClassification,
@@ -593,11 +594,6 @@ class TemperatureScaling2UncertaintyClassifier(Student2UncertaintyClassifier):
 
 
 class BayesianUncertaintyClassifier(Student2UncertaintyClassifier):
-    def predict_proba(self, test_set):
-        raise NotImplementedError
-
-
-class EnsemblesUncertaintyClassifier(Student2UncertaintyClassifier):
     def predict_proba(self, test_set):
         raise NotImplementedError
 

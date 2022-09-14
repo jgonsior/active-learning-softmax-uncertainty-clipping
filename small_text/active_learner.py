@@ -27,7 +27,6 @@ class ActiveLearner(ABC):
 
 
 class AbstractPoolBasedActiveLearner(ActiveLearner):
-
     def query(self, num_samples=10):
         pass
 
@@ -111,8 +110,14 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
         self.y = None
         self.indices_queried = None
 
-    def initialize_data(self, indices_initial, y_initial, indices_ignored=None,
-                        indices_validation=None, retrain=True):
+    def initialize_data(
+        self,
+        indices_initial,
+        y_initial,
+        indices_ignored=None,
+        indices_validation=None,
+        retrain=True,
+    ):
         """(Re-)Initializes the current labeled pool.
 
         This is required once before the first `query()` call, and whenever the labeled pool
@@ -152,7 +157,13 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
         if retrain:
             self._retrain(indices_validation=indices_validation)
 
-    def query(self, num_samples=10, representation=None, query_strategy_kwargs=dict()):
+    def query(
+        self,
+        num_samples=10,
+        representation=None,
+        query_strategy_kwargs=dict(),
+        save_scores=False,
+    ):
         """Performs a query step, which selects a number of samples from the unlabeled pool.
         A query step must be followed by an update step.
 
@@ -183,21 +194,30 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
 
         size = list_length(self.dataset)
         if representation is not None and size != list_length(representation):
-            raise ValueError('Number of rows of alternative representation x must match the train '
-                             'set (dim 0).')
+            raise ValueError(
+                "Number of rows of alternative representation x must match the train "
+                "set (dim 0)."
+            )
 
         self.mask = np.ones(size, bool)
         self.mask[np.concatenate([self.indices_labeled, self.indices_ignored])] = False
         indices = np.arange(size)
 
         representation = self.dataset if representation is None else representation
-        self.indices_queried = self.query_strategy.query(self._clf,
-                                                         representation,
-                                                         indices[self.mask],
-                                                         self.indices_labeled,
-                                                         self.y,
-                                                         n=num_samples,
-                                                         **query_strategy_kwargs)
+        self.indices_queried = self.query_strategy.query(
+            self._clf,
+            representation,
+            indices[self.mask],
+            self.indices_labeled,
+            self.y,
+            n=num_samples,
+            save_scores=save_scores,
+            **query_strategy_kwargs,
+        )
+
+        if save_scores:
+            self.last_scores = self.query_strategy.last_scores
+
         return self.indices_queried
 
     def update(self, y, indices_validation=None):
@@ -221,21 +241,29 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
             for creating a validation set.
         """
         if self.indices_queried.shape[0] != y.shape[0]:
-            raise ValueError('Query-update mismatch: indices queried - {} / labels provided - {}'
-                             .format(self.indices_queried.shape[0], y.shape[0])
-                             )
+            raise ValueError(
+                "Query-update mismatch: indices queried - {} / labels provided - {}".format(
+                    self.indices_queried.shape[0], y.shape[0]
+                )
+            )
 
         ignored = get_ignored_labels_mask(y, LABEL_IGNORED)
         if ignored.any():
             y = remove_by_index(y, np.arange(y.shape[0])[ignored])
-            self.indices_ignored = np.concatenate([self.indices_ignored, self.indices_queried[ignored]])
+            self.indices_ignored = np.concatenate(
+                [self.indices_ignored, self.indices_queried[ignored]]
+            )
 
-        self.indices_labeled = np.concatenate([self.indices_labeled, self.indices_queried[~ignored]])
+        self.indices_labeled = np.concatenate(
+            [self.indices_labeled, self.indices_queried[~ignored]]
+        )
         self._index_to_position = self._build_index_to_position_dict()
 
         if self.indices_labeled.shape[0] != np.unique(self.indices_labeled).shape[0]:
-            raise ValueError('Duplicate indices detected in the labeled pool! '
-                             'Please re-examine your query strategy.')
+            raise ValueError(
+                "Duplicate indices detected in the labeled pool! "
+                "Please re-examine your query strategy."
+            )
 
         if not ignored.all():
             self.y = concatenate(self.y, y)
@@ -340,13 +368,14 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
             Serialized output file to be written.
         """
         if isinstance(file, (str, Path)):
-            with open(file, 'wb+') as f:
+            with open(file, "wb+") as f:
                 self._save(f)
         else:
             self._save(file)
 
     def _save(self, file_handle):
         import dill as pickle
+
         pickle.dump(version, file_handle)
         pickle.dump(self, file_handle)
 
@@ -360,7 +389,7 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
             File to be loaded.
         """
         if isinstance(file, (str, Path)):
-            with open(file, 'rb') as f:
+            with open(file, "rb") as f:
                 return cls._load(f)
         else:
             return cls._load(file)
@@ -368,6 +397,7 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
     @classmethod
     def _load(cls, file_handle):
         import dill as pickle
+
         _ = pickle.load(file_handle)  # version, will be used in the future
         return pickle.load(file_handle)
 
@@ -381,7 +411,7 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
 
     def _retrain(self, indices_validation=None):
         if self._clf is None or not self.reuse_model:
-            if hasattr(self, '_clf'):
+            if hasattr(self, "_clf"):
                 del self._clf
             self._clf = self._clf_factory.new()
 
@@ -399,6 +429,6 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
             self._clf.fit(train, validation_set=valid)
 
     def _build_index_to_position_dict(self):
-        return dict({
-            x_index: position for position, x_index in enumerate(self.indices_labeled)
-        })
+        return dict(
+            {x_index: position for position, x_index in enumerate(self.indices_labeled)}
+        )

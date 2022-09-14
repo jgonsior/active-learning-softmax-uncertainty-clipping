@@ -5,7 +5,6 @@ from small_text.integrations.transformers.classifiers.classification import (
 
 from small_text.integrations.transformers.classifiers.uncertainty_base_class import (
     BayesianUncertaintyClassifier,
-    EnsemblesUncertaintyClassifier,
     EvidentialDeepLearning1UncertaintyClassifier,
     EvidentialDeepLearning2UncertaintyClassifier,
     InhibitedSoftmaxUncertaintyClassifier,
@@ -69,10 +68,6 @@ class UncertaintyBasedClassificationFactory(TransformerBasedClassificationFactor
             )
         elif self.uncertainty_method == "bayesian":
             return BayesianUncertaintyClassifier(
-                self.transformer_model, self.num_classes, **self.kwargs
-            )
-        elif self.uncertainty_method == "ensembles":
-            return EnsemblesUncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         elif self.uncertainty_method == "trustscore":
