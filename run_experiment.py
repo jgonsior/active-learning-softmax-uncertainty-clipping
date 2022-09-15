@@ -107,6 +107,7 @@ def generate_workload(
 def run_code(
     n_gpus,
     dry_run: bool,
+    open_param_list,
     num_iterations,
     batch_size,
     exp_name,
@@ -119,6 +120,25 @@ def run_code(
     lower_is_better,
     uncertainty_clipping,
 ):
+    args = OrderedDict()
+
+    args["num_iterations"] = num_iterations
+    args["batch_size"] = batch_size
+    args["exp_name"] = exp_name
+    args["dataset"] = dataset
+    args["random_seed"] = random_seed
+    args["query_strategy"] = query_strategy
+    args["uncertainty_method"] = uncertainty_method
+    args["initially_labeled_samples"] = initially_labeled_samples
+    args["transformer_model_name"] = transformer_model_name
+    args["lower_is_better"] = lower_is_better
+    args["uncertainty_clipping"] = uncertainty_clipping
+
+    args = OrderedDict(sorted(args.items()))
+
+    if args not in open_param_list:
+        return
+
     gpu_device = random.randint(0, n_gpus - 1)
 
     cli = f"python test.py --num_iterations {num_iterations} --batch_size {batch_size} --exp_name {exp_name} --dataset {dataset} --random_seed {random_seed} --query_strategy {query_strategy} --uncertainty_method {uncertainty_method} --initially_labeled_samples {initially_labeled_samples} --transformer_model_name {transformer_model_name} --gpu_device {gpu_device} --uncertainty_clipping {uncertainty_clipping} --lower_is_better {lower_is_better}"
@@ -181,6 +201,6 @@ if __name__ == "__main__":
 
     with parallel_backend("loky", n_jobs=n_jobs):
         Parallel()(
-            delayed(run_code)(n_gpus, args.dry_run, **params)
+            delayed(run_code)(n_gpus, args.dry_run, open_param_list, **params)
             for params in full_param_list
         )
