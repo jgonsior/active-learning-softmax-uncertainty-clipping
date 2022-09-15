@@ -32,7 +32,7 @@ full_param_grid = {
     "random_seed": [42, 43, 44, 45, 46],
     "batch_size": [25],
     "num_iterations": [20],
-    "uncertainty_clipping": [1.0],
+    "uncertainty_clipping": [1.0, 0.95, 0.90],
     "lower_is_better": ["True"],  # , "False"],
 }
 
