@@ -155,8 +155,8 @@ if __name__ == "__main__":
         n_jobs = 1
         n_gpus = 1
     else:
-        n_gpus = 2
-        n_jobs = 10
+        n_gpus = 1
+        n_jobs = 1
 
     if args.workload == "dev":
         _, open_param_list, full_param_list = generate_workload(

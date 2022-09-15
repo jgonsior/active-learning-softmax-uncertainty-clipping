@@ -249,11 +249,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
 # works
 class LabelSmoothingUncertaintyClassifier(SoftmaxUncertaintyClassifier):
     def get_default_criterion(self):
-        if self.multi_label or self.num_classes == 2:
-            print("ERROR-" * 200)
-            return BCEWithLogitsLoss(pos_weight=self.class_weights_)
-        else:
-            return CrossEntropyLoss(weight=self.class_weights_, label_smoothing=0.2)
+        return CrossEntropyLoss(weight=self.class_weights_, label_smoothing=0.2)
 
 
 # works
