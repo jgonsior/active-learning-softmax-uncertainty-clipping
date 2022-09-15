@@ -133,7 +133,7 @@ def table_stats(
 
 
 def display_run_experiment_stats(param_grid):
-    done_param_list, open_param_list = generate_workload(param_grid)
+    done_param_list, open_param_list, full_param_list = generate_workload(param_grid)
     print("Open:")
     print(tabulate(open_param_list))
 

@@ -8,10 +8,9 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-user=julius.gonsior@tu-dresden.de
 #SBATCH --mem=120GB
-#SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --output /scratch/ws/1/s5968580-btw/out_dev-%A_%a.txt
 #SBATCH --error /scratch/ws/1/s5968580-btw/error_dev-%A_%a.txt
-#SBATCH --array 0,49
+#SBATCH --array 0-49
 
 
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
