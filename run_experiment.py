@@ -33,7 +33,7 @@ full_param_grid = {
     "batch_size": [25],
     "num_iterations": [20],
     "uncertainty_clipping": [1.0],
-    "lower_is_better": ["True", "False"],
+    "lower_is_better": ["True"],  # , "False"],
 }
 
 dev_param_grid = copy.deepcopy(full_param_grid)
@@ -69,6 +69,12 @@ def generate_workload(
     for params in list(ParameterGrid(param_grid)):
         if (
             params["query_strategy"] == "Rand"
+            and params["uncertainty_method"] != "softmax"
+        ):
+            continue
+
+        if (
+            params["query_strategy"] in ["MM", "Ent", "Rand", "QBC_KLD", "QBC_VE"]
             and params["uncertainty_method"] != "softmax"
         ):
             continue
@@ -116,11 +122,10 @@ def run_code(
 
     cli = f"python test.py --num_iterations {num_iterations} --batch_size {batch_size} --exp_name {exp_name} --dataset {dataset} --random_seed {random_seed} --query_strategy {query_strategy} --uncertainty_method {uncertainty_method} --initially_labeled_samples {initially_labeled_samples} --transformer_model_name {transformer_model_name} --gpu_device {gpu_device} --uncertainty_clipping {uncertainty_clipping} --lower_is_better {lower_is_better}"
 
-    print("#" * 100)
-    # print(i)
+    # print("#" * 100)
     print(cli)
-    print("#" * 100)
-    print("\n")
+    # print("#" * 100)
+    # print("\n")
 
     if not dry_run:
         os.system(cli)

@@ -205,7 +205,7 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
 
     def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
         super().__init__(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
@@ -232,7 +232,7 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
 
     def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
         super().__init__(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
@@ -251,9 +251,9 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
 class PredictionEntropy(ConfidenceBasedQueryStrategy):
     """Selects instances with the largest prediction entropy [HOL08]_."""
 
-    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
+    def __init__(self, lower_is_better=False, uncertainty_clipping=1.0):
         super().__init__(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=False, uncertainty_clipping=uncertainty_clipping
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
@@ -277,7 +277,7 @@ class QBC_Base(ConfidenceBasedQueryStrategy):
         amount_of_ensembles=5,
     ):
         super().__init__(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
         )
         self.amount_of_ensembles = amount_of_ensembles
         self.factory = clf_factory
