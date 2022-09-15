@@ -84,6 +84,8 @@ class RandomSampling(QueryStrategy):
         n=10,
         save_scores=False,
     ):
+        if save_scores:
+            self.last_scores = [1 for _ in range(n)]
         self._validate_query_input(indices_unlabeled, n)
         return np.random.choice(indices_unlabeled, size=n, replace=False)
 
