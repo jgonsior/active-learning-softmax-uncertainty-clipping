@@ -366,7 +366,7 @@ def tables_plots(param_grid):
                                 param_grid,
                                 num_iteration,
                                 metric="queried_indices",
-                            )t
+                            )
 
                             uncertainty_histogram_plots(
                                 exp_name,
