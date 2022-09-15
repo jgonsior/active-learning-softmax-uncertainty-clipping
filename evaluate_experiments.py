@@ -20,15 +20,63 @@ import seaborn as sns
 sns.set_theme(style="white")
 
 
-def runtime_plots():
-    pass
+def runtime_plots(
+    exp_name: str,
+    transformer_model_name: str,
+    dataset: str,
+    initially_labeled_samples: int,
+    batch_size: int,
+    param_grid: Dict[str, Any],
+    num_iterations: int,
+    metric,
+):
+    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    print(f"Metric: {metric}")
+    grouped_data = _load_grouped_data(
+        exp_name,
+        transformer_model_name,
+        dataset,
+        initially_labeled_samples,
+        batch_size,
+        param_grid,
+        num_iterations,
+        metric,
+    )
+    if len(grouped_data) == 0:
+        return
+
+    # sum up elapsed times
+    df_data = []
+    for k, v in grouped_data.items():
+        for value in v:
+            df_data.append((k, sum(value)))
+    data_df = pd.DataFrame(df_data, columns=["Strategy", metric])
+    print(data_df)
+    sns.catplot(data=data_df, y="Strategy", x=metric, kind="bar")
+
+    plots_path = Path("plots/")
+    plots_path.mkdir(exist_ok=True)
+
+    plt.savefig(
+        f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.jpg"
+    )
+    plt.savefig(
+        f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.pdf",
+        dpi=300,
+    )
+    plt.clf()
+
+    table_data = []
+
+    for k, v in grouped_data.items():
+        v = [sum(value) for value in v]
+        table_data.append((k, v, np.mean(v), np.std(v)))
+    df = pd.DataFrame(table_data, columns=["Strategy", "Values", "Mean", "Std"])
+    df.sort_values(by="Mean", inplace=True)
+    print(tabulate(df, headers="keys"))
 
 
 def uncertainty_histogram_plots():
-    pass
-
-
-def learning_curve_plots():
     pass
 
 
@@ -39,11 +87,7 @@ def _convert_config_to_path(config_dict) -> Path:
     return exp_results_dir
 
 
-def _convert_config_to_tuple(config_dict) -> Tuple:
-    pass
-
-
-def table_stats(
+def _load_grouped_data(
     exp_name: str,
     transformer_model_name: str,
     dataset: str,
@@ -53,9 +97,6 @@ def table_stats(
     num_iterations: int,
     metric="test_accs",
 ):
-    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
-    print(f"Metric: {metric}")
-
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
         for uncertainty_method in param_grid["uncertainty_method"]:
@@ -82,14 +123,39 @@ def table_stats(
                         )
                         if exp_results_dir.exists():
                             metrics = np.load(exp_results_dir / "metrics.npz")
-                            args = json.loads(
-                                Path(exp_results_dir / "args.json").read_text()
-                            )
+                            # args = json.loads(
+                            #    Path(exp_results_dir / "args.json").read_text()
+                            # )
                             metric_values = metrics[metric].tolist()
                             grouped_data[key].append(metric_values)
 
                     if len(grouped_data[key]) == 0:
                         del grouped_data[key]
+    return grouped_data
+
+
+def table_stats(
+    exp_name: str,
+    transformer_model_name: str,
+    dataset: str,
+    initially_labeled_samples: int,
+    batch_size: int,
+    param_grid: Dict[str, Any],
+    num_iterations: int,
+    metric="test_accs",
+):
+    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    print(f"Metric: {metric}")
+    grouped_data = _load_grouped_data(
+        exp_name,
+        transformer_model_name,
+        dataset,
+        initially_labeled_samples,
+        batch_size,
+        param_grid,
+        num_iterations,
+        metric,
+    )
 
     def _learning_curves_plot(data):
         df_data = []
@@ -115,9 +181,6 @@ def table_stats(
             dpi=300,
         )
         plt.clf()
-
-    def _barplot(data):
-        pass
 
     _learning_curves_plot(grouped_data)
 
@@ -164,6 +227,18 @@ def tables_plots(param_grid):
                             print(
                                 f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
                             )
+
+                            runtime_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="times_elapsed",
+                            )
+
                             table_stats(
                                 exp_name,
                                 transformer_model_name,
@@ -186,18 +261,7 @@ def tables_plots(param_grid):
                                 metric="train_accs",
                             )
 
-                            table_stats(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="times_elapsed",
-                            )
-
-                            table_stats(
+                            """runtime_plots(
                                 exp_name,
                                 transformer_model_name,
                                 dataset,
@@ -206,9 +270,8 @@ def tables_plots(param_grid):
                                 param_grid,
                                 num_iteration,
                                 metric="times_elapsed_model",
-                            )
+                            )"""
                             print()
-                            exit(-1)
 
 
 # tables_plots(baselines_param_grid)
