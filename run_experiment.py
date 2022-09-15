@@ -63,6 +63,7 @@ def generate_workload(
 ):
     done_param_list = []
     open_param_list = []
+    full_param_list = []
     for params in list(ParameterGrid(param_grid)):
         if (
             params["query_strategy"] == "Rand"
@@ -77,7 +78,7 @@ def generate_workload(
             "exp_results/" + "-".join([str(a) for a in params.values()])
         )
         exp_results_dir_metrics = Path(exp_results_dir / "metrics.npz")
-
+        full_param_list.append(params)
         if exp_results_dir_metrics.exists():
             # print("Experiment has already been run, exiting!")
             done_param_list.append((params, exp_results_dir))
@@ -85,12 +86,12 @@ def generate_workload(
         # print(params)
         open_param_list.append(params)
 
-    open_param_list = sorted(
-        open_param_list, key=lambda a: "-".join([str(x) for x in a.values()])
+    full_param_list = sorted(
+        full_param_list, key=lambda a: "-".join([str(x) for x in a.values()])
     )
 
-    splitted_open_param_list = list(_chunks(open_param_list, n_array_jobs))
-    return done_param_list, splitted_open_param_list[array_job_id]
+    splitted_full_list = list(_chunks(full_param_list, n_array_jobs))
+    return done_param_list, open_param_list, splitted_full_list[array_job_id]
 
 
 def run_code(
@@ -149,29 +150,25 @@ if __name__ == "__main__":
         n_jobs = 10
 
     if args.workload == "dev":
-        _, open_param_list = generate_workload(
+        _, open_param_list, full_param_list = generate_workload(
             dev_param_grid,
             args.array_job_id,
             args.n_array_jobs,
         )
     elif args.workload == "baselines":
-        _, open_param_list = generate_workload(
+        _, open_param_list, full_param_list = generate_workload(
             baselines_param_grid,
             args.array_job_id,
             args.n_array_jobs,
         )
     elif args.workload == "my":
-        _, open_param_list = generate_workload(
+        _, open_param_list, full_param_list = generate_workload(
             my_methods_param_grid,
             args.array_job_id,
             args.n_array_jobs,
         )
     else:
         exit(-1)
-
-    for p in open_param_list:
-        print(p)
-    exit(-1)
 
     with parallel_backend("loky", n_jobs=n_jobs):
         Parallel()(
