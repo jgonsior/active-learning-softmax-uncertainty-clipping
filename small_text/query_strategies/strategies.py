@@ -154,16 +154,13 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             clf, dataset, indices_unlabeled, indices_labeled, y
         )
 
-        # TODO: uncertainty clipping Z301-304, war früher in "get_confidence" klasse
-        """         
-        proba = np.amax(proba, axis=1)
+        clipping_threshold = np.percentile(
+            confidence, (1 - self.uncertainty_clipping) * 100
+        )
 
-        
-        wert = np.percentile(proba, 5) # schwelle ab den 10% - 90% ist
-        for x in range(len(proba)):
-            if proba[x] < wert:
-                proba[x] = 1 #lower score bekommen hohen wert
-        """
+        confidence[
+            confidence < clipping_threshold
+        ] = 1  # as lower_is_better = True is default, we set it to 1 as this is then the worst possible value
 
         self.scores_ = confidence
         if not self.lower_is_better:

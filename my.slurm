@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=alpha,hpdlf
+#SBATCH --partition=alpha
 #SBATCH --time=100:59:59   # walltime
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --ntasks=1      # limit to one node
