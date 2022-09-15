@@ -30,5 +30,5 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_parallel.py --taurus  --workload baselines
+python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus  --workload baselines
 exit 0

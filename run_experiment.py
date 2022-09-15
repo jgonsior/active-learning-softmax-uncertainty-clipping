@@ -64,6 +64,7 @@ def generate_workload(
     done_param_list = []
     open_param_list = []
     full_param_list = []
+
     for params in list(ParameterGrid(param_grid)):
         if (
             params["query_strategy"] == "Rand"
@@ -91,6 +92,7 @@ def generate_workload(
     )
 
     splitted_full_list = list(_chunks(full_param_list, n_array_jobs))
+
     return done_param_list, open_param_list, splitted_full_list[array_job_id]
 
 
