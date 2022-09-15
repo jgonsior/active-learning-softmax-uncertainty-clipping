@@ -46,6 +46,7 @@ baselines_param_grid["uncertainty_method"] = ["softmax"]
 
 my_methods_param_grid = copy.deepcopy(full_param_grid)
 my_methods_param_grid["uncertainty_method"].remove("softmax")
+my_methods_param_grid["query_strategy"] = ["LC"]
 
 # source: https://stackoverflow.com/a/54802737
 def _chunks(l, n):

@@ -1,10 +1,12 @@
 from collections import OrderedDict
 import enum
+import itertools
 import json
 from pathlib import Path
 from typing import Any, Dict, Tuple
 from matplotlib import pyplot as plt
 import numpy as np
+from sklearn.metrics import jaccard_score
 
 from run_experiment import (
     full_param_grid,
@@ -18,6 +20,50 @@ import pandas as pd
 import seaborn as sns
 
 sns.set_theme(style="white")
+
+
+def queried_samples_table(
+    exp_name: str,
+    transformer_model_name: str,
+    dataset: str,
+    initially_labeled_samples: int,
+    batch_size: int,
+    param_grid: Dict[str, Any],
+    num_iterations: int,
+    metric,
+):
+    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    print(f"Metric: {metric}")
+    grouped_data = _load_grouped_data(
+        exp_name,
+        transformer_model_name,
+        dataset,
+        initially_labeled_samples,
+        batch_size,
+        param_grid,
+        num_iterations,
+        metric,
+    )
+    table_data = []
+    for (strat_a, strat_b) in itertools.combinations(grouped_data.keys(), 2):
+        print(f"{strat_a} vs {strat_b}")
+        jaccards = []
+        for random_seed_data_a, random_seed_data_b in zip(
+            grouped_data[strat_a], grouped_data[strat_b]
+        ):
+            queried_a = np.array(random_seed_data_a).flatten()
+            queried_b = np.array(random_seed_data_b).flatten()
+            jaccard = len(np.intersect1d(queried_a, queried_b)) / len(
+                np.union1d(queried_a, queried_b)
+            )
+            jaccards.append(jaccard)
+        table_data.append(
+            (f"{strat_a} vs {strat_b}", jaccards, np.mean(jaccards), np.std(jaccards))
+        )
+
+    df = pd.DataFrame(table_data, columns=["Strategy", "Jaccard", "Mean", "Std"])
+    df.sort_values(by="Mean", inplace=True)
+    print(tabulate(df, headers="keys"))
 
 
 def runtime_plots(
@@ -76,8 +122,89 @@ def runtime_plots(
     print(tabulate(df, headers="keys"))
 
 
-def uncertainty_histogram_plots():
-    pass
+def uncertainty_histogram_plots(
+    exp_name: str,
+    transformer_model_name: str,
+    dataset: str,
+    initially_labeled_samples: int,
+    batch_size: int,
+    param_grid: Dict[str, Any],
+    num_iterations: int,
+    metric,
+):
+    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    print(f"Metric: {metric}")
+    grouped_data = _load_grouped_data(
+        exp_name,
+        transformer_model_name,
+        dataset,
+        initially_labeled_samples,
+        batch_size,
+        param_grid,
+        num_iterations,
+        metric,
+    )
+    if len(grouped_data) == 0:
+        return
+    # print(grouped_data)
+    df_data = []
+    for k, v in grouped_data.items():
+        for random_seed in v:
+            # print(random_seed)
+            for i, iteration in enumerate(random_seed):
+                for v in iteration:
+                    if metric is not "confidence_scores":
+                        v = np.max(v)
+                    if v < 0:
+                        v = v * (-1)
+                    df_data.append((k, v, i))
+    df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
+
+    """sns.displot(
+        data=df,
+        x=metric,
+        col="Strategy",
+        row="iteration",
+        # binwidth=3,
+        # height=3,
+        facet_kws=dict(margin_titles=True),
+    )
+    plt.savefig(
+        f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}_grouped.jpg"
+    )
+    plt.clf()
+    """
+
+    for strat in df["Strategy"].unique():
+        print(strat)
+        sns.histplot(
+            data=df.loc[df["Strategy"] == strat],
+            x=metric,
+        )
+        plt.title(f"{strat}")
+        plot_path = Path(
+            f"./plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}"
+        )
+        plot_path.mkdir(exist_ok=True, parents=True)
+
+        plt.savefig(plot_path / f"{strat.replace('/', '-')}.jpg")
+        plt.savefig(plot_path / f"{strat.replace('/', '-')}.pdf", dpi=300)
+        plt.clf()
+
+        for iteration in df["iteration"].unique():
+            sns.histplot(
+                data=df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)],
+                x=metric,
+            )
+            plt.title(f"{strat}: {iteration}")
+            plot_path = Path(
+                f"./plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}/{strat.replace('/', '-')}/"
+            )
+            plot_path.mkdir(exist_ok=True, parents=True)
+
+            plt.savefig(plot_path / f"{iteration}.jpg")
+            plt.savefig(plot_path / f"{iteration}.pdf", dpi=300)
+            plt.clf()
 
 
 def _convert_config_to_path(config_dict) -> Path:
@@ -122,7 +249,9 @@ def _load_grouped_data(
                             }
                         )
                         if exp_results_dir.exists():
-                            metrics = np.load(exp_results_dir / "metrics.npz")
+                            metrics = np.load(
+                                exp_results_dir / "metrics.npz", allow_pickle=True
+                            )
                             # args = json.loads(
                             #    Path(exp_results_dir / "args.json").read_text()
                             # )
@@ -226,6 +355,50 @@ def tables_plots(param_grid):
                         for num_iteration in param_grid["num_iterations"]:
                             print(
                                 f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
+                            )
+
+                            queried_samples_table(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="queried_indices",
+                            )t
+
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="confidence_scores",
+                            )
+
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="y_probas_test",
+                            )
+
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="y_probas_train",
                             )
 
                             runtime_plots(

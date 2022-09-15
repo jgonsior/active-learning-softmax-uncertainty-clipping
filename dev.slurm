@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-user=julius.gonsior@tu-dresden.de
 #SBATCH --mem=120GB
-#SBATCH --output /scratch/ws/1/s5968580-btw/out_dev-%A_%a.txt
-#SBATCH --error /scratch/ws/1/s5968580-btw/error_dev-%A_%a.txt
+#SBATCH --output /scratch/ws/1/s5968580-btw/dry_out_dev-%A_%a.txt
+#SBATCH --error /scratch/ws/1/s5968580-btw/dry_error_dev-%A_%a.txt
 #SBATCH --array 0-49
 
 
