@@ -1,16 +1,16 @@
 #!/bin/bash
 #SBATCH --partition=alpha,hpdlf
-#SBATCH --time=100:59:59   # walltime
+#SBATCH --time=1:59:59   # walltime
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --ntasks=1      # limit to one node
-#SBATCH --cpus-per-task=8  # number of processor cores (i.e. threads)
+#SBATCH --cpus-per-task=1  # number of processor cores (i.e. threads)
 #SBATCH -A p_ml_il
 #SBATCH --gres=gpu:1
 #SBATCH --mail-user=julius.gonsior@tu-dresden.de
-#SBATCH --mem=120GB
+#SBATCH --mem=12GB
 #SBATCH --output /scratch/ws/1/s5968580-btw/dry_out_dev-%A_%a.txt
 #SBATCH --error /scratch/ws/1/s5968580-btw/dry_error_dev-%A_%a.txt
-#SBATCH --array 0-49
+#SBATCH --array 0-4
 
 
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
@@ -30,5 +30,5 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload dev --n_array_jobs 50 --array_job_id $SLURM_ARRAY_TASK_ID
+python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload dev --n_array_jobs 5 --array_job_id $SLURM_ARRAY_TASK_ID 
 exit 0

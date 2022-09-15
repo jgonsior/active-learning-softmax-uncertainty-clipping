@@ -62,6 +62,7 @@ def generate_workload(
     array_job_id: int = 0,
     n_array_jobs: int = 1,
 ):
+    print(f"Job Id {array_job_id}")
     done_param_list = []
     open_param_list = []
     full_param_list = []
@@ -181,5 +182,5 @@ if __name__ == "__main__":
     with parallel_backend("loky", n_jobs=n_jobs):
         Parallel()(
             delayed(run_code)(n_gpus, args.dry_run, **params)
-            for params in open_param_list
+            for params in full_param_list
         )
