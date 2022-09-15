@@ -212,5 +212,5 @@ def tables_plots(param_grid):
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
-tables_plots(full_param_grid)
-# tables_plots(dev_param_grid)
+# tables_plots(full_param_grid)
+tables_plots(dev_param_grid)
