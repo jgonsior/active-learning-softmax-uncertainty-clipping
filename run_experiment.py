@@ -35,7 +35,7 @@ full_param_grid = {
         "model_calibration",
         "bayesian",
         "evidential2",
-        "temp_scaling2",
+        # "temp_scaling2",
     ],
     "exp_name": ["baseline"],  # ["lunchtest"],  # baseline
     "transformer_model_name": [

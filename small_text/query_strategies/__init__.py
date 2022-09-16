@@ -24,4 +24,5 @@ from small_text.query_strategies.strategies import (
     QBC_VE,
     QBC_KLD,
     Trustscore2,
+    TemperatureScalingStrat,
 )

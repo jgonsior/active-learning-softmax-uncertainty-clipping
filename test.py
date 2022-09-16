@@ -33,6 +33,7 @@ from small_text.query_strategies import (
     QBC_VE,
     QBC_KLD,
     Trustscore2,
+    TemperatureScalingStrat,
 )
 
 from small_text.integrations.transformers import TransformerModelArguments
@@ -106,6 +107,16 @@ def main(
         query_strategy = Trustscore2(
             uncertainty_clipping=uncertainty_clipping,
         )
+    # error: can't optimize a non-leaf Tensor
+    """elif query_strategy_name == "temp_scaling2":
+        query_strategy = TemperatureScalingStrat(
+            uncertainty_clipping=uncertainty_clipping,
+            clf_factory=clf_factory,
+        )"""
+
+        # "model_calibration",
+        # "bayesian",
+        # "evidential2",
 
     else:
         print("Query Strategy not found")
@@ -385,7 +396,19 @@ if __name__ == "__main__":
         "--query_strategy",
         type=str,
         default="LC",
-        choices=["LC", "MM", "Ent", "Rand", "QBC_VE", "QBC_KLD", "trustscore"],
+        choices=[
+            "LC",
+            "MM",
+            "Ent",
+            "Rand",
+            "QBC_KLD",
+            "QBC_VE",
+            "trustscore",
+            "model_calibration",
+            "bayesian",
+            "evidential2",
+            "temp_scaling2",
+        ],
     )
 
     parser.add_argument(
@@ -401,14 +424,14 @@ if __name__ == "__main__":
         choices=[
             "softmax",
             "temp_scaling",
-            "temp_scaling2",
+            # "temp_scaling2",
             "label_smoothing",
             "MonteCarlo",
             "inhibited",
             "evidential1",
-            "evidential2",
-            "bayesian",
-            "model_calibration",
+            # "evidential2",
+            # "bayesian",
+            # "model_calibration",
         ],
     )
     parser.add_argument("--gpu_device", type=int, choices=[0, 1])
