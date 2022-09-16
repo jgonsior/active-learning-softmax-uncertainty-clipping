@@ -1,5 +1,6 @@
 import abc
 import collections
+from typing_extensions import Self
 from small_text.integrations.pytorch.exceptions import PytorchNotFoundError
 from small_text.integrations.transformers.classifiers.classification import (
     TransformerBasedClassification,
@@ -413,16 +414,24 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
         return np.array(predictions)
 
-    # we compute the loss like it is shown in the paper
+    # we treat the binary case as a multi-class case
+    def get_default_criterion(self):
+        return CrossEntropyLoss(weight=self.class_weights_)
 
+    # we compute the loss like it is shown in the paper
     def _compute_loss(self, cls, outputs, epoch):
 
+        # we treat the binary case as a multi-class case
         if self.num_classes == 2:
-            logits = outputs.logits
-            target = F.one_hot(cls, 2).float()
+            # logits = outputs.logits
+            logits = outputs.logits.view(-1, self.num_classes)
+            # target = F.one_hot(cls, 2).float()
+            target = cls
         else:
             logits = outputs.logits.view(-1, self.num_classes)
             target = cls
+
+        loss = self.criterion(logits, target)
 
         #  we take the last layer output
         hiddenOutput = outputs.hidden_states[-1][1]

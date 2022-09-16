@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import abc
 import collections
+import os
 import random
 from matplotlib.pyplot import sca
 
@@ -603,11 +604,6 @@ class TemperatureScalingStrat(ConfidenceBasedQueryStrategy):
 
     def __str__(self):
         return "TemperatureScaling()"
-
-
-# fehlt: bayes
-# evident
-# evident b
 
 
 class SubsamplingQueryStrategy(QueryStrategy):

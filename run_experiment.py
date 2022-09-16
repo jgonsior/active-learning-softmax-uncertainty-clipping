@@ -32,9 +32,9 @@ full_param_grid = {
         "QBC_KLD",
         "QBC_VE",
         "trustscore",
-        "model_calibration",
-        "bayesian",
-        "evidential2",
+        # "model_calibration",
+        # "bayesian",
+        # "evidential2",
         # "temp_scaling2",
     ],
     "exp_name": ["baseline"],  # ["lunchtest"],  # baseline

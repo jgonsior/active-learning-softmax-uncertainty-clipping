@@ -107,17 +107,6 @@ def main(
         query_strategy = Trustscore2(
             uncertainty_clipping=uncertainty_clipping,
         )
-    # error: can't optimize a non-leaf Tensor
-    """elif query_strategy_name == "temp_scaling2":
-        query_strategy = TemperatureScalingStrat(
-            uncertainty_clipping=uncertainty_clipping,
-            clf_factory=clf_factory,
-        )"""
-
-        # "model_calibration",
-        # "bayesian",
-        # "evidential2",
-
     else:
         print("Query Strategy not found")
         exit(-1)
@@ -404,10 +393,10 @@ if __name__ == "__main__":
             "QBC_KLD",
             "QBC_VE",
             "trustscore",
-            "model_calibration",
-            "bayesian",
-            "evidential2",
-            "temp_scaling2",
+            # "model_calibration",
+            # "bayesian",
+            # "evidential2",
+            # "temp_scaling2",
         ],
     )
 
