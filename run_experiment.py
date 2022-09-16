@@ -26,7 +26,9 @@ full_param_grid = {
     ],
     "query_strategy": ["LC", "MM", "Ent", "Rand", "QBC_KLD", "QBC_VE"],
     "exp_name": ["baseline"],  # ["lunchtest"],  # baseline
-    "transformer_model_name": ["bert-base-uncased"],
+    "transformer_model_name": [
+        "roberta-base"
+    ],  # ["bert-base-uncased", "roberta-large"],
     "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb"],
     "initially_labeled_samples": [25],
     "random_seed": [42, 43, 44, 45, 46],
@@ -175,8 +177,8 @@ if __name__ == "__main__":
         n_jobs = 1
         n_gpus = 1
     else:
-        n_gpus = 1
-        n_jobs = 1
+        n_gpus = 2
+        n_jobs = 10
 
     if args.workload == "dev":
         _, open_param_list, full_param_list = generate_workload(

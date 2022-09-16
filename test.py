@@ -1,6 +1,7 @@
 """Example of a binary active learning text classification.
 """
 from collections import OrderedDict
+import gc
 import json
 from pathlib import Path
 import random
@@ -249,6 +250,10 @@ def perform_active_learning(
     confidence_scores.append(np.empty(1))
 
     for i in range(num_iterations):
+        # free memory
+        ttorch.cuda.empty_cache()
+        gc.collect()
+
         start = timer()
 
         indices_queried = active_learner.query(num_samples=batch_size, save_scores=True)
