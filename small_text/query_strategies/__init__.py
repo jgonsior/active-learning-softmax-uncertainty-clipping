@@ -23,4 +23,5 @@ from small_text.query_strategies.strategies import (
     ContrastiveActiveLearning,
     QBC_VE,
     QBC_KLD,
+    Trustscore2,
 )

@@ -8,6 +8,8 @@ from scipy.stats import entropy
 from sklearn import ensemble
 from sklearn.preprocessing import normalize
 import torch
+from small_text.integrations.transformers.classifiers.trust_score import TrustScore
+from small_text.integrations.transformers.datasets import TransformersDataset
 
 from small_text.query_strategies.exceptions import (
     EmptyPoolException,
@@ -258,6 +260,84 @@ class PredictionEntropy(ConfidenceBasedQueryStrategy):
 
     def __str__(self):
         return "PredictionEntropy()"
+
+
+# UNLABELED DATEN HABEN NIEDRIGEREN TRUSTSCORE,LABELD DATEN HÖHREN TRUSTSCORE, UMSO HÖHER TRUSTSCORE UMSO SICHERER
+class Trustscore2(
+    ConfidenceBasedQueryStrategy
+):  # das richtige weil hier density filter
+    """Selects instances with the least prediction confidence (regarding the most likely class)
+    [LG94]_."""
+
+    # Btw K=10 if possible hängt damit zusammen das man mit 25 Datenpunkten startet,
+    # wenn man 2 Klassen hat -> 12/13 Datenpunkte , d.h K=12 und K=13
+    # Bei Trec6 ist am Anfang 4 in jeden Datenpunkt, d.h müssen ersten 1, 2 iterationen unter 10 gehen, danach sind genug dafür da
+
+    def __init__(self, uncertainty_clipping=1.0):
+        super().__init__(
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
+        )  # Eigentlich sollten lower Trust score gewählt weden, vor 6.7 waren alle experimente false
+        #                                   TRUE IST DEFAULT am besten
+        self._clsUNLABELED = None
+        self.alle_listen = []  # für distro
+
+    def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
+        def clsCreator():
+            clsListe = []
+            for abc in _indices_labeled:
+                test = dataset.data[abc]
+                clsListe.append((test[0], test[1], test[2]))
+            transformerData = TransformersDataset(clsListe)
+            _clsLabeled = clf.embed(transformerData, embedding_method="cls")
+            return _clsLabeled
+
+        _clsLabeled = clsCreator()
+
+        # Doppelt weil beim ersten mal CLS Vektor Erstellen es manchmal nicht klappt LOL?
+        print(
+            "Labeled CLS Vektor Erstellung Efolgreich:",
+            float(_clsLabeled[0][0]) is not float(0),
+            _clsLabeled[0][0],
+        )
+        if _clsLabeled[0][0] == float(0):
+            _clsLabeled = clsCreator()
+            print(
+                "Retry CLS Vektor Erstellung Efolgreich:",
+                float(_clsLabeled[0][0]) is not float(0),
+                _clsLabeled[0][0],
+            )
+
+        # _clsLabeled = torch.from_numpy(_clsLabeled)
+
+        # ----------------
+
+        y_pred = clf.predict(
+            dataset
+        )  # default predictions mit einer Klasse direkt, also kein Onehot von allen Daten
+
+        print("probagroß", y_pred, y_pred.shape)
+        y_pred_train = clf.predict(dataset[_indices_labeled])  # vom train Set
+        print("probatrained", y_pred_train[:10], y_pred_train.shape)
+        # a = clf.predict_proba(dataset,logit=True) # statt Softmax die Logits
+
+        # Initialize trust score.
+        trust_model = TrustScore(
+            k=10, alpha=0.1, filtering="density"
+        )  # default hier nix drin
+        # denke wir nehmen cls vektor(statt nur dataset[0]) und y einfach
+        # brauchen aber cls vektor von unlabeld daten
+
+        # print("clsOne",self._clsUNLABELED[0])
+        trust_model.fit(_clsLabeled, _y)
+
+        # Compute trusts score, given (unlabeled) testing examples and (hard) model predictions.
+        trust_score = trust_model.get_score(self._clsUNLABELED, y_pred)
+        print("unlabeld Trust Score", trust_score[:8], trust_score.shape)
+
+        return trust_score  # np.amax(proba, axis=1)
+
+    def __str__(self):
+        return "TrustScore2()"
 
 
 class QBC_Base(ConfidenceBasedQueryStrategy):

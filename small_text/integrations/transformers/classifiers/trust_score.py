@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+from curses import KEY_SHELP
 import numpy as np
 from sklearn.neighbors import KDTree, KNeighborsClassifier
 
@@ -33,24 +35,37 @@ class TrustScore:
         self.alpha = alpha
         self.min_dist = min_dist
 
+    def sayHello(self):
+        print("Hello")
+
     def filter_by_density(self, X: np.array):
         """Filter out points with low kNN density.
+
         Args:
         X: an array of sample points.
+
         Returns:
         A subset of the array without points in the bottom alpha-fraction of
         original points of kNN density.
         """
         kdtree = KDTree(X)
-        knn_radii = kdtree.query(X, k=self.k)[0][:, -1]
-        # knn_radii = kdtree.query(X)[0][:, -1]
+        # print("kdtree",kdtree)
+        XshapeZero = int(X.shape[0])  # Die folgenden 4 Zeilen um k=10 zu tricksen
+        if XshapeZero < self.k:
+            k = XshapeZero
+        else:
+            k = self.k
+        # print("k",self.k)
+        knn_radii = kdtree.query(X, k)[0][:, -1]
         eps = np.percentile(knn_radii, (1 - self.alpha) * 100)
         return X[np.where(knn_radii <= eps)[0], :]
 
     def filter_by_uncertainty(self, X: np.array, y: np.array):
         """Filter out points with high label disagreement amongst its kNN neighbors.
+
         Args:
         X: an array of sample points.
+
         Returns:
         A subset of the array without points in the bottom alpha-fraction of
         samples with highest disagreement amongst its k nearest neighbors.
@@ -64,8 +79,10 @@ class TrustScore:
 
     def fit(self, X: np.array, y: np.array):
         """Initialize trust score precomputations with training data.
+
         WARNING: assumes that the labels are 0-indexed (i.e.
         0, 1,..., n_labels-1).
+
         Args:
         X: an array of sample points.
         y: corresponding labels.
@@ -93,21 +110,30 @@ class TrustScore:
                 )
 
     def get_score(self, X: np.array, y_pred: np.array):
-
         """Compute the trust scores.
+
         Given a set of points, determines the distance to each class.
+
         Args:
         X: an array of sample points.
         y_pred: The predicted labels for these points.
+
         Returns:
         The trust score, which is ratio of distance to closest class that was not
         the predicted class to the distance to the predicted class.
         """
+        k = 2
+        XshapeZero = int(X.shape[0])  # Die folgenden 4 Zeilen um k=10 zu tricksen
+
+        if XshapeZero < k:
+            k = XshapeZero
+        else:
+            k = 2
+        k = 1
 
         d = np.tile(None, (X.shape[0], self.n_labels))
         for label_idx in range(self.n_labels):
-            d[:, label_idx] = self.kdtrees[label_idx].query(X, k=1)[0][:, -1]
-            # d[:, label_idx] = self.kdtrees[label_idx].query(X, k=2)[0][:, -1]
+            d[:, label_idx] = self.kdtrees[label_idx].query(X, k=k)[0][:, -1]
 
         sorted_d = np.sort(d, axis=1)
         d_to_pred = d[range(d.shape[0]), y_pred]

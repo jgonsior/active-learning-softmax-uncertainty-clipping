@@ -32,6 +32,7 @@ from small_text.query_strategies import (
     LeastConfidence,
     QBC_VE,
     QBC_KLD,
+    Trustscore2,
 )
 
 from small_text.integrations.transformers import TransformerModelArguments
@@ -65,7 +66,11 @@ def main(
         num_classes,
         uncertainty_method=uncertainty_method,
         kwargs=dict(
-            {"device": cpu_cuda, "mini_batch_size": 64, "class_weight": "balanced",}
+            {
+                "device": cpu_cuda,
+                "mini_batch_size": 64,
+                "class_weight": "balanced",
+            }
         ),
     )
 
@@ -97,21 +102,27 @@ def main(
             uncertainty_clipping=uncertainty_clipping,
             clf_factory=clf_factory,
         )
+    elif query_strategy_name == "trustscore":
+        query_strategy = Trustscore2(
+            uncertainty_clipping=uncertainty_clipping,
+        )
+
     else:
-        print("Query Stategy not found")
+        print("Query Strategy not found")
         exit(-1)
 
     active_learner = PoolBasedActiveLearner(clf_factory, query_strategy, train)
 
-    if uncertainty_method == "trustscore":
-        active_learner.query_strategy.predict_proba_with_labeled_data = True
-    else:
-        active_learner.query_strategy.predict_proba_with_labeled_data = False
+    active_learner.query_strategy.predict_proba_with_labeled_data = False
 
     labeled_indices = initialize_active_learner(
         active_learner, train.y, initially_labeled_samples
     )
 
+    if query_strategy_name == "trustscore":
+        query_strategy._clsUNLABELED = active_learner._clf.embed(
+            train, embedding_method="cls"
+        )
     try:
         return perform_active_learning(
             active_learner, train, labeled_indices, test, num_iterations, batch_size
@@ -123,13 +134,9 @@ def main(
 
 
 def _evaluate(active_learner, train, test):
-    if active_learner.query_strategy.predict_proba_with_labeled_data:
-        active_learner.classifier.tell_me_so_far_labeled_data(X=train.x, Y=train.y)
     y_pred_train = active_learner.classifier.predict(train)
     y_proba_train = active_learner.classifier.predict_proba(train)
 
-    if active_learner.query_strategy.predict_proba_with_labeled_data:
-        active_learner.classifier.tell_me_so_far_labeled_data(X=test.x, Y=test.y)
     y_pred_test = active_learner.classifier.predict(test)
     y_proba_test = active_learner.classifier.predict_proba(test)
 
@@ -344,13 +351,19 @@ if __name__ == "__main__":
         help="number of active learning iterations",
     )
     parser.add_argument(
-        "--batch_size", type=int, default=20,
+        "--batch_size",
+        type=int,
+        default=20,
     )
     parser.add_argument(
-        "--random_seed", type=int, default=42,
+        "--random_seed",
+        type=int,
+        default=42,
     )
     parser.add_argument(
-        "--initially_labeled_samples", type=int, default=25,
+        "--initially_labeled_samples",
+        type=int,
+        default=25,
     )
     parser.add_argument(
         "--dataset",
@@ -359,16 +372,20 @@ if __name__ == "__main__":
         default="20newsgroups",
     )
     parser.add_argument(
-        "--transformer_model_name", type=str, default="bert-base-uncased",
+        "--transformer_model_name",
+        type=str,
+        default="bert-base-uncased",
     )
     parser.add_argument(
-        "--exp_name", type=str, default="test",
+        "--exp_name",
+        type=str,
+        default="test",
     )
     parser.add_argument(
         "--query_strategy",
         type=str,
         default="LC",
-        choices=["LC", "MM", "Ent", "Rand", "QBC_VE", "QBC_KLD"],
+        choices=["LC", "MM", "Ent", "Rand", "QBC_VE", "QBC_KLD", "trustscore"],
     )
 
     parser.add_argument(
@@ -391,7 +408,6 @@ if __name__ == "__main__":
             "evidential1",
             "evidential2",
             "bayesian",
-            "trustscore",
             "model_calibration",
         ],
     )
@@ -461,7 +477,14 @@ if __name__ == "__main__":
     exp_results_dir.mkdir(parents=True, exist_ok=True)
 
     # save args
-    exp_results_dir_args.write_text(json.dumps({"args": vars(args),}, indent=4,))
+    exp_results_dir_args.write_text(
+        json.dumps(
+            {
+                "args": vars(args),
+            },
+            indent=4,
+        )
+    )
 
     np.savez_compressed(
         exp_results_dir_metrics,

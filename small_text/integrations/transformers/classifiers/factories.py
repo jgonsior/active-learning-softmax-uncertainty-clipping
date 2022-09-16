@@ -4,17 +4,12 @@ from small_text.integrations.transformers.classifiers.classification import (
 )
 
 from small_text.integrations.transformers.classifiers.uncertainty_base_class import (
-    BayesianUncertaintyClassifier,
     EvidentialDeepLearning1UncertaintyClassifier,
-    EvidentialDeepLearning2UncertaintyClassifier,
     InhibitedSoftmaxUncertaintyClassifier,
     LabelSmoothingUncertaintyClassifier,
-    ModelCalibrationUncertaintyClassifier,
     MonteCarloDropoutUncertaintyClassifier,
     SoftmaxUncertaintyClassifier,
     TemperatureScalingUncertaintyClassifier,
-    TemperatureScaling2UncertaintyClassifier,
-    TrustScoreUncertaintyClassifier,
 )
 
 
@@ -60,26 +55,6 @@ class UncertaintyBasedClassificationFactory(TransformerBasedClassificationFactor
             )
         elif self.uncertainty_method == "evidential1":
             return EvidentialDeepLearning1UncertaintyClassifier(
-                self.transformer_model, self.num_classes, **self.kwargs
-            )
-        elif self.uncertainty_method == "evidential2":
-            return EvidentialDeepLearning2UncertaintyClassifier(
-                self.transformer_model, self.num_classes, **self.kwargs
-            )
-        elif self.uncertainty_method == "bayesian":
-            return BayesianUncertaintyClassifier(
-                self.transformer_model, self.num_classes, **self.kwargs
-            )
-        elif self.uncertainty_method == "trustscore":
-            return TrustScoreUncertaintyClassifier(
-                self.transformer_model, self.num_classes, **self.kwargs
-            )
-        elif self.uncertainty_method == "model_calibration":
-            return ModelCalibrationUncertaintyClassifier(
-                self.transformer_model, self.num_classes, **self.kwargs
-            )
-        elif self.uncertainty_method == "temp_scaling2":
-            return TemperatureScaling2UncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         else:
