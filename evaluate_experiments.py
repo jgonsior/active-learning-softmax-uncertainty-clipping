@@ -486,7 +486,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 consider_last_n=21,
                             )
 
-                             table_stats(
+                            table_stats(
                                 exp_name,
                                 transformer_model_name,
                                 dataset,
