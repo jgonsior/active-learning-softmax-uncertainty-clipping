@@ -251,7 +251,7 @@ def perform_active_learning(
 
     for i in range(num_iterations):
         # free memory
-        ttorch.cuda.empty_cache()
+        torch.cuda.empty_cache()
         gc.collect()
 
         start = timer()
