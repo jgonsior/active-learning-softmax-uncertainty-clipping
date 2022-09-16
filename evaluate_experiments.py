@@ -485,6 +485,33 @@ def _execute_parallel(param_grid, dataset: str):
                                 table_title_prefix=table_title_prefix,
                                 consider_last_n=21,
                             )
+
+                             table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="test_eces",
+                                table_title_prefix=table_title_prefix + "_last5",
+                                consider_last_n=5,
+                            )
+
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="test_eces",
+                                table_title_prefix=table_title_prefix,
+                                consider_last_n=21,
+                            )
+
                             runtime_plots(
                                 exp_name,
                                 transformer_model_name,
@@ -557,6 +584,17 @@ def _execute_parallel(param_grid, dataset: str):
                                 table_title_prefix=table_title_prefix,
                             )
 
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="train_eces",
+                                table_title_prefix=table_title_prefix,
+                            )
                             """runtime_plots(
                                             exp_name,
                                             transformer_model_name,
@@ -578,7 +616,8 @@ def _execute_parallel(param_grid, dataset: str):
 def tables_plots(param_grid):
     with parallel_backend("loky", n_jobs=20):
         Parallel()(
-            delayed(_execute_parallel)(dataset) for dataset in param_grid["dataset"]
+            delayed(_execute_parallel)(param_grid, dataset)
+            for dataset in param_grid["dataset"]
         )
 
 
