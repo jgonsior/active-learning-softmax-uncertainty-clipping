@@ -6,6 +6,7 @@ import itertools
 import json
 from pathlib import Path
 from typing import Any, Dict, Tuple
+from joblib import Parallel, delayed, parallel_backend
 from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.metrics import jaccard_score
@@ -439,145 +440,146 @@ def _filter_out_param(param_grid, param, values_to_delete):
     return param_grid
 
 
-def tables_plots(param_grid):
+def _execute_parallel(param_grid, dataset: str):
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
-            for dataset in param_grid["dataset"]:
-                for initially_labeled_samples in param_grid[
-                    "initially_labeled_samples"
-                ]:
-                    for batch_size in param_grid["batch_size"]:
-                        for num_iteration in param_grid["num_iterations"]:
-                            print(
-                                f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        print(
+                            f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
+                        )
+
+                        def _with_without_clipping(pg, clipping=True):
+                            if clipping:
+                                table_title_prefix = "with_clipping"
+                                param_grid_new = _filter_out_param(
+                                    pg, "uncertainty_clipping", [0.95, 0.9]
+                                )
+                            else:
+                                table_title_prefix = "without_clipping"
+                                param_grid_new = _filter_out_param(pg, "", [])
+
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="test_accs",
+                                table_title_prefix=table_title_prefix + "_last5",
+                                consider_last_n=5,
                             )
 
-                            def _with_without_clipping(pg, clipping=True):
-                                if clipping:
-                                    table_title_prefix = "with_clipping"
-                                    param_grid_new = _filter_out_param(
-                                        pg, "uncertainty_clipping", [0.95, 0.9]
-                                    )
-                                else:
-                                    table_title_prefix = "without_clipping"
-                                    param_grid_new = _filter_out_param(pg, "", [])
-
-                                table_stats(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="test_accs",
-                                    table_title_prefix=table_title_prefix + "_last5",
-                                    consider_last_n=5,
-                                )
-
-                                table_stats(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="test_accs",
-                                    table_title_prefix=table_title_prefix,
-                                    consider_last_n=21,
-                                )
-                                exit(-1)
-                                runtime_plots(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="times_elapsed",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                queried_samples_table(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="queried_indices",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                uncertainty_histogram_plots(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="confidence_scores",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                uncertainty_histogram_plots(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="y_probas_test",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                uncertainty_histogram_plots(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="y_probas_train",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                table_stats(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="train_accs",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                """runtime_plots(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="times_elapsed_model",
-                                )"""
-                                print()
-
-                            _with_without_clipping(
-                                copy.deepcopy(param_grid), clipping=True
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="test_accs",
+                                table_title_prefix=table_title_prefix,
+                                consider_last_n=21,
                             )
-                            _with_without_clipping(
-                                copy.deepcopy(param_grid), clipping=False
+                            runtime_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="times_elapsed",
+                                table_title_prefix=table_title_prefix,
                             )
+
+                            queried_samples_table(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="queried_indices",
+                                table_title_prefix=table_title_prefix,
+                            )
+
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="confidence_scores",
+                                table_title_prefix=table_title_prefix,
+                            )
+
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="y_probas_test",
+                                table_title_prefix=table_title_prefix,
+                            )
+
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="y_probas_train",
+                                table_title_prefix=table_title_prefix,
+                            )
+
+                            table_stats(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="train_accs",
+                                table_title_prefix=table_title_prefix,
+                            )
+
+                            """runtime_plots(
+                                            exp_name,
+                                            transformer_model_name,
+                                            dataset,
+                                            initially_labeled_samples,
+                                            batch_size,
+                                            param_grid_new,
+                                            num_iteration,
+                                            metric="times_elapsed_model",
+                                        )"""
+                            print()
+
+                        _with_without_clipping(copy.deepcopy(param_grid), clipping=True)
+                        _with_without_clipping(
+                            copy.deepcopy(param_grid), clipping=False
+                        )
+
+
+def tables_plots(param_grid):
+    with parallel_backend("loky", n_jobs=20):
+        Parallel()(
+            delayed(_execute_parallel)(dataset) for dataset in param_grid["dataset"]
+        )
 
 
 # tables_plots(baselines_param_grid)
