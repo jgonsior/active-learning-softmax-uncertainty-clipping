@@ -17,34 +17,32 @@ from small_text.query_strategies import (
     LeastConfidence,
     PredictionEntropy,
     EmbeddingBasedQueryStrategy,
-    EmbeddingKMeans
+    EmbeddingKMeans,
 )
 
 
 DEFAULT_QUERY_SIZE = 10
 
 
-def query_random_data(strategy, num_samples=100, n=10, use_embeddings=False, embedding_dim=100):
+def query_random_data(
+    strategy, num_samples=100, n=10, use_embeddings=False, embedding_dim=100
+):
 
     x = np.random.rand(num_samples, 10)
     kwargs = dict()
 
     if use_embeddings:
-        kwargs['embeddings'] = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES,
-                                              embedding_dim)
+        kwargs["embeddings"] = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
 
     indices_labeled = np.random.choice(np.arange(num_samples), size=10, replace=False)
-    indices_unlabeled = np.array([i for i in range(x.shape[0])
-                                  if i not in set(indices_labeled)])
+    indices_unlabeled = np.array(
+        [i for i in range(x.shape[0]) if i not in set(indices_labeled)]
+    )
     y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
-    return strategy.query(None,
-                          x,
-                          indices_unlabeled,
-                          indices_labeled,
-                          y,
-                          n=n,
-                          **kwargs)
+    return strategy.query(None, x, indices_unlabeled, indices_labeled, y, n=n, **kwargs)
 
 
 class SamplingStrategiesTests(object):
@@ -59,21 +57,22 @@ class SamplingStrategiesTests(object):
 
     def test_simple_query(self):
         """Tests a query of n=5."""
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES,
-                              n=5)
+        indices = self._query(
+            self._get_query_strategy(), num_samples=self.DEFAULT_NUM_SAMPLES, n=5
+        )
         self.assertEqual(5, len(indices))
 
     def test_default_query(self):
         """Tests the query with default args."""
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES)
+        indices = self._query(
+            self._get_query_strategy(), num_samples=self.DEFAULT_NUM_SAMPLES
+        )
         self.assertEqual(DEFAULT_QUERY_SIZE, len(indices))
 
     def test_query_takes_remaining_pool(self):
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES,
-                              n=10)
+        indices = self._query(
+            self._get_query_strategy(), num_samples=self.DEFAULT_NUM_SAMPLES, n=10
+        )
         self.assertEqual(DEFAULT_QUERY_SIZE, len(indices))
 
     def test_query_exhausts_pool(self):
@@ -84,9 +83,12 @@ class SamplingStrategiesTests(object):
     def _query(self, strategy, num_samples=20, n=10, **kwargs):
         x = np.random.rand(num_samples, 10)
 
-        indices_labeled = np.random.choice(np.arange(num_samples), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in range(x.shape[0])
-                                      if i not in set(indices_labeled)])
+        indices_labeled = np.random.choice(
+            np.arange(num_samples), size=10, replace=False
+        )
+        indices_unlabeled = np.array(
+            [i for i in range(x.shape[0]) if i not in set(indices_labeled)]
+        )
 
         clf_mock = self._get_clf()
         if clf_mock is not None:
@@ -96,11 +98,12 @@ class SamplingStrategiesTests(object):
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
         self.assertEqual(indices_labeled.shape[0], y.shape[0])
 
-        return strategy.query(clf_mock, x, indices_unlabeled, indices_labeled, y, n=n, **kwargs)
+        return strategy.query(
+            clf_mock, x, indices_unlabeled, indices_labeled, y, n=n, **kwargs
+        )
 
 
 class RandomSamplingTest(unittest.TestCase, SamplingStrategiesTests):
-
     def _get_clf(self):
         return None
 
@@ -109,7 +112,7 @@ class RandomSamplingTest(unittest.TestCase, SamplingStrategiesTests):
 
     def test_random_sampling_str(self):
         strategy = RandomSampling()
-        self.assertEqual('RandomSampling()', str(strategy))
+        self.assertEqual("RandomSampling()", str(strategy))
 
     def test_random_sampling_query_default(self):
         indices = query_random_data(self._get_query_strategy())
@@ -118,8 +121,9 @@ class RandomSamplingTest(unittest.TestCase, SamplingStrategiesTests):
     def test_random_sampling_empty_pool(self, num_samples=20, n=10):
         strategy = RandomSampling()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices_unlabeled = []
@@ -130,7 +134,6 @@ class RandomSamplingTest(unittest.TestCase, SamplingStrategiesTests):
 
 
 class BreakingTiesTest(unittest.TestCase, SamplingStrategiesTests):
-
     def _get_clf(self):
         return ConfidenceEnhancedLinearSVC()
 
@@ -139,22 +142,20 @@ class BreakingTiesTest(unittest.TestCase, SamplingStrategiesTests):
 
     def test_breaking_ties_str(self):
         strategy = self._get_query_strategy()
-        self.assertEqual('BreakingTies()', str(strategy))
+        self.assertEqual("BreakingTies()", str(strategy))
 
     def test_breaking_ties_binary(self):
-        proba = np.array([
-            [0.1, 0.9],
-            [0.45, 0.55],
-            [0.5, 0.5],
-            [0.7, 0.3]
-        ])
+        proba = np.array([[0.1, 0.9], [0.45, 0.55], [0.5, 0.5], [0.7, 0.3]])
         clf_mock = self._get_clf()
         clf_mock.predict_proba = Mock(return_value=proba)
 
-        dataset = SklearnDataset(np.random.rand(proba.shape[0], 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(proba.shape[0], 10), np.random.randint(0, high=2, size=10)
+        )
         strategy = self._get_query_strategy()
-        indices = strategy.query(clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2)
+        indices = strategy.query(
+            clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2
+        )
 
         expected = np.array([2, 1])
         assert_array_equal(expected, indices)
@@ -163,24 +164,19 @@ class BreakingTiesTest(unittest.TestCase, SamplingStrategiesTests):
         assert_array_almost_equal(np.array([0.8, 0.1, 0, 0.4]), strategy.scores_)
 
     def test_breaking_ties_multiclass(self):
-        proba = np.array([
-            [0.1, 0.75, 0.15],
-            [0.45, 0.5, 0.05],
-            [0.1, 0.8, 0.1],
-            [0.7, 0.15, 0.15]
-        ])
+        proba = np.array(
+            [[0.1, 0.75, 0.15], [0.45, 0.5, 0.05], [0.1, 0.8, 0.1], [0.7, 0.15, 0.15]]
+        )
         clf_mock = self._get_clf()
         clf_mock.predict_proba = Mock(return_value=proba)
 
-        dataset = SklearnDataset(np.random.rand(proba.shape[0], 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(proba.shape[0], 10), np.random.randint(0, high=2, size=10)
+        )
         strategy = self._get_query_strategy()
-        indices = strategy.query(clf_mock,
-                                 dataset,
-                                 np.arange(0, 4),
-                                 np.array([]),
-                                 np.array([]),
-                                 n=2)
+        indices = strategy.query(
+            clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2
+        )
 
         expected = np.array([1, 3])
         assert_array_equal(expected, indices)
@@ -190,7 +186,6 @@ class BreakingTiesTest(unittest.TestCase, SamplingStrategiesTests):
 
 
 class LeastConfidenceTest(unittest.TestCase, SamplingStrategiesTests):
-
     def _get_clf(self):
         return ConfidenceEnhancedLinearSVC()
 
@@ -199,27 +194,20 @@ class LeastConfidenceTest(unittest.TestCase, SamplingStrategiesTests):
 
     def test_least_confidence_str(self):
         strategy = self._get_query_strategy()
-        self.assertEqual('LeastConfidence()', str(strategy))
+        self.assertEqual("LeastConfidence()", str(strategy))
 
     def test_least_confidence_binary(self):
-        proba = np.array([
-            [0.1, 0.9],
-            [0.45, 0.55],
-            [0.2, 0.8],
-            [0.7, 0.3]
-        ])
+        proba = np.array([[0.1, 0.9], [0.45, 0.55], [0.2, 0.8], [0.7, 0.3]])
         clf_mock = self._get_clf()
         clf_mock.predict_proba = Mock(return_value=proba)
 
-        dataset = SklearnDataset(np.random.rand(proba.shape[0], 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(proba.shape[0], 10), np.random.randint(0, high=2, size=10)
+        )
         strategy = self._get_query_strategy()
-        indicies = strategy.query(clf_mock,
-                                  dataset,
-                                  np.arange(0, 4),
-                                  np.array([]),
-                                  np.array([]),
-                                  n=2)
+        indicies = strategy.query(
+            clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2
+        )
 
         expected = np.array([1, 3])
         assert_array_equal(expected, indicies)
@@ -228,24 +216,19 @@ class LeastConfidenceTest(unittest.TestCase, SamplingStrategiesTests):
         assert_array_almost_equal(np.array([0.9, 0.55, 0.8, 0.7]), strategy.scores_)
 
     def test_least_confidence_multiclass(self):
-        proba = np.array([
-            [0.1, 0.75, 0.15],
-            [0.45, 0.5, 0.05],
-            [0.1, 0.8, 0.1],
-            [0.7, 0.15, 0.15]
-        ])
+        proba = np.array(
+            [[0.1, 0.75, 0.15], [0.45, 0.5, 0.05], [0.1, 0.8, 0.1], [0.7, 0.15, 0.15]]
+        )
         clf_mock = self._get_clf()
         clf_mock.predict_proba = Mock(return_value=proba)
 
-        dataset = SklearnDataset(np.random.rand(proba.shape[0], 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(proba.shape[0], 10), np.random.randint(0, high=2, size=10)
+        )
         strategy = self._get_query_strategy()
-        indicies = strategy.query(clf_mock,
-                                  dataset,
-                                  np.arange(0, 4),
-                                  np.array([]),
-                                  np.array([]),
-                                  n=2)
+        indicies = strategy.query(
+            clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2
+        )
 
         expected = np.array([1, 3])
         assert_array_equal(expected, indicies)
@@ -255,7 +238,6 @@ class LeastConfidenceTest(unittest.TestCase, SamplingStrategiesTests):
 
 
 class PredictionEntropyTest(unittest.TestCase, SamplingStrategiesTests):
-
     def _get_clf(self):
         return ConfidenceEnhancedLinearSVC()
 
@@ -264,64 +246,53 @@ class PredictionEntropyTest(unittest.TestCase, SamplingStrategiesTests):
 
     def test_prediction_entropy_str(self):
         strategy = self._get_query_strategy()
-        self.assertEqual('PredictionEntropy()', str(strategy))
+        self.assertEqual("PredictionEntropy()", str(strategy))
 
     def test_prediction_entropy_binary(self):
-        proba = np.array([
-            [0.1, 0.9],
-            [0.45, 0.55],
-            [0.5, 0.5],
-            [0.7, 0.3]
-        ])
+        proba = np.array([[0.1, 0.9], [0.45, 0.55], [0.5, 0.5], [0.7, 0.3]])
         clf_mock = self._get_clf()
         clf_mock.predict_proba = Mock(return_value=proba)
 
-        dataset = SklearnDataset(np.random.rand(proba.shape[0], 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(proba.shape[0], 10), np.random.randint(0, high=2, size=10)
+        )
         strategy = self._get_query_strategy()
-        indicies = strategy.query(clf_mock,
-                                  dataset,
-                                  np.arange(0, 4),
-                                  np.array([]),
-                                  np.array([]),
-                                  n=2)
+        indicies = strategy.query(
+            clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2
+        )
 
         expected = np.array([2, 1])
         assert_array_equal(expected, indicies)
 
         self.assertIsNotNone(strategy.scores_)
-        assert_array_almost_equal(np.array([0.325083, 0.688139, 0.693147, 0.610864]),
-                                  strategy.scores_)
+        assert_array_almost_equal(
+            np.array([0.325083, 0.688139, 0.693147, 0.610864]), strategy.scores_
+        )
 
     def test_prediction_entropy_multiclass(self):
-        proba = np.array([
-            [0.1, 0.8, 0.1],
-            [0.45, 0.25, 0.3],
-            [0.33, 0.33, 0.34],
-            [0.7, 0.3, 0]
-        ])
+        proba = np.array(
+            [[0.1, 0.8, 0.1], [0.45, 0.25, 0.3], [0.33, 0.33, 0.34], [0.7, 0.3, 0]]
+        )
         clf_mock = self._get_clf()
         clf_mock.predict_proba = Mock(return_value=proba)
 
-        dataset = SklearnDataset(np.random.rand(proba.shape[0], 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(proba.shape[0], 10), np.random.randint(0, high=2, size=10)
+        )
         strategy = self._get_query_strategy()
-        indicies = strategy.query(clf_mock,
-                                  dataset,
-                                  np.arange(0, 4),
-                                  np.array([]),
-                                  np.array([]),
-                                  n=2)
+        indicies = strategy.query(
+            clf_mock, dataset, np.arange(0, 4), np.array([]), np.array([]), n=2
+        )
 
         expected = np.array([2, 1])
         assert_array_equal(expected, indicies)
 
-        assert_array_almost_equal(np.array([0.639032, 1.067094, 1.098513, 0.610864]),
-                                  strategy.scores_)
+        assert_array_almost_equal(
+            np.array([0.639032, 1.067094, 1.098513, 0.610864]), strategy.scores_
+        )
 
 
 class SubSamplingTest(unittest.TestCase, SamplingStrategiesTests):
-
     def _get_clf(self):
         return ConfidenceEnhancedLinearSVC()
 
@@ -330,8 +301,10 @@ class SubSamplingTest(unittest.TestCase, SamplingStrategiesTests):
 
     def test_subsampling_str(self):
         strategy = SubsamplingQueryStrategy(RandomSampling(), subsample_size=20)
-        expected_str = 'SubsamplingQueryStrategy(base_query_strategy=RandomSampling(), ' \
-                       'subsample_size=20)'
+        expected_str = (
+            "SubsamplingQueryStrategy(base_query_strategy=RandomSampling(), "
+            "subsample_size=20)"
+        )
         self.assertEqual(expected_str, str(strategy))
 
     def test_subsampling_query_default(self):
@@ -341,8 +314,9 @@ class SubSamplingTest(unittest.TestCase, SamplingStrategiesTests):
     def test_subsampling_empty_pool(self, num_samples=20, n=10):
         strategy = self._get_query_strategy()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices_unlabeled = []
@@ -365,21 +339,27 @@ class SubSamplingTest(unittest.TestCase, SamplingStrategiesTests):
 
 
 class EmbeddingBasedQueryStrategyImplementation(EmbeddingBasedQueryStrategy):
-
-    def sample(self, clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
         pass
 
 
 class SklearnClassifierWithRandomEmbeddings(SklearnClassifier):
-
     def embed(self, dataset, embed_dim=5, pbar=None):
         self.embeddings_ = np.random.rand(len(dataset), embed_dim)
         return self.embeddings_
 
 
 class SklearnClassifierWithRandomEmbeddingsAndProba(SklearnClassifier):
-
     def embed(self, dataset, return_proba=False, embed_dim=5, pbar=None):
 
         self.embeddings_ = np.random.rand(len(dataset), embed_dim)
@@ -391,15 +371,17 @@ class SklearnClassifierWithRandomEmbeddingsAndProba(SklearnClassifier):
 
 
 class EmbeddingBasedQueryStrategyTest(unittest.TestCase):
-
     def test_str(self):
         query_strategy = EmbeddingBasedQueryStrategyImplementation()
-        self.assertEqual('EmbeddingBasedQueryStrategy()', str(query_strategy))
+        self.assertEqual("EmbeddingBasedQueryStrategy()", str(query_strategy))
 
     def test_query_with_precomputed_embeddings(self, num_samples=20):
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, 2)
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, 2
+        )
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices = np.arange(num_samples)
         mask = np.isin(indices, indices_labeled)
@@ -410,16 +392,28 @@ class EmbeddingBasedQueryStrategyTest(unittest.TestCase):
 
         query_strategy = EmbeddingBasedQueryStrategyImplementation()
 
-        with patch.object(query_strategy, 'sample', wraps=query_strategy.sample) as sample_spy:
-            query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                 n=n, embeddings=embeddings)
+        with patch.object(
+            query_strategy, "sample", wraps=query_strategy.sample
+        ) as sample_spy:
+            query_strategy.query(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n=n,
+                embeddings=embeddings,
+            )
 
             sample_spy.assert_called()
 
     def test_query_when_embed_has_return_proba(self, num_samples=20):
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, 2)
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, 2
+        )
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices = np.arange(num_samples)
         mask = np.isin(indices, indices_labeled)
@@ -430,16 +424,34 @@ class EmbeddingBasedQueryStrategyTest(unittest.TestCase):
 
         query_strategy = EmbeddingBasedQueryStrategyImplementation()
 
-        with patch.object(query_strategy, 'sample', wraps=query_strategy.sample) as sample_spy:
-            query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                 n=n, embeddings=embeddings)
-            sample_spy.assert_called_once_with(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                               n, clf.embeddings_, embeddings_proba=clf.proba_)
+        with patch.object(
+            query_strategy, "sample", wraps=query_strategy.sample
+        ) as sample_spy:
+            query_strategy.query(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n=n,
+                embeddings=embeddings,
+            )
+            sample_spy.assert_called_once_with(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n,
+                clf.embeddings_,
+                embeddings_proba=clf.proba_,
+            )
 
     def test_query_when_embed_has_no_return_proba(self, num_samples=20):
         clf = SklearnClassifierWithRandomEmbeddings(ConfidenceEnhancedLinearSVC, 2)
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices = np.arange(num_samples)
         mask = np.isin(indices, indices_labeled)
@@ -450,16 +462,29 @@ class EmbeddingBasedQueryStrategyTest(unittest.TestCase):
 
         query_strategy = EmbeddingBasedQueryStrategyImplementation()
 
-        with patch.object(query_strategy, 'sample', wraps=query_strategy.sample) as sample_spy:
-            query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                 n=n, embeddings=embeddings)
-            sample_spy.assert_called_once_with(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                               n, clf.embeddings_)
+        with patch.object(
+            query_strategy, "sample", wraps=query_strategy.sample
+        ) as sample_spy:
+            query_strategy.query(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n=n,
+                embeddings=embeddings,
+            )
+            sample_spy.assert_called_once_with(
+                clf, dataset, indices_unlabeled, indices_labeled, y, n, clf.embeddings_
+            )
 
-    def test_query_with_nonexistent_embed_kwargs_and_no_return_proba(self, num_samples=20):
+    def test_query_with_nonexistent_embed_kwargs_and_no_return_proba(
+        self, num_samples=20
+    ):
         clf = SklearnClassifierWithRandomEmbeddings(ConfidenceEnhancedLinearSVC, 2)
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices = np.arange(num_samples)
         mask = np.isin(indices, indices_labeled)
@@ -471,13 +496,24 @@ class EmbeddingBasedQueryStrategyTest(unittest.TestCase):
         query_strategy = EmbeddingBasedQueryStrategyImplementation()
 
         with self.assertRaises(TypeError):
-            query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                 n=n, embeddings=embeddings, embed_kwargs={'does': 'not exist'})
+            query_strategy.query(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n=n,
+                embeddings=embeddings,
+                embed_kwargs={"does": "not exist"},
+            )
 
     def test_query_with_nonexistent_embed_kwargs_and_return_proba(self, num_samples=20):
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, 2)
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, 2
+        )
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices = np.arange(num_samples)
         mask = np.isin(indices, indices_labeled)
@@ -489,48 +525,69 @@ class EmbeddingBasedQueryStrategyTest(unittest.TestCase):
         query_strategy = EmbeddingBasedQueryStrategyImplementation()
 
         with self.assertRaises(TypeError):
-            query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y,
-                                 n=n, embeddings=embeddings, embed_kwargs={'does': 'not exist'})
+            query_strategy.query(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n=n,
+                embeddings=embeddings,
+                embed_kwargs={"does": "not exist"},
+            )
 
 
 class EmbeddingKMeansTest(unittest.TestCase):
-
     def test_query(self, n=10, num_samples=100, num_classes=2):
         query_strategy = EmbeddingKMeans()
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, num_classes)
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, num_classes
+        )
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
-        indices = query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y, n)
+        indices = query_strategy.query(
+            clf, dataset, indices_unlabeled, indices_labeled, y, n
+        )
 
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
-    @patch('sklearn.preprocessing.normalize', wraps=normalize)
+    @patch("sklearn.preprocessing.normalize", wraps=normalize)
     def test_sample(self, normalize_mock, n=10, num_samples=100, embedding_dim=60):
         query_strategy = EmbeddingKMeans()
         query_strategy._get_nearest_to_centers_iterative = Mock(
-            wraps=query_strategy._get_nearest_to_centers_iterative)
+            wraps=query_strategy._get_nearest_to_centers_iterative
+        )
         clf = ConfidenceEnhancedLinearSVC()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
         embeddings = np.random.rand(num_samples, embedding_dim)
 
         # make sure we hit the "default" case
         query_strategy._get_nearest_to_centers = Mock(
-            return_value=np.random.choice(indices_unlabeled, 10, replace=False))
-        indices = query_strategy.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings)
+            return_value=np.random.choice(indices_unlabeled, 10, replace=False)
+        )
+        indices = query_strategy.sample(
+            clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings
+        )
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
@@ -538,24 +595,31 @@ class EmbeddingKMeansTest(unittest.TestCase):
         np.testing.assert_array_equal(embeddings, normalize_mock.call_args[0][0])
         query_strategy._get_nearest_to_centers_iterative.assert_not_called()
 
-    @patch('sklearn.preprocessing.normalize', wraps=normalize)
-    def test_sample_with_normalize_false(self, normalize_mock, n=10, num_samples=100,
-                                         embedding_dim=20):
+    @patch("sklearn.preprocessing.normalize", wraps=normalize)
+    def test_sample_with_normalize_false(
+        self, normalize_mock, n=10, num_samples=100, embedding_dim=20
+    ):
         query_strategy = EmbeddingKMeans(normalize=False)
         query_strategy._get_nearest_to_centers_iterative = Mock(
-            wraps=query_strategy._get_nearest_to_centers_iterative)
+            wraps=query_strategy._get_nearest_to_centers_iterative
+        )
         clf = ConfidenceEnhancedLinearSVC()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
         embeddings = np.random.rand(num_samples, embedding_dim)
 
-        indices = query_strategy.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings)
+        indices = query_strategy.sample(
+            clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings
+        )
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
@@ -565,22 +629,26 @@ class EmbeddingKMeansTest(unittest.TestCase):
         query_strategy = EmbeddingKMeans()
         query_strategy._get_nearest_to_centers = Mock(return_value=np.zeros(n))
         query_strategy._get_nearest_to_centers_iterative = Mock(
-            wraps=query_strategy._get_nearest_to_centers_iterative)
+            wraps=query_strategy._get_nearest_to_centers_iterative
+        )
 
         clf = ConfidenceEnhancedLinearSVC()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices_unlabeled = np.array(
-            [i for i in np.arange(100) if i not in set(indices_labeled)])
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
         embeddings = np.random.rand(num_samples, embedding_dim)
 
-        indices = query_strategy.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n,
-                                        embeddings)
+        indices = query_strategy.sample(
+            clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings
+        )
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
@@ -588,122 +656,176 @@ class EmbeddingKMeansTest(unittest.TestCase):
 
     def test_str(self):
         query_strategy = EmbeddingKMeans()
-        self.assertEqual('EmbeddingKMeans(normalize=True)', str(query_strategy))
+        self.assertEqual("EmbeddingKMeans(normalize=True)", str(query_strategy))
 
     def test_str_with_normalize_false(self):
         query_strategy = EmbeddingKMeans(normalize=False)
-        self.assertEqual('EmbeddingKMeans(normalize=False)', str(query_strategy))
+        self.assertEqual("EmbeddingKMeans(normalize=False)", str(query_strategy))
 
 
 class ContrastiveActiveLearningTest(unittest.TestCase):
-
     def test_query(self, n=10, num_samples=100, num_classes=2):
         query_strategy = ContrastiveActiveLearning()
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, num_classes)
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, num_classes
+        )
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
-        indices = query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y, n)
+        indices = query_strategy.query(
+            clf, dataset, indices_unlabeled, indices_labeled, y, n
+        )
 
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
-    def test_query_with_precomputed_embeddings(self, n=10, num_samples=100, embedding_dim=20):
+    def test_query_with_precomputed_embeddings(
+        self, n=10, num_samples=100, embedding_dim=20
+    ):
 
         query_strategy = ContrastiveActiveLearning()
         clf = SklearnClassifierWithRandomEmbeddings(ConfidenceEnhancedLinearSVC, 2)
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
         embeddings = np.random.rand(num_samples, embedding_dim)
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
-        with self.assertRaisesRegex(ValueError, 'Error: embeddings_proba is None. This strategy'):
-            query_strategy.query(clf, dataset, indices_unlabeled, indices_labeled, y, n,
-                                 embeddings=embeddings)
+        with self.assertRaisesRegex(
+            ValueError, "Error: embeddings_proba is None. This strategy"
+        ):
+            query_strategy.query(
+                clf,
+                dataset,
+                indices_unlabeled,
+                indices_labeled,
+                y,
+                n,
+                embeddings=embeddings,
+            )
 
-    @patch('small_text.query_strategies.strategies.normalize', wraps=normalize)
+    @patch("small_text.query_strategies.strategies.normalize", wraps=normalize)
     def test_sample(self, normalize_mock, n=10, num_samples=100, embedding_dim=60):
         query_strategy = ContrastiveActiveLearning()
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, 2)
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, 2
+        )
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
         embeddings = np.random.rand(num_samples, embedding_dim)
         embeddings_proba = np.random.random_sample((num_samples, 2))
 
-        indices = query_strategy.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n,
-                                        embeddings, embeddings_proba=embeddings_proba)
+        indices = query_strategy.sample(
+            clf,
+            dataset,
+            indices_unlabeled,
+            indices_labeled,
+            y,
+            n,
+            embeddings,
+            embeddings_proba=embeddings_proba,
+        )
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
         normalize_mock.assert_called()
         np.testing.assert_array_equal(embeddings, normalize_mock.call_args[0][0])
 
-    @patch('small_text.query_strategies.strategies.normalize', wraps=normalize)
-    def test_sample_with_normalize_false(self, normalize_mock, n=10, num_samples=100,
-                                         embedding_dim=20):
+    @patch("small_text.query_strategies.strategies.normalize", wraps=normalize)
+    def test_sample_with_normalize_false(
+        self, normalize_mock, n=10, num_samples=100, embedding_dim=20
+    ):
         query_strategy = ContrastiveActiveLearning(normalize=False)
-        clf = SklearnClassifierWithRandomEmbeddingsAndProba(ConfidenceEnhancedLinearSVC, 2)
+        clf = SklearnClassifierWithRandomEmbeddingsAndProba(
+            ConfidenceEnhancedLinearSVC, 2
+        )
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
-        indices_unlabeled = np.array([i for i in np.arange(100) if i not in set(indices_labeled)])
+        indices_unlabeled = np.array(
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
         embeddings = np.random.rand(num_samples, embedding_dim)
         embeddings_proba = np.random.random_sample((num_samples, 2))
 
-        indices = query_strategy.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n,
-                                        embeddings, embeddings_proba=embeddings_proba)
+        indices = query_strategy.sample(
+            clf,
+            dataset,
+            indices_unlabeled,
+            indices_labeled,
+            y,
+            n,
+            embeddings,
+            embeddings_proba=embeddings_proba,
+        )
         self.assertIsNotNone(indices)
         self.assertEqual(n, indices.shape[0])
 
         normalize_mock.assert_not_called()
 
-    def test_sample_with_clf_that_does_not_return_proba(self,
-                                                        n=10,
-                                                        num_samples=100,
-                                                        embedding_dim=20):
+    def test_sample_with_clf_that_does_not_return_proba(
+        self, n=10, num_samples=100, embedding_dim=20
+    ):
         query_strategy = ContrastiveActiveLearning()
         clf = ConfidenceEnhancedLinearSVC()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices_unlabeled = np.array(
-            [i for i in np.arange(100) if i not in set(indices_labeled)])
+            [i for i in np.arange(100) if i not in set(indices_labeled)]
+        )
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
 
         embeddings = np.random.rand(num_samples, embedding_dim)
 
-        with self.assertRaisesRegex(ValueError, 'Error: embeddings_proba is None. This strategy'):
-            query_strategy.sample(clf, dataset, indices_unlabeled, indices_labeled, y, n,
-                                  embeddings)
+        with self.assertRaisesRegex(
+            ValueError, "Error: embeddings_proba is None. This strategy"
+        ):
+            query_strategy.sample(
+                clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings
+            )
 
     def test_str(self):
         query_strategy = ContrastiveActiveLearning()
         self.assertEqual(
-            'ContrastiveActiveLearning(k=10, embed_kwargs={}, normalize=True)',
-            str(query_strategy))
+            "ContrastiveActiveLearning(k=10, embed_kwargs={}, normalize=True)",
+            str(query_strategy),
+        )
 
     def test_str_with_normalize_false(self):
         query_strategy = ContrastiveActiveLearning(normalize=False)
-        self.assertEqual('ContrastiveActiveLearning(k=10, embed_kwargs={}, normalize=False)',
-                         str(query_strategy))
+        self.assertEqual(
+            "ContrastiveActiveLearning(k=10, embed_kwargs={}, normalize=False)",
+            str(query_strategy),
+        )

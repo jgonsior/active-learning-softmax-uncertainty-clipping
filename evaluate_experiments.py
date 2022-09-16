@@ -69,7 +69,7 @@ def set_matplotlib_size(width, fraction=1):
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
-    golden_ratio = (5**0.5 - 1) / 2
+    golden_ratio = (5 ** 0.5 - 1) / 2
 
     # Figure width in inches
     fig_width_in = fig_width_pt * inches_per_pt
@@ -258,8 +258,7 @@ def uncertainty_histogram_plots(
         print(strat)
         fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
         sns.histplot(
-            data=df.loc[df["Strategy"] == strat],
-            x=metric,
+            data=df.loc[df["Strategy"] == strat], x=metric,
         )
         plt.title(f"{strat}")
         plot_path = Path(

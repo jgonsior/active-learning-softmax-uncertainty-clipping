@@ -10,8 +10,10 @@ from small_text.data.sampling import stratified_sampling, balanced_sampling
 
 def check_size(expected_num_samples, num_samples):
     if num_samples != expected_num_samples:
-        raise ValueError(f'Size mismatch: expected {expected_num_samples} samples, '
-                         f'encountered {num_samples} samples')
+        raise ValueError(
+            f"Size mismatch: expected {expected_num_samples} samples, "
+            f"encountered {num_samples} samples"
+        )
 
 
 class Dataset(ABC):
@@ -78,6 +80,7 @@ class DatasetView(Dataset):
     selection : int or list or slice or np.ndarray
         Selects the subset for this view.
     """
+
     def __init__(self, dataset, selection):
         self.obj_class = type(self)
         self._dataset = dataset
@@ -103,7 +106,7 @@ class DatasetView(Dataset):
 
     @x.setter
     def x(self, x):
-        raise UnsupportedOperationException('Cannot set x on a DatasetView')
+        raise UnsupportedOperationException("Cannot set x on a DatasetView")
 
     @property
     def y(self):
@@ -111,7 +114,7 @@ class DatasetView(Dataset):
 
     @y.setter
     def y(self, y):
-        raise UnsupportedOperationException('Cannot set y on a DatasetView')
+        raise UnsupportedOperationException("Cannot set y on a DatasetView")
 
     @property
     def is_multi_label(self):
@@ -130,7 +133,7 @@ class DatasetView(Dataset):
 
     @target_labels.setter
     def target_labels(self, target_labels):
-        raise UnsupportedOperationException('Cannot set target_labels on a DatasetView')
+        raise UnsupportedOperationException("Cannot set target_labels on a DatasetView")
 
     def __getitem__(self, item):
         return self.obj_class(self, item)
@@ -234,7 +237,9 @@ class SklearnDataset(Dataset):
         return self._x.shape[0]
 
 
-def split_data(train_set, y=None, strategy='random', validation_set_size=0.1, return_indices=False):
+def split_data(
+    train_set, y=None, strategy="random", validation_set_size=0.1, return_indices=False
+):
     """
     Splits the given set `train_set` into two subsets (`sub_train` and `sub_valid`).
 
@@ -252,22 +257,26 @@ def split_data(train_set, y=None, strategy='random', validation_set_size=0.1, re
         Returns two lists (np.ndarray[int]) of indices instead of two subsets if True.
     """
 
-    train_len = int(len(train_set) * (1-validation_set_size))
+    train_len = int(len(train_set) * (1 - validation_set_size))
 
-    if strategy == 'random':
+    if strategy == "random":
         indices = np.random.permutation(len(train_set))
         indices_train = indices[:train_len]
         indices_valid = indices[train_len:]
-    elif strategy == 'balanced':
-        indices_valid = balanced_sampling(y, n_samples=len(train_set)-train_len)
+    elif strategy == "balanced":
+        indices_valid = balanced_sampling(y, n_samples=len(train_set) - train_len)
         indices_train = list(range(len(train_set)))
-        indices_train = np.array([i for i in indices_train if i not in set(indices_valid)])
-    elif strategy == 'stratified':
-        indices_valid = stratified_sampling(y, n_samples=len(train_set)-train_len)
+        indices_train = np.array(
+            [i for i in indices_train if i not in set(indices_valid)]
+        )
+    elif strategy == "stratified":
+        indices_valid = stratified_sampling(y, n_samples=len(train_set) - train_len)
         indices_train = list(range(len(train_set)))
-        indices_train = np.array([i for i in indices_train if i not in set(indices_valid)])
+        indices_train = np.array(
+            [i for i in indices_train if i not in set(indices_valid)]
+        )
     else:
-        raise ValueError('Invalid strategy: ' + strategy)
+        raise ValueError("Invalid strategy: " + strategy)
 
     if return_indices:
         return indices_train, indices_valid

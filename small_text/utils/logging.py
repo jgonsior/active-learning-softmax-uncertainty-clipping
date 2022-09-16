@@ -11,7 +11,6 @@ VERBOSITY_ALL = 100
 
 
 class VerbosityLogger(Logger):
-
     def __init__(self, name, level=NOTSET, verbosity=VERBOSITY_VERBOSE):
         super().__init__(name, level=level)
 
@@ -37,7 +36,9 @@ class VerbosityLogger(Logger):
         if self.verbosity >= verbosity:
             super().error(msg, *args, **kwargs)
 
-    def exception(self, msg, *args, exc_info=True, verbosity=VERBOSITY_VERBOSE, **kwargs):
+    def exception(
+        self, msg, *args, exc_info=True, verbosity=VERBOSITY_VERBOSE, **kwargs
+    ):
         if self.verbosity >= verbosity:
             super().exception(msg, *args, exc_info=exc_info, **kwargs)
 

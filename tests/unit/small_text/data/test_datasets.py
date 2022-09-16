@@ -22,37 +22,46 @@ from tests.utils.testing import assert_labels_equal
 
 
 class IsMultiLabelTest(unittest.TestCase):
-
     def test_is_multi_label_csr(self):
-        _, y = random_matrix_data('dense', 'sparse', num_samples=10)
+        _, y = random_matrix_data("dense", "sparse", num_samples=10)
         self.assertTrue(is_multi_label(y))
 
     def test_is_multi_label_ndarray(self):
-        _, y = random_matrix_data('dense', 'dense', num_samples=10)
+        _, y = random_matrix_data("dense", "dense", num_samples=10)
         self.assertFalse(is_multi_label(y))
 
 
-@parameterized_class([{'matrix_type': 'sparse', 'labels_type': 'dense', 'target_labels': 'explicit'},
-                      {'matrix_type': 'sparse', 'labels_type': 'sparse', 'target_labels': 'explicit'},
-                      {'matrix_type': 'sparse', 'labels_type': 'dense', 'target_labels': 'inferred'},
-                      {'matrix_type': 'sparse', 'labels_type': 'sparse', 'target_labels': 'inferred'},
-                      {'matrix_type': 'dense', 'labels_type': 'dense', 'target_labels': 'explicit'},
-                      {'matrix_type': 'dense', 'labels_type': 'sparse', 'target_labels': 'explicit'},
-                      {'matrix_type': 'dense', 'labels_type': 'dense', 'target_labels': 'inferred'},
-                      {'matrix_type': 'dense', 'labels_type': 'sparse', 'target_labels': 'inferred'}])
+@parameterized_class(
+    [
+        {"matrix_type": "sparse", "labels_type": "dense", "target_labels": "explicit"},
+        {"matrix_type": "sparse", "labels_type": "sparse", "target_labels": "explicit"},
+        {"matrix_type": "sparse", "labels_type": "dense", "target_labels": "inferred"},
+        {"matrix_type": "sparse", "labels_type": "sparse", "target_labels": "inferred"},
+        {"matrix_type": "dense", "labels_type": "dense", "target_labels": "explicit"},
+        {"matrix_type": "dense", "labels_type": "sparse", "target_labels": "explicit"},
+        {"matrix_type": "dense", "labels_type": "dense", "target_labels": "inferred"},
+        {"matrix_type": "dense", "labels_type": "sparse", "target_labels": "inferred"},
+    ]
+)
 class SklearnDatasetTest(unittest.TestCase):
 
     NUM_SAMPLES = 100
 
     def _dataset(self, num_samples=100, return_data=False):
-        x, y = random_matrix_data(self.matrix_type, self.labels_type, num_samples=num_samples)
-        if self.target_labels not in ['explicit', 'inferred']:
-            raise ValueError('Invalid test parameter value for target_labels:' + self.target_labels)
+        x, y = random_matrix_data(
+            self.matrix_type, self.labels_type, num_samples=num_samples
+        )
+        if self.target_labels not in ["explicit", "inferred"]:
+            raise ValueError(
+                "Invalid test parameter value for target_labels:" + self.target_labels
+            )
 
-        if self.labels_type == 'sparse':
-            target_labels = None if self.target_labels == 'inferred' else np.unique(y.indices)
+        if self.labels_type == "sparse":
+            target_labels = (
+                None if self.target_labels == "inferred" else np.unique(y.indices)
+            )
         else:
-            target_labels = None if self.target_labels == 'inferred' else np.unique(y)
+            target_labels = None if self.target_labels == "inferred" else np.unique(y)
         dataset = SklearnDataset(x, y, target_labels=target_labels)
 
         if return_data:
@@ -63,26 +72,32 @@ class SklearnDatasetTest(unittest.TestCase):
     def test_init(self):
         ds, x, y = self._dataset(num_samples=self.NUM_SAMPLES, return_data=True)
 
-        if self.labels_type == 'sparse':
+        if self.labels_type == "sparse":
             self.assertTrue(ds.is_multi_label)
         else:
             self.assertFalse(ds.is_multi_label)
 
     def test_init_when_some_samples_are_unlabeled(self):
 
-        x, y = random_matrix_data(self.matrix_type, self.labels_type, num_samples=self.NUM_SAMPLES)
+        x, y = random_matrix_data(
+            self.matrix_type, self.labels_type, num_samples=self.NUM_SAMPLES
+        )
 
-        if self.labels_type == 'sparse':
+        if self.labels_type == "sparse":
             y_data_new = y.data
             y_data_new[0:10] = [LABEL_UNLABELED] * 10
             y = csr_matrix((y_data_new, y.indices, y.indptr))
         else:
             y[0:10] = [LABEL_UNLABELED] * 10
 
-        if self.target_labels not in ['explicit', 'inferred']:
-            raise ValueError('Invalid test parameter value for target_labels:' + self.target_labels)
+        if self.target_labels not in ["explicit", "inferred"]:
+            raise ValueError(
+                "Invalid test parameter value for target_labels:" + self.target_labels
+            )
 
-        target_labels = np.array([0, 1]) if self.target_labels == 'inferred' else np.unique(y[10:])
+        target_labels = (
+            np.array([0, 1]) if self.target_labels == "inferred" else np.unique(y[10:])
+        )
 
         # passes when no exeption is raised here
         SklearnDataset(x, y, target_labels=target_labels)
@@ -90,7 +105,7 @@ class SklearnDatasetTest(unittest.TestCase):
     def test_get_features(self):
         ds, x, y = self._dataset(num_samples=self.NUM_SAMPLES, return_data=True)
         self.assertIsNotNone(ds.y)
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             assert_array_equal(x, ds.x)
         else:
             self.assertTrue((x != ds.x).nnz == 0)
@@ -101,14 +116,14 @@ class SklearnDatasetTest(unittest.TestCase):
         self.assertIsNotNone(ds.y)
         self.assertIsNotNone(ds_new.y)
 
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             self.assertFalse((ds.x == ds_new.x).all())
         else:
             self.assertFalse((ds.x != ds_new.x).nnz == 0)
 
         ds.x = ds_new.x
 
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             self.assertTrue((ds.x == ds_new.x).all())
         else:
             self.assertTrue((ds.x != ds_new.x).nnz == 0)
@@ -120,7 +135,7 @@ class SklearnDatasetTest(unittest.TestCase):
     def test_set_labels(self):
         ds, _, y = self._dataset(num_samples=self.NUM_SAMPLES, return_data=True)
         ds_new, _, y_new = self._dataset(num_samples=self.NUM_SAMPLES, return_data=True)
-        if self.labels_type == 'sparse':
+        if self.labels_type == "sparse":
             self.assertFalse(np.all(y == y_new.data))
         else:
             self.assertFalse((y == y_new).all())
@@ -130,7 +145,7 @@ class SklearnDatasetTest(unittest.TestCase):
 
     def test_is_multi_label(self):
         ds = self._dataset(num_samples=self.NUM_SAMPLES)
-        if self.labels_type == 'sparse':
+        if self.labels_type == "sparse":
             self.assertTrue(ds.is_multi_label)
         else:
             self.assertFalse(ds.is_multi_label)
@@ -157,7 +172,7 @@ class SklearnDatasetTest(unittest.TestCase):
         self.assertEqual(1, len(result))
         self.assertTrue(isinstance(result, DatasetView))
 
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             # additional unsqueeze on first dimension
             assert_array_equal(x[np.newaxis, index], result.x)
         else:
@@ -171,7 +186,7 @@ class SklearnDatasetTest(unittest.TestCase):
         self.assertEqual(4, len(result))
         self.assertTrue(isinstance(result, DatasetView))
 
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             assert_array_equal(x[index], result.x)
         else:
             self.assertTrue((x[index] != result.x).nnz == 0)
@@ -184,7 +199,7 @@ class SklearnDatasetTest(unittest.TestCase):
         self.assertEqual(10, len(result))
         self.assertTrue(isinstance(result, DatasetView))
 
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             assert_array_equal(x[index], result.x)
         else:
             self.assertTrue((x[index] != result.x).nnz == 0)
@@ -200,7 +215,7 @@ class SklearnDatasetTest(unittest.TestCase):
             # flip the signs of the view's data (base dataset should be unchanged)
             dataset_view._dataset.x[selection] = -dataset_view.x
 
-            if self.matrix_type == 'dense':
+            if self.matrix_type == "dense":
                 # squeeze is only necessary for testing the single index case
                 assert_array_equal(x[selection], dataset_view.x.squeeze())
             else:
@@ -209,7 +224,7 @@ class SklearnDatasetTest(unittest.TestCase):
             # flip the signs of the base dataset (view should reflect changes)
             ds.x = -ds.x
 
-            if self.matrix_type == 'dense':
+            if self.matrix_type == "dense":
                 assert_array_not_equal(x[selection], dataset_view.x)
             else:
                 self.assertTrue((x[selection] != dataset_view.x).nnz > 0)
@@ -220,7 +235,6 @@ class SklearnDatasetTest(unittest.TestCase):
 
 
 class _DatasetViewTest(object):
-
     def test_init_with_slice(self):
         dataset = self._dataset()
         self.assertEqual(100, len(dataset))
@@ -243,7 +257,7 @@ class _DatasetViewTest(object):
         dataset = self._dataset()
         selection = np.random.randint(0, high=len(dataset), size=subset_size)
         dataset_view = DatasetView(dataset, selection)
-        if self.matrix_type == 'dense':
+        if self.matrix_type == "dense":
             assert_array_equal(dataset.x[selection], dataset_view.x)
         else:
             self.assertTrue((dataset.x[selection] != dataset_view.x).nnz == 0)
@@ -268,7 +282,7 @@ class _DatasetViewTest(object):
 
     def test_is_multi_label(self):
         ds = self._dataset()
-        if self.labels_type == 'sparse':
+        if self.labels_type == "sparse":
             self.assertTrue(ds.is_multi_label)
         else:
             self.assertFalse(ds.is_multi_label)
@@ -286,47 +300,58 @@ class _DatasetViewTest(object):
             dataset_view.target_labels = np.array([0])
 
 
-@parameterized_class([{'matrix_type': 'sparse', 'labels_type': 'dense'},
-                      {'matrix_type': 'sparse', 'labels_type': 'sparse'},
-                      {'matrix_type': 'dense', 'labels_type': 'dense'},
-                      {'matrix_type': 'dense', 'labels_type': 'sparse'}])
+@parameterized_class(
+    [
+        {"matrix_type": "sparse", "labels_type": "dense"},
+        {"matrix_type": "sparse", "labels_type": "sparse"},
+        {"matrix_type": "dense", "labels_type": "dense"},
+        {"matrix_type": "dense", "labels_type": "sparse"},
+    ]
+)
 class DatasetViewTest(unittest.TestCase, _DatasetViewTest):
 
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):
         if cls == DatasetViewTest:
-            raise unittest.SkipTest('parameterized_class bug')
+            raise unittest.SkipTest("parameterized_class bug")
         super().setUpClass()
 
     def _dataset(self, num_samples=100):
-        x, y = random_matrix_data(self.matrix_type, self.labels_type, num_samples=num_samples)
+        x, y = random_matrix_data(
+            self.matrix_type, self.labels_type, num_samples=num_samples
+        )
         target_labels = np.unique(y)
         return SklearnDataset(x, y, target_labels=target_labels)
 
 
-@parameterized_class([{'matrix_type': 'sparse', 'labels_type': 'dense'},
-                      {'matrix_type': 'sparse', 'labels_type': 'sparse'},
-                      {'matrix_type': 'dense', 'labels_type': 'dense'},
-                      {'matrix_type': 'dense', 'labels_type': 'sparse'}])
+@parameterized_class(
+    [
+        {"matrix_type": "sparse", "labels_type": "dense"},
+        {"matrix_type": "sparse", "labels_type": "sparse"},
+        {"matrix_type": "dense", "labels_type": "dense"},
+        {"matrix_type": "dense", "labels_type": "sparse"},
+    ]
+)
 class NestedDatasetViewTest(unittest.TestCase, _DatasetViewTest):
 
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):
         if cls == NestedDatasetViewTest:
-            raise unittest.SkipTest('parameterized_class bug')
+            raise unittest.SkipTest("parameterized_class bug")
         super().setUpClass()
 
     def _dataset(self, num_samples=100):
-        x, y = random_matrix_data(self.matrix_type, self.labels_type, num_samples=num_samples)
+        x, y = random_matrix_data(
+            self.matrix_type, self.labels_type, num_samples=num_samples
+        )
         target_labels = np.unique(y)
         return DatasetView(SklearnDataset(x, y, target_labels=target_labels), np.s_[:])
 
 
 class SplitDataTest(unittest.TestCase):
-
-    @mock.patch('numpy.random.permutation', wraps=np.random.permutation)
+    @mock.patch("numpy.random.permutation", wraps=np.random.permutation)
     def test_split_data_random(self, permutation_mock):
         train_set = np.random.rand(100, 2)
 
@@ -336,7 +361,7 @@ class SplitDataTest(unittest.TestCase):
         self.assertEqual(10, subset_valid.shape[0])
         permutation_mock.assert_called()
 
-    @mock.patch('numpy.random.permutation', wraps=np.random.permutation)
+    @mock.patch("numpy.random.permutation", wraps=np.random.permutation)
     def test_split_data_random_return_indices(self, permutation_mock):
         train_set = np.random.rand(100, 2)
 
@@ -347,52 +372,54 @@ class SplitDataTest(unittest.TestCase):
         self.assertEqual(10, indices_valid.shape[0])
         permutation_mock.assert_called()
 
-    @mock.patch('small_text.data.datasets.balanced_sampling',
-                wraps=balanced_sampling)
+    @mock.patch("small_text.data.datasets.balanced_sampling", wraps=balanced_sampling)
     def test_split_data_balanced(self, balanced_sampling_mock):
         train_set = np.random.rand(100, 2)
         y = np.array([0] * 10 + [1] * 90)
 
-        subset_train, subset_valid = split_data(train_set, y=y, strategy='balanced')
+        subset_train, subset_valid = split_data(train_set, y=y, strategy="balanced")
 
         self.assertEqual(90, subset_train.shape[0])
         self.assertEqual(10, subset_valid.shape[0])
         balanced_sampling_mock.assert_called()
 
-    @mock.patch('small_text.data.datasets.balanced_sampling',
-                wraps=balanced_sampling)
+    @mock.patch("small_text.data.datasets.balanced_sampling", wraps=balanced_sampling)
     def test_split_data_balanced_return_indices(self, balanced_sampling_mock):
         train_set = np.random.rand(100, 2)
         y = np.array([0] * 10 + [1] * 90)
 
-        indices_train, indices_valid = split_data(train_set, y=y, strategy='balanced',
-                                                  return_indices=True)
+        indices_train, indices_valid = split_data(
+            train_set, y=y, strategy="balanced", return_indices=True
+        )
 
         self.assertEqual(1, len(indices_train.shape))
         self.assertEqual(90, indices_train.shape[0])
         self.assertEqual(10, indices_valid.shape[0])
         balanced_sampling_mock.assert_called()
 
-    @mock.patch('small_text.data.datasets.stratified_sampling',
-                wraps=stratified_sampling)
+    @mock.patch(
+        "small_text.data.datasets.stratified_sampling", wraps=stratified_sampling
+    )
     def test_split_data_stratified(self, stratified_sampling_mock):
         train_set = np.random.rand(100, 2)
         y = np.array([0] * 10 + [1] * 90)
 
-        subset_train, subset_valid = split_data(train_set, y=y, strategy='stratified')
+        subset_train, subset_valid = split_data(train_set, y=y, strategy="stratified")
 
         self.assertEqual(90, subset_train.shape[0])
         self.assertEqual(10, subset_valid.shape[0])
         stratified_sampling_mock.assert_called()
 
-    @mock.patch('small_text.data.datasets.stratified_sampling',
-                wraps=stratified_sampling)
+    @mock.patch(
+        "small_text.data.datasets.stratified_sampling", wraps=stratified_sampling
+    )
     def test_split_data_stratified_return_indices(self, stratified_sampling_mock):
         train_set = np.random.rand(100, 2)
         y = np.array([0] * 10 + [1] * 90)
 
-        indices_train, indices_valid = split_data(train_set, y=y, strategy='stratified',
-                                                  return_indices=True)
+        indices_train, indices_valid = split_data(
+            train_set, y=y, strategy="stratified", return_indices=True
+        )
 
         self.assertEqual(1, len(indices_train.shape))
         self.assertEqual(90, indices_train.shape[0])
@@ -402,4 +429,4 @@ class SplitDataTest(unittest.TestCase):
     def test_data_invalid_strategy(self):
         with self.assertRaises(ValueError):
             train_set = np.random.rand(100, 2)
-            split_data(train_set, strategy='does_not_exist')
+            split_data(train_set, strategy="does_not_exist")

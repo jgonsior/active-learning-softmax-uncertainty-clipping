@@ -13,45 +13,50 @@ from small_text.active_learner import PoolBasedActiveLearner
 from small_text.exceptions import ActiveLearnerException
 from small_text.initialization import random_initialization_stratified
 from small_text.integrations.transformers import TransformerModelArguments
-from small_text.integrations.transformers.classifiers.factories import TransformerBasedClassificationFactory
+from small_text.integrations.transformers.classifiers.factories import (
+    TransformerBasedClassificationFactory,
+)
 from small_text.query_strategies import PoolExhaustedException, EmptyPoolException
 from small_text.query_strategies import RandomSampling
 
-from examplecode.data.example_data_multilabel import (
-    get_train_test
-)
+from examplecode.data.example_data_multilabel import get_train_test
 from examplecode.data.example_data_transformers import preprocess_data
 from examplecode.shared import evaluate_multi_label
 
 
-TRANSFORMER_MODEL = TransformerModelArguments('distilroberta-base')
+TRANSFORMER_MODEL = TransformerModelArguments("distilroberta-base")
 
 
 try:
     import datasets
 except ImportError:
-    raise ActiveLearnerException('This example requires the "datasets" library. '
-                                 'Please install datasets to run this example.')
+    raise ActiveLearnerException(
+        'This example requires the "datasets" library. '
+        "Please install datasets to run this example."
+    )
 
 
 def main():
     # Active learning parameters
     num_classes = 28
-    clf_factory = TransformerBasedClassificationFactory(TRANSFORMER_MODEL,
-                                                        num_classes,
-                                                        kwargs=dict({
-                                                            'device': 'cuda',
-                                                            'multi_label': True
-                                                        }))
+    clf_factory = TransformerBasedClassificationFactory(
+        TRANSFORMER_MODEL,
+        num_classes,
+        kwargs=dict({"device": "cuda", "multi_label": True}),
+    )
     query_strategy = RandomSampling()
 
     # Prepare some data
     train, test = get_train_test()
 
-    tokenizer = AutoTokenizer.from_pretrained(TRANSFORMER_MODEL.model, cache_dir='.cache/')
-    x_train = preprocess_data(tokenizer, train['text'], train['labels'], multi_label=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        TRANSFORMER_MODEL.model, cache_dir=".cache/"
+    )
+    x_train = preprocess_data(
+        tokenizer, train["text"], train["labels"], multi_label=True
+    )
 
-    x_test = preprocess_data(tokenizer, test['text'], test['labels'], multi_label=True)
+    x_test = preprocess_data(tokenizer, test["text"], test["labels"], multi_label=True)
 
     # Active learner
     active_learner = PoolBasedActiveLearner(clf_factory, query_strategy, x_train)
@@ -61,9 +66,9 @@ def main():
         perform_active_learning(active_learner, x_train, labeled_indices, x_test)
 
     except PoolExhaustedException:
-        print('Error! Not enough samples left to handle the query.')
+        print("Error! Not enough samples left to handle the query.")
     except EmptyPoolException:
-        print('Error! No more samples left. (Unlabeled pool is empty)')
+        print("Error! No more samples left. (Unlabeled pool is empty)")
 
 
 def perform_active_learning(active_learner, train, labeled_indices, test):
@@ -80,7 +85,7 @@ def perform_active_learning(active_learner, train, labeled_indices, test):
 
         labeled_indices = np.concatenate([indices_queried, labeled_indices])
 
-        print('Iteration #{:d} ({} samples)'.format(i, len(labeled_indices)))
+        print("Iteration #{:d} ({} samples)".format(i, len(labeled_indices)))
         evaluate_multi_label(active_learner, train[labeled_indices], test)
 
 
@@ -94,7 +99,7 @@ def initialize_active_learner(active_learner, y_train):
     return indices_initial
 
 
-if __name__ == '__main__':
-    logging.getLogger('small_text').setLevel(logging.INFO)
+if __name__ == "__main__":
+    logging.getLogger("small_text").setLevel(logging.INFO)
 
     main()

@@ -14,7 +14,6 @@ except PytorchNotFoundError:
 
 
 class PytorchClassifierImplementation(PytorchClassifier):
-
     def _default_optimizer(self, base_lr):
         params = [param for param in self.model.parameters() if param.requires_grad]
         return params, AdamW(params, lr=base_lr, eps=1e-8)
@@ -30,10 +29,13 @@ class PytorchClassifierImplementation(PytorchClassifier):
 
 
 class PytorchClassifierTest(unittest.TestCase):
-
     def _get_dataset(self, num_samples=100, num_classes=4):
-        return random_text_classification_dataset(num_samples, max_length=60, num_classes=num_classes,
-                                                  multi_label=self.multi_label)
+        return random_text_classification_dataset(
+            num_samples,
+            max_length=60,
+            num_classes=num_classes,
+            multi_label=self.multi_label,
+        )
 
     def test_initialize_optimizer_and_scheduler_default(self):
         sub_train = random_text_classification_dataset(10)
@@ -47,11 +49,9 @@ class PytorchClassifierTest(unittest.TestCase):
         num_epochs = 2
         base_lr = 2e-5
 
-        optimizer, scheduler = classifier._initialize_optimizer_and_scheduler(optimizer,
-                                                                              scheduler,
-                                                                              num_epochs,
-                                                                              sub_train,
-                                                                              base_lr)
+        optimizer, scheduler = classifier._initialize_optimizer_and_scheduler(
+            optimizer, scheduler, num_epochs, sub_train, base_lr
+        )
 
         self.assertIsNotNone(optimizer)
         self.assertIsNotNone(scheduler)
@@ -66,18 +66,18 @@ class PytorchClassifierTest(unittest.TestCase):
         # initialize the model
         classifier.model = KimCNN(10, 60)
 
-        optimizer_params = [param for param in classifier.model.parameters() if param.requires_grad]
+        optimizer_params = [
+            param for param in classifier.model.parameters() if param.requires_grad
+        ]
         optimizer_arg = Adadelta(optimizer_params)
         scheduler_arg = ExponentialLR(optimizer_arg, 0.99)
 
         num_epochs = 2
         base_lr = 2e-5
 
-        optimizer, scheduler = classifier._initialize_optimizer_and_scheduler(optimizer_arg,
-                                                                              scheduler_arg,
-                                                                              num_epochs,
-                                                                              sub_train,
-                                                                              base_lr)
+        optimizer, scheduler = classifier._initialize_optimizer_and_scheduler(
+            optimizer_arg, scheduler_arg, num_epochs, sub_train, base_lr
+        )
 
         self.assertIsNotNone(optimizer)
         self.assertIsNotNone(scheduler)

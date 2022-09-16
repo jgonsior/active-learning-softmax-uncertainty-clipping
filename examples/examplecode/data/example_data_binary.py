@@ -11,7 +11,7 @@ def get_train_test():
 
 
 def preprocess_data(train, test):
-    vectorizer = TfidfVectorizer(stop_words='english')
+    vectorizer = TfidfVectorizer(stop_words="english")
 
     x_train = normalize(vectorizer.fit_transform(train.data))
     x_test = normalize(vectorizer.transform(test.data))

@@ -68,11 +68,18 @@ class KimCNNInitTest(unittest.TestCase):
 
         pool_sizes = [(46, 1), (45, 1)]
 
-        model = KimCNN(vocab_size, max_seq_length, num_classes=num_classes,
-                       out_channels=out_channels, embed_dim=embed_dim, padding_idx=padding_idx,
-                       kernel_heights=kernel_heights, dropout=fc_dropout,
-                       embedding_matrix=embedding_matrix,
-                       freeze_embedding_layer=freeze_embedding_layer)
+        model = KimCNN(
+            vocab_size,
+            max_seq_length,
+            num_classes=num_classes,
+            out_channels=out_channels,
+            embed_dim=embed_dim,
+            padding_idx=padding_idx,
+            kernel_heights=kernel_heights,
+            dropout=fc_dropout,
+            embedding_matrix=embedding_matrix,
+            freeze_embedding_layer=freeze_embedding_layer,
+        )
 
         # Parameters
         self.assertEqual(out_channels, model.out_channels)
@@ -108,7 +115,7 @@ class KimCNNInitTest(unittest.TestCase):
         vocab_size = 1000
         max_seq_length = 50
 
-        fake_embedding = torch.rand(1000, 100, device='cpu')
+        fake_embedding = torch.rand(1000, 100, device="cpu")
 
         pool_sizes = [(47, 1), (46, 1), (45, 1)]
 

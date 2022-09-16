@@ -13,7 +13,9 @@ try:
 
     from small_text.integrations.pytorch.classifiers.kimcnn import KimCNNClassifier
     from small_text.integrations.pytorch.datasets import PytorchDatasetView
-    from small_text.integrations.pytorch.datasets import PytorchTextClassificationDataset
+    from small_text.integrations.pytorch.datasets import (
+        PytorchTextClassificationDataset,
+    )
     from tests.utils.datasets import random_text_classification_dataset
 except PytorchNotFoundError:
     pass
@@ -21,11 +23,17 @@ except PytorchNotFoundError:
 
 @pytest.mark.pytorch
 class KimCNNTest(unittest.TestCase):
-
     def _get_clf(self, num_classes=2):
         embedding_matrix = torch.rand(10, 20)
-        return KimCNNClassifier(num_classes, embedding_matrix=embedding_matrix, num_epochs=2, out_channels=15,
-                                max_seq_len=20, kernel_heights=[2, 3], device='cpu')
+        return KimCNNClassifier(
+            num_classes,
+            embedding_matrix=embedding_matrix,
+            num_epochs=2,
+            out_channels=15,
+            max_seq_len=20,
+            kernel_heights=[2, 3],
+            device="cpu",
+        )
 
     def test_init_default_parameters(self):
         num_classes = 2
@@ -56,7 +64,7 @@ class KimCNNTest(unittest.TestCase):
     def test_init_parameters(self):
         num_classes = 2
         multi_label = True
-        device = 'cpu'
+        device = "cpu"
         num_epochs = 5
         mini_batch_size = 30
         max_seq_len = 100
@@ -69,14 +77,22 @@ class KimCNNTest(unittest.TestCase):
         early_stopping = 10
         early_stopping_acc = 0.95
 
-        classifier = KimCNNClassifier(num_classes, multi_label=multi_label, device='cpu',
-                                      num_epochs=num_epochs, mini_batch_size=mini_batch_size,
-                                      max_seq_len=max_seq_len, out_channels=out_channels,
-                                      filter_padding=filter_padding, dropout=dropout,
-                                      validation_set_size=validation_set_size,
-                                      embedding_matrix=embedding_matrix, padding_idx=padding_idx,
-                                      early_stopping=early_stopping,
-                                      early_stopping_acc=early_stopping_acc)
+        classifier = KimCNNClassifier(
+            num_classes,
+            multi_label=multi_label,
+            device="cpu",
+            num_epochs=num_epochs,
+            mini_batch_size=mini_batch_size,
+            max_seq_len=max_seq_len,
+            out_channels=out_channels,
+            filter_padding=filter_padding,
+            dropout=dropout,
+            validation_set_size=validation_set_size,
+            embedding_matrix=embedding_matrix,
+            padding_idx=padding_idx,
+            early_stopping=early_stopping,
+            early_stopping_acc=early_stopping_acc,
+        )
 
         self.assertEqual(num_classes, classifier.num_classes)
         self.assertEqual(multi_label, classifier.multi_label)
@@ -111,18 +127,26 @@ class KimCNNTest(unittest.TestCase):
         early_stopping_acc = 0.95
 
         with self.assertRaises(ValueError):
-            KimCNNClassifier(num_classes, embedding_matrix=embedding_matrix, device='cpu',
-                             num_epochs=num_epochs, mini_batch_size=mini_batch_size,
-                             max_seq_len=max_seq_len, out_channels=out_channels,
-                             dropout=dropout, validation_set_size=validation_set_size,
-                             padding_idx=padding_idx, early_stopping=early_stopping,
-                             early_stopping_acc=early_stopping_acc)
+            KimCNNClassifier(
+                num_classes,
+                embedding_matrix=embedding_matrix,
+                device="cpu",
+                num_epochs=num_epochs,
+                mini_batch_size=mini_batch_size,
+                max_seq_len=max_seq_len,
+                out_channels=out_channels,
+                dropout=dropout,
+                validation_set_size=validation_set_size,
+                padding_idx=padding_idx,
+                early_stopping=early_stopping,
+                early_stopping_acc=early_stopping_acc,
+            )
 
     def test_fit_without_validation_set(self):
         dataset = random_text_classification_dataset(10)
         classifier = self._get_clf()
 
-        with patch.object(classifier, '_fit_main') as fit_main_mock:
+        with patch.object(classifier, "_fit_main") as fit_main_mock:
             classifier.fit(dataset)
             fit_main_mock.assert_called()
 
@@ -138,7 +162,7 @@ class KimCNNTest(unittest.TestCase):
 
         classifier = self._get_clf()
 
-        with patch.object(classifier, '_fit_main') as fit_main_mock:
+        with patch.object(classifier, "_fit_main") as fit_main_mock:
             classifier.fit(train, validation_set=valid)
             fit_main_mock.assert_called()
 
@@ -155,7 +179,7 @@ class KimCNNTest(unittest.TestCase):
 
         classifier = self._get_clf()
 
-        with self.assertRaisesRegex(ValueError, 'Training set labels must be labeled'):
+        with self.assertRaisesRegex(ValueError, "Training set labels must be labeled"):
             classifier.fit(train_set)
 
     def test_fit_where_y_valid_contains_unlabeled(self):
@@ -165,21 +189,29 @@ class KimCNNTest(unittest.TestCase):
 
         classifier = self._get_clf()
 
-        with self.assertRaisesRegex(ValueError, 'Validation set labels must be labeled'):
+        with self.assertRaisesRegex(
+            ValueError, "Validation set labels must be labeled"
+        ):
             classifier.fit(train_set, validation_set=validation_set)
 
     def test_fit_with_label_information_mismatch(self):
         num_classes_configured = 3
         num_classes_to_be_encountered = 2
 
-        train_set = random_text_classification_dataset(8, num_classes=num_classes_to_be_encountered)
-        validation_set = random_text_classification_dataset(2, num_classes=num_classes_to_be_encountered)
+        train_set = random_text_classification_dataset(
+            8, num_classes=num_classes_to_be_encountered
+        )
+        validation_set = random_text_classification_dataset(
+            2, num_classes=num_classes_to_be_encountered
+        )
 
         classifier = self._get_clf(num_classes=num_classes_configured)
 
-        with self.assertRaisesRegex(ValueError,
-                                    'Conflicting information about the number of classes: '
-                                    'expected: 3, encountered: 2'):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Conflicting information about the number of classes: "
+            "expected: 3, encountered: 2",
+        ):
             classifier.fit(train_set, validation_set=validation_set)
 
     def test_predict_on_empty_data(self):

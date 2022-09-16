@@ -8,7 +8,7 @@ try:
     from torch.utils.data import DataLoader
     from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 except ImportError:
-    raise PytorchNotFoundError('Could not import pytorch')
+    raise PytorchNotFoundError("Could not import pytorch")
 
 
 def dataloader(data, batch_size, collate_fn, train=True):
@@ -40,15 +40,11 @@ def dataloader(data, batch_size, collate_fn, train=True):
     else:
         base_sampler = SequentialSampler(data_source)
 
-    sampler = BatchSampler(
-        base_sampler,
-        batch_size=batch_size,
-        drop_last=False)
+    sampler = BatchSampler(base_sampler, batch_size=batch_size, drop_last=False)
 
-    return DataLoader(data_source,
-                      batch_size=None,
-                      collate_fn=collate_fn,
-                      sampler=sampler)
+    return DataLoader(
+        data_source, batch_size=None, collate_fn=collate_fn, sampler=sampler
+    )
 
 
 # TODO: document that multi-label behaviour may be sub optimal

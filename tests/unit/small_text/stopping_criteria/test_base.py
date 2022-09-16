@@ -7,7 +7,6 @@ from small_text.stopping_criteria.base import DeltaFScore
 
 
 class DeltaFScoreTest(unittest.TestCase):
-
     def test_init_default(self):
         stopping_criterion = DeltaFScore(2)
 
@@ -22,7 +21,9 @@ class DeltaFScoreTest(unittest.TestCase):
         window_size = 5
         threshold = 0.01
 
-        stopping_criterion = DeltaFScore(2, window_size=window_size, threshold=threshold)
+        stopping_criterion = DeltaFScore(
+            2, window_size=window_size, threshold=threshold
+        )
 
         self.assertEqual(2, stopping_criterion.num_classes)
         self.assertEqual(5, stopping_criterion.window_size)
@@ -73,11 +74,15 @@ class DeltaFScoreTest(unittest.TestCase):
         assert_array_equal(second_predictions, stopping_criterion.last_predictions)
 
         self.assertFalse(stopping_criterion.stop(predictions=third_predictions))
-        assert_array_almost_equal([0.076923, 0.076923], stopping_criterion.delta_history)
+        assert_array_almost_equal(
+            [0.076923, 0.076923], stopping_criterion.delta_history
+        )
         assert_array_equal(third_predictions, stopping_criterion.last_predictions)
 
         self.assertTrue(stopping_criterion.stop(predictions=fourth_predictions))
-        assert_array_almost_equal([0.076923, 0.076923, 0.076923], stopping_criterion.delta_history)
+        assert_array_almost_equal(
+            [0.076923, 0.076923, 0.076923], stopping_criterion.delta_history
+        )
         assert_array_equal(fourth_predictions, stopping_criterion.last_predictions)
 
     def test_stop_with_predictions_none(self):

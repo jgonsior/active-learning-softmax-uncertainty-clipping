@@ -65,11 +65,7 @@ def main(
         num_classes,
         uncertainty_method=uncertainty_method,
         kwargs=dict(
-            {
-                "device": cpu_cuda,
-                "mini_batch_size": 64,
-                "class_weight": "balanced",
-            }
+            {"device": cpu_cuda, "mini_batch_size": 64, "class_weight": "balanced",}
         ),
     )
 
@@ -348,19 +344,13 @@ if __name__ == "__main__":
         help="number of active learning iterations",
     )
     parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=20,
+        "--batch_size", type=int, default=20,
     )
     parser.add_argument(
-        "--random_seed",
-        type=int,
-        default=42,
+        "--random_seed", type=int, default=42,
     )
     parser.add_argument(
-        "--initially_labeled_samples",
-        type=int,
-        default=25,
+        "--initially_labeled_samples", type=int, default=25,
     )
     parser.add_argument(
         "--dataset",
@@ -369,14 +359,10 @@ if __name__ == "__main__":
         default="20newsgroups",
     )
     parser.add_argument(
-        "--transformer_model_name",
-        type=str,
-        default="bert-base-uncased",
+        "--transformer_model_name", type=str, default="bert-base-uncased",
     )
     parser.add_argument(
-        "--exp_name",
-        type=str,
-        default="test",
+        "--exp_name", type=str, default="test",
     )
     parser.add_argument(
         "--query_strategy",
@@ -475,14 +461,7 @@ if __name__ == "__main__":
     exp_results_dir.mkdir(parents=True, exist_ok=True)
 
     # save args
-    exp_results_dir_args.write_text(
-        json.dumps(
-            {
-                "args": vars(args),
-            },
-            indent=4,
-        )
-    )
+    exp_results_dir_args.write_text(json.dumps({"args": vars(args),}, indent=4,))
 
     np.savez_compressed(
         exp_results_dir_metrics,

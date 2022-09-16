@@ -26,7 +26,7 @@ def random_initialization(x, n_samples=10):
     return np.random.choice(list_length(x), size=n_samples, replace=False)
 
 
-def random_initialization_stratified(y, n_samples=10, multilabel_strategy='labelsets'):
+def random_initialization_stratified(y, n_samples=10, multilabel_strategy="labelsets"):
     """Randomly draws a subset stratified by class labels.
 
     Parameters
@@ -50,10 +50,10 @@ def random_initialization_stratified(y, n_samples=10, multilabel_strategy='label
         multi-label strategy.
     """
     if isinstance(y, csr_matrix):
-        if multilabel_strategy == 'labelsets':
+        if multilabel_strategy == "labelsets":
             return multilabel_stratified_subsets_sampling(y, n_samples=n_samples)
         else:
-            raise ValueError(f'Invalid multilabel_strategy: {multilabel_strategy}')
+            raise ValueError(f"Invalid multilabel_strategy: {multilabel_strategy}")
     else:
         return stratified_sampling(y, n_samples=n_samples)
 

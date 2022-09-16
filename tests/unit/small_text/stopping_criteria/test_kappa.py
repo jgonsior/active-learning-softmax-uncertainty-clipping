@@ -7,7 +7,6 @@ from small_text.stopping_criteria.kappa import KappaAverage
 
 
 class KappaAverageTest(unittest.TestCase):
-
     def test_init(self):
         stopping_criterion = KappaAverage(2)
 
@@ -22,7 +21,9 @@ class KappaAverageTest(unittest.TestCase):
         kappa = 0.95
         num_classes = 5
 
-        stopping_criterion = KappaAverage(num_classes, kappa=kappa, window_size=window_size)
+        stopping_criterion = KappaAverage(
+            num_classes, kappa=kappa, window_size=window_size
+        )
 
         self.assertEqual([], stopping_criterion.kappa_history)
         self.assertEqual(window_size, stopping_criterion.window_size)

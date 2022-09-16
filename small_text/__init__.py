@@ -6,4 +6,5 @@ from small_text.utils.logging import (
     VERBOSITY_QUIET,
     VERBOSITY_VERBOSE,
     VERBOSITY_MORE_VERBOSE,
-    VERBOSITY_ALL)
+    VERBOSITY_ALL,
+)

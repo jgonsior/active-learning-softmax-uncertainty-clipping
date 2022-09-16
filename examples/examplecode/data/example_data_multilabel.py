@@ -16,12 +16,12 @@ def get_train_test():
 
 def preprocess_data_sklearn(train, test):
 
-    vectorizer = TfidfVectorizer(stop_words='english')
+    vectorizer = TfidfVectorizer(stop_words="english")
 
-    x_train = normalize(vectorizer.fit_transform(train['text']))
-    x_test = normalize(vectorizer.transform(test['text']))
+    x_train = normalize(vectorizer.fit_transform(train["text"]))
+    x_test = normalize(vectorizer.transform(test["text"]))
 
-    y_train = list_to_csr(train['labels'], shape=(len(train), NUM_LABELS))
-    y_test = list_to_csr(test['labels'], shape=(len(test), NUM_LABELS))
+    y_train = list_to_csr(train["labels"], shape=(len(train), NUM_LABELS))
+    y_test = list_to_csr(test["labels"], shape=(len(test), NUM_LABELS))
 
     return SklearnDataset(x_train, y_train), SklearnDataset(x_test, y_test)

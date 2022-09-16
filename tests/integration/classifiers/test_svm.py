@@ -7,9 +7,8 @@ from small_text.classifiers import ConfidenceEnhancedLinearSVC
 
 
 class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
-
     def _get_20news_vectors(self, categories=None):
-        train = fetch_20newsgroups(subset='train', categories=categories)
+        train = fetch_20newsgroups(subset="train", categories=categories)
         vectorizer = CountVectorizer()
         x = vectorizer.fit_transform(train.data)
 
@@ -18,7 +17,7 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
     def test_predict_binary(self):
 
         clf = ConfidenceEnhancedLinearSVC()
-        x, y = self._get_20news_vectors(categories=['comp.graphics', 'sci.med'])
+        x, y = self._get_20news_vectors(categories=["comp.graphics", "sci.med"])
 
         clf.fit(x, y)
 
@@ -31,7 +30,7 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
     def test_predict_binary_with_probas(self):
 
         clf = ConfidenceEnhancedLinearSVC()
-        x, y = self._get_20news_vectors(categories=['comp.graphics', 'sci.med'])
+        x, y = self._get_20news_vectors(categories=["comp.graphics", "sci.med"])
 
         clf.fit(x, y)
 
@@ -48,7 +47,7 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
 
     def test_predict_multiclass(self):
         clf = ConfidenceEnhancedLinearSVC()
-        categories = ['alt.atheism', 'comp.graphics', 'sci.med']
+        categories = ["alt.atheism", "comp.graphics", "sci.med"]
         x, y = self._get_20news_vectors(categories=categories)
 
         clf.fit(x, y)
@@ -61,7 +60,7 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
 
     def test_predict_multiclass_with_probas(self):
         clf = ConfidenceEnhancedLinearSVC()
-        categories = ['alt.atheism', 'comp.graphics', 'sci.med']
+        categories = ["alt.atheism", "comp.graphics", "sci.med"]
         x, y = self._get_20news_vectors(categories=categories)
 
         clf.fit(x, y)
@@ -80,7 +79,7 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
     def test_predict_proba_binary(self):
 
         clf = ConfidenceEnhancedLinearSVC()
-        x, y = self._get_20news_vectors(categories=['comp.graphics', 'sci.med'])
+        x, y = self._get_20news_vectors(categories=["comp.graphics", "sci.med"])
 
         clf.fit(x, y)
 
@@ -94,7 +93,7 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
     def test_predict_proba_multiclass(self):
 
         clf = ConfidenceEnhancedLinearSVC()
-        categories = ['alt.atheism', 'comp.graphics', 'sci.med']
+        categories = ["alt.atheism", "comp.graphics", "sci.med"]
         x, y = self._get_20news_vectors(categories=categories)
 
         clf.fit(x, y)

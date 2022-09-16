@@ -12,7 +12,6 @@ except (ImportError, PytorchNotFoundError):
 
 @pytest.mark.pytorch
 class KimCNNIntegrationTest(unittest.TestCase):
-
     def test_simple_prediction(self):
         """
         Simple prediction with default weights (untrained).

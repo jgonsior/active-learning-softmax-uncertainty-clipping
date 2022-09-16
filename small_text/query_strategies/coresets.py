@@ -5,10 +5,14 @@ from small_text.query_strategies.strategies import EmbeddingBasedQueryStrategy
 
 def _check_coreset_size(x, n):
     if n > x.shape[0]:
-        raise ValueError(f'n (n={n}) is greater the number of available samples (num_samples={x.shape[0]})')
+        raise ValueError(
+            f"n (n={n}) is greater the number of available samples (num_samples={x.shape[0]})"
+        )
 
 
-def greedy_coreset(x, x_indices_unlabeled, x_indices_labeled, n, batch_size=100, normalized=False):
+def greedy_coreset(
+    x, x_indices_unlabeled, x_indices_labeled, n, batch_size=100, normalized=False
+):
     """Computes a greedy coreset _[SS17] of `x` with size `n`.
 
     Parameters
@@ -50,8 +54,10 @@ def greedy_coreset(x, x_indices_unlabeled, x_indices_labeled, n, batch_size=100,
 
             sim = np.matmul(batch, x[indices_s].T)
             if not normalized:
-                sim = sim / np.dot(np.linalg.norm(batch, axis=1)[:, np.newaxis],
-                                   np.linalg.norm(x[indices_s], axis=1)[np.newaxis, :])
+                sim = sim / np.dot(
+                    np.linalg.norm(batch, axis=1)[:, np.newaxis],
+                    np.linalg.norm(x[indices_s], axis=1)[np.newaxis, :],
+                )
 
             sims_batch = np.amax(sim, axis=1)
             sims = np.append(sims, sims_batch)
@@ -65,21 +71,33 @@ def greedy_coreset(x, x_indices_unlabeled, x_indices_labeled, n, batch_size=100,
 
 
 class GreedyCoreset(EmbeddingBasedQueryStrategy):
-
     def __init__(self, normalize=True, batch_size=100):
         self.normalize = normalize
         self.batch_size = batch_size
 
-    def sample(self, clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
         if self.normalize:
             from sklearn.preprocessing import normalize
+
             embeddings = normalize(embeddings, axis=1)
-        return greedy_coreset(embeddings, indices_unlabeled, indices_labeled, n,
-                              normalized=self.normalize)
+        return greedy_coreset(
+            embeddings, indices_unlabeled, indices_labeled, n, normalized=self.normalize
+        )
 
     def __str__(self):
-        return f'GreedyCoreset(normalize={self.normalize}, batch_size={self.batch_size})'
+        return (
+            f"GreedyCoreset(normalize={self.normalize}, batch_size={self.batch_size})"
+        )
 
 
 def lightweight_coreset(x, x_mean, n, normalized=False, proba=None):
@@ -142,23 +160,36 @@ class LightweightCoreset(EmbeddingBasedQueryStrategy):
     normalize : bool
         Embeddings are normalized if `True`, otherwise they are left unchanged.
     """
+
     def __init__(self, normalize=True):
         self.normalize = normalize
 
-    def sample(self, clf, dataset, indices_unlabeled, _indices_labeled, _y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        _indices_labeled,
+        _y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
 
         embeddings = embeddings[indices_unlabeled]
 
         embeddings_mean = np.mean(embeddings, axis=0)
         if self.normalize:
             from sklearn.preprocessing import normalize
+
             embeddings = normalize(embeddings)
             embeddings_mean = normalize(embeddings_mean[np.newaxis, :])
 
         embeddings_mean = embeddings_mean.ravel()
 
-        return lightweight_coreset(embeddings, embeddings_mean, n, normalized=self.normalize)
+        return lightweight_coreset(
+            embeddings, embeddings_mean, n, normalized=self.normalize
+        )
 
     def __str__(self):
-        return f'LightweightCoreset(normalize={self.normalize})'
+        return f"LightweightCoreset(normalize={self.normalize})"

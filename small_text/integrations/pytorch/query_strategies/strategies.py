@@ -4,7 +4,8 @@ from small_text.integrations.pytorch.exceptions import PytorchNotFoundError
 from small_text.query_strategies import (
     constraints,
     QueryStrategy,
-    EmbeddingBasedQueryStrategy)
+    EmbeddingBasedQueryStrategy,
+)
 from small_text.utils.clustering import init_kmeans_plusplus_safe
 from small_text.utils.context import build_pbar_context
 from small_text.utils.data import list_length
@@ -13,16 +14,20 @@ try:
     import torch
     import torch.nn.functional as F  # noqa: N812
 
-    from small_text.integrations.pytorch.utils.misc import assert_layer_exists, default_tensor_type
+    from small_text.integrations.pytorch.utils.misc import (
+        assert_layer_exists,
+        default_tensor_type,
+    )
     from small_text.integrations.pytorch.utils.data import dataloader
 except ImportError:
-    raise PytorchNotFoundError('Could not import pytorch')
+    raise PytorchNotFoundError("Could not import pytorch")
 
 
-@constraints(classification_type='single-label')
+@constraints(classification_type="single-label")
 class ExpectedGradientLength(QueryStrategy):
     """Selects instances by expected gradient length [Set07]_."""
-    def __init__(self, num_classes, batch_size=50, device='cuda', pbar='tqdm'):
+
+    def __init__(self, num_classes, batch_size=50, device="cuda", pbar="tqdm"):
         self.batch_size = batch_size
         self.num_classes = num_classes
         self.device = device
@@ -30,28 +35,35 @@ class ExpectedGradientLength(QueryStrategy):
 
         self.scores_ = None
 
-    def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10, pbar=None):
+    def query(
+        self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10, pbar=None
+    ):
         self._validate_query_input(indices_unlabeled, n)
 
         if len(indices_unlabeled) == n:
             return np.array(indices_unlabeled)
 
-        criterion = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
+        criterion = torch.nn.CrossEntropyLoss(reduction="none").to(self.device)
 
         collate_fn = clf._create_collate_fn()
-        dataset_iter = dataloader(dataset, batch_size=self.batch_size, collate_fn=collate_fn,
-                                  train=False)
+        dataset_iter = dataloader(
+            dataset, batch_size=self.batch_size, collate_fn=collate_fn, train=False
+        )
 
         clf.model.eval()
         clf.model.to(self.device)
 
         gradient_lengths = self.initialize_gradient_lengths_array(list_length(dataset))
-        pbar_context = build_pbar_context('tqdm', tqdm_kwargs={'total': list_length(dataset)})
+        pbar_context = build_pbar_context(
+            "tqdm", tqdm_kwargs={"total": list_length(dataset)}
+        )
 
         offset = 0
         with default_tensor_type(torch.FloatTensor), pbar_context as pbar:
             for i, (dataset, _) in enumerate(dataset_iter):
-                self.compute_gradient_lengths(clf, criterion, gradient_lengths, offset, dataset)
+                self.compute_gradient_lengths(
+                    clf, criterion, gradient_lengths, offset, dataset
+                )
 
                 batch_len = dataset.size(0)
                 offset += batch_len
@@ -72,9 +84,10 @@ class ExpectedGradientLength(QueryStrategy):
     def compute_gradient_lengths(self, clf, criterion, gradient_lengths, offset, x):
 
         batch_len = x.size(0)
-        all_classes = torch.LongTensor([batch_len * [i]
-                                        for i in range(self.num_classes)])
-        if self.device is not None and self.device != 'cpu':
+        all_classes = torch.LongTensor(
+            [batch_len * [i] for i in range(self.num_classes)]
+        )
+        if self.device is not None and self.device != "cpu":
             all_classes = all_classes.to(self.device)
 
         gradients = self.initialize_gradients(batch_len)
@@ -83,10 +96,14 @@ class ExpectedGradientLength(QueryStrategy):
         clf.model.zero_grad()
 
         self.compute_gradient_lengths_batch(clf, criterion, x, gradients, all_classes)
-        self.aggregate_gradient_lengths_batch(batch_len, gradient_lengths, gradients, offset)
+        self.aggregate_gradient_lengths_batch(
+            batch_len, gradient_lengths, gradients, offset
+        )
 
     def initialize_gradients(self, batch_len):
-        return torch.zeros([self.num_classes, batch_len]).to(self.device, non_blocking=True)
+        return torch.zeros([self.num_classes, batch_len]).to(
+            self.device, non_blocking=True
+        )
 
     def compute_gradient_lengths_batch(self, clf, criterion, x, gradients, all_classes):
 
@@ -107,22 +124,28 @@ class ExpectedGradientLength(QueryStrategy):
 
     def compute_gradient_length(self, clf, sm, gradients, j, k):
 
-        params = [param.grad.flatten() for param in clf.model.parameters()
-                  if param.requires_grad]
+        params = [
+            param.grad.flatten()
+            for param in clf.model.parameters()
+            if param.requires_grad
+        ]
         params = torch.cat(params)
 
         gradients[j, k] = torch.sqrt(params.pow(2)).sum()
         gradients[j, k] *= sm[k, j].item()
 
-    def aggregate_gradient_lengths_batch(self, batch_len, gradient_lengths, gradients, offset):
-        gradient_lengths[offset:offset + batch_len] = torch.sum(gradients, 0)\
-            .to('cpu', non_blocking=True)
+    def aggregate_gradient_lengths_batch(
+        self, batch_len, gradient_lengths, gradients, offset
+    ):
+        gradient_lengths[offset : offset + batch_len] = torch.sum(gradients, 0).to(
+            "cpu", non_blocking=True
+        )
 
     def __str__(self):
-        return 'ExpectedGradientLength()'
+        return "ExpectedGradientLength()"
 
 
-@constraints(classification_type='single-label')
+@constraints(classification_type="single-label")
 class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
     """Selects instances using the EGL-word strategy [ZLW17]_.
 
@@ -142,7 +165,8 @@ class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
     - This strategy was designed for the `KimCNN` model and might not work for other models
       even if they posses an embedding layer.
     """
-    def __init__(self, num_classes, layer_name, batch_size=50, device='cuda'):
+
+    def __init__(self, num_classes, layer_name, batch_size=50, device="cuda"):
         """
         Parameters
         ----------
@@ -163,10 +187,14 @@ class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
         # tensor that contains the unique word is for each item in the batch
         self._words = None
 
-    def query(self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10, pbar=None):
+    def query(
+        self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10, pbar=None
+    ):
 
         assert_layer_exists(clf.model, self.layer_name)
-        return super().query(clf, dataset, indices_unlabeled, indices_labeled, y, n=n, pbar=pbar)
+        return super().query(
+            clf, dataset, indices_unlabeled, indices_labeled, y, n=n, pbar=pbar
+        )
 
     def compute_gradient_lengths(self, clf, criterion, gradient_lengths, offset, x):
 
@@ -174,8 +202,9 @@ class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
 
         # TODO: assert layer_name is embedding layer
         batch_len = x.size(0)
-        all_classes = torch.cuda.LongTensor([batch_len * [i]
-                                             for i in range(self.num_classes)])
+        all_classes = torch.cuda.LongTensor(
+            [batch_len * [i] for i in range(self.num_classes)]
+        )
         gradients = self.initialize_gradients(batch_len)
 
         x = x.to(self.device, non_blocking=True)
@@ -195,7 +224,9 @@ class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
                 # difference to ExpectedGradientLength: compute_gradients takes texts as argument
                 self.compute_gradient_length(clf, x, sm, gradients, j, k)
 
-        self.aggregate_gradient_lengths_batch(batch_len, gradient_lengths, gradients, offset)
+        self.aggregate_gradient_lengths_batch(
+            batch_len, gradient_lengths, gradients, offset
+        )
 
     def compute_gradient_length(self, clf, text, sm, gradients, j, k):
         modules = dict({name: module for name, module in clf.model.named_modules()})
@@ -217,10 +248,10 @@ class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
         gradients[j, k] = max_norm.item() * sm[k, j].item()
 
     def __str__(self):
-        return 'ExpectedGradientLengthMaxWord()'
+        return "ExpectedGradientLengthMaxWord()"
 
 
-@constraints(classification_type='single-label')
+@constraints(classification_type="single-label")
 class ExpectedGradientLengthLayer(ExpectedGradientLength):
     """An EGL variant that is restricted to the gradients of a single layer.
 
@@ -247,40 +278,55 @@ class ExpectedGradientLengthLayer(ExpectedGradientLength):
         assert_layer_exists(clf.model, self.layer_name)
 
         modules = dict({name: module for name, module in clf.model.named_modules()})
-        params = [param.grad.flatten() for param in modules[self.layer_name].parameters()
-                  if param.requires_grad]
+        params = [
+            param.grad.flatten()
+            for param in modules[self.layer_name].parameters()
+            if param.requires_grad
+        ]
         params = torch.cat(params)
 
         gradients[j, k] += torch.norm(params, 2)
         gradients[j, k] = gradients[j, k] * sm[k, j].item()
 
     def __str__(self):
-        return 'ExpectedGradientLengthLayer()'
+        return "ExpectedGradientLengthLayer()"
 
 
-@constraints(classification_type='single-label')
+@constraints(classification_type="single-label")
 class BADGE(EmbeddingBasedQueryStrategy):
     """
     Implements "Batch Active learning by Diverse Gradient Embedding" (BADGE) [AZK+20]_.
     """
+
     def __init__(self, num_classes):
         self.num_classes = num_classes
 
-    def sample(self, clf, dataset, indices_unlabeled, indices_labeled, y, n, embeddings,
-               embeddings_proba=None):
+    def sample(
+        self,
+        clf,
+        dataset,
+        indices_unlabeled,
+        indices_labeled,
+        y,
+        n,
+        embeddings,
+        embeddings_proba=None,
+    ):
 
         if embeddings_proba is None:
             proba = clf.predict_proba(dataset[indices_unlabeled])
-            embeddings = self.get_badge_embeddings(embeddings[indices_unlabeled],
-                                                   proba)
+            embeddings = self.get_badge_embeddings(embeddings[indices_unlabeled], proba)
         else:
-            embeddings = self.get_badge_embeddings(embeddings[indices_unlabeled],
-                                                   embeddings_proba[indices_unlabeled])
+            embeddings = self.get_badge_embeddings(
+                embeddings[indices_unlabeled], embeddings_proba[indices_unlabeled]
+            )
 
-        _, indices = init_kmeans_plusplus_safe(embeddings,
-                                               n,
-                                               x_squared_norms=np.linalg.norm(embeddings, axis=1),
-                                               random_state=np.random.RandomState())
+        _, indices = init_kmeans_plusplus_safe(
+            embeddings,
+            n,
+            x_squared_norms=np.linalg.norm(embeddings, axis=1),
+            random_state=np.random.RandomState(),
+        )
         return indices
 
     def get_badge_embeddings(self, embeddings, proba):
@@ -291,14 +337,17 @@ class BADGE(EmbeddingBasedQueryStrategy):
 
         if self.num_classes > 2:
             embedding_size = embeddings.shape[1]
-            badge_embeddings = np.zeros((embeddings.shape[0], embedding_size * self.num_classes))
+            badge_embeddings = np.zeros(
+                (embeddings.shape[0], embedding_size * self.num_classes)
+            )
             for c in range(self.num_classes):
-                badge_embeddings[:, c * embedding_size:(c + 1) * embedding_size] = (
-                            scale[:, c] * np.copy(embeddings).T).T
+                badge_embeddings[:, c * embedding_size : (c + 1) * embedding_size] = (
+                    scale[:, c] * np.copy(embeddings).T
+                ).T
         else:
             badge_embeddings = embeddings
 
         return badge_embeddings
 
     def __str__(self):
-        return f'BADGE(num_classes={self.num_classes})'
+        return f"BADGE(num_classes={self.num_classes})"

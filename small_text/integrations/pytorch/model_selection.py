@@ -12,11 +12,10 @@ logger = logging.getLogger(__name__)
 try:
     import torch
 except ImportError:
-    raise PytorchNotFoundError('Could not import pytorch')
+    raise PytorchNotFoundError("Could not import pytorch")
 
 
 class Metric(object):
-
     def __init__(self, name, lower_is_better=True):
         """
         Represents any metric.
@@ -54,31 +53,39 @@ class PytorchModelSelection(object):
     def add_model(self, model, epoch, **kwargs):
 
         if not all(metric_name in kwargs for metric_name in self.metrics.keys()):
-            raise ValueError('All metrics defined in the constructor must be reported. '
-                             'Expected metrics: ' + ', '.join(self.metrics.keys()))
+            raise ValueError(
+                "All metrics defined in the constructor must be reported. "
+                "Expected metrics: " + ", ".join(self.metrics.keys())
+            )
 
-        model_path = Path(self.save_directory).joinpath('model_epoch_{}.pt'.format(epoch))
+        model_path = Path(self.save_directory).joinpath(
+            "model_epoch_{}.pt".format(epoch)
+        )
         torch.save(model.state_dict(), model_path)
-        model_id = tuple(kwargs[metric.name] for metric in self.metrics.values()) \
-            + (epoch, len(self.models))
+        model_id = tuple(kwargs[metric.name] for metric in self.metrics.values()) + (
+            epoch,
+            len(self.models),
+        )
         self.models[model_id] = model_path
 
     def select_best(self):
         models = sorted(self.models.items(), key=lambda x: self._get_sort_key(x))
         first_metric = list(self.metrics.items())[0][1]
         model_number = models[0][0][-1]
-        logger.info('Using model {} ({}={:1f})'.format(model_number+1,
-                                                       first_metric.name,
-                                                       models[0][0][0]))
+        logger.info(
+            "Using model {} ({}={:1f})".format(
+                model_number + 1, first_metric.name, models[0][0][0]
+            )
+        )
         self.selected_model = model_number
         return models[0][1], models[0][0]
 
     def select_last(self):
         model_number = len(self.models)
         keys = list(self.models.keys())
-        last_model_key = keys[model_number-1]
+        last_model_key = keys[model_number - 1]
 
-        logger.info('Using last model {}'.format(model_number))
+        logger.info("Using last model {}".format(model_number))
         self.selected_model = model_number
 
         return self.models[last_model_key], last_model_key
@@ -102,4 +109,6 @@ def validate_metrics(metrics):
 
     for metric in metrics:
         if not isinstance(metric, Metric):
-            raise ValueError('Invalid metric: "{}" ({})'.format(str(metric), type(metric)))
+            raise ValueError(
+                'Invalid metric: "{}" ({})'.format(str(metric), type(metric))
+            )

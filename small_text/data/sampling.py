@@ -65,10 +65,14 @@ def stratified_sampling(y, n_samples=10, enforce_min_occurrence=True):
     num_classes = np.max(y) + 1
 
     counts = _get_class_histogram(y, num_classes)
-    expected_samples_per_class = np.floor(counts * (float(n_samples) / counts.sum())).astype(int)
+    expected_samples_per_class = np.floor(
+        counts * (float(n_samples) / counts.sum())
+    ).astype(int)
 
     if enforce_min_occurrence and expected_samples_per_class.min() == 0:
-        if n_samples > num_classes and np.unique(y).shape[0] == num_classes:  # feasibility check
+        if (
+            n_samples > num_classes and np.unique(y).shape[0] == num_classes
+        ):  # feasibility check
             expected_samples_per_class += 1
 
             num_excessive_samples = expected_samples_per_class.sum() - n_samples
@@ -82,10 +86,14 @@ def stratified_sampling(y, n_samples=10, enforce_min_occurrence=True):
 
                 expected_samples_per_class[class_indices[round_robin_index]] -= 1
 
-                class_indices = np.arange(counts.shape[0])[expected_samples_per_class > 1]
+                class_indices = np.arange(counts.shape[0])[
+                    expected_samples_per_class > 1
+                ]
                 assert expected_samples_per_class[class_indices].sum() > 0
 
-    return _random_sampling(n_samples, num_classes, expected_samples_per_class, counts, y)
+    return _random_sampling(
+        n_samples, num_classes, expected_samples_per_class, counts, y
+    )
 
 
 def balanced_sampling(y, n_samples=10):
@@ -119,16 +127,22 @@ def balanced_sampling(y, n_samples=10):
     num_classes_present = len(np.unique(y))
 
     counts = _get_class_histogram(y, num_classes)
-    expected_samples_per_class = np.array([int(n_samples / num_classes_present)] * num_classes)
+    expected_samples_per_class = np.array(
+        [int(n_samples / num_classes_present)] * num_classes
+    )
 
-    return _random_sampling(n_samples, num_classes, expected_samples_per_class, counts, y)
+    return _random_sampling(
+        n_samples, num_classes, expected_samples_per_class, counts, y
+    )
 
 
 def _assert_sample_size(y, num_samples):
     label_set_size = len(y)
     if num_samples > label_set_size:
-        raise ValueError(f'Error! Requested number of samples {num_samples} '
-                         f'exceeds label set size ')
+        raise ValueError(
+            f"Error! Requested number of samples {num_samples} "
+            f"exceeds label set size "
+        )
 
 
 def _random_sampling(n_samples, num_classes, expected_samples_per_class, counts, y):
@@ -149,8 +163,11 @@ def _random_sampling(n_samples, num_classes, expected_samples_per_class, counts,
         for i in range(remainder):
             p_remaining = counts_remaining.astype(float) / counts_remaining.sum()
 
-            class_index = np.random.choice(classes, size=1, replace=False, p=p_remaining)\
-                .flatten().tolist()[0]
+            class_index = (
+                np.random.choice(classes, size=1, replace=False, p=p_remaining)
+                .flatten()
+                .tolist()[0]
+            )
             expected_samples_per_class[class_index] += 1
             counts_remaining[class_index] -= 1
 
@@ -158,8 +175,13 @@ def _random_sampling(n_samples, num_classes, expected_samples_per_class, counts,
     for i in range(num_classes):
         if expected_samples_per_class[i] > 0:
             class_indices = np.argwhere(y == i)[:, 0]
-            indices += np.random.choice(class_indices, size=expected_samples_per_class[i],
-                                        replace=False).flatten().tolist()
+            indices += (
+                np.random.choice(
+                    class_indices, size=expected_samples_per_class[i], replace=False
+                )
+                .flatten()
+                .tolist()
+            )
 
     indices = np.random.permutation(indices)
 

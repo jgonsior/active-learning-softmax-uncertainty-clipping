@@ -6,20 +6,19 @@ from small_text.classifiers.classification import SklearnClassifier
 
 
 class AbstractClassifierFactory(ABC):
-
     @abstractmethod
     def new(self):
         pass
 
 
 class SklearnClassifierFactory(AbstractClassifierFactory):
-
     def __init__(self, base_estimator, num_classes, kwargs={}):
         if not issubclass(type(base_estimator), BaseEstimator):
             raise ValueError(
-                'Given classifier template must be a subclass of '
-                'sklearn.base.BaseEstimator. Encountered class was: {}.'
-                .format(str(base_estimator.__class__))
+                "Given classifier template must be a subclass of "
+                "sklearn.base.BaseEstimator. Encountered class was: {}.".format(
+                    str(base_estimator.__class__)
+                )
             )
 
         self.base_estimator = base_estimator
@@ -27,4 +26,6 @@ class SklearnClassifierFactory(AbstractClassifierFactory):
         self.kwargs = kwargs
 
     def new(self):
-        return SklearnClassifier(clone(self.base_estimator), self.num_classes, **self.kwargs)
+        return SklearnClassifier(
+            clone(self.base_estimator), self.num_classes, **self.kwargs
+        )

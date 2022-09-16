@@ -11,7 +11,7 @@ from small_text.query_strategies import RandomSampling
 
 from examplecode.data.example_data_multilabel import (
     get_train_test,
-    preprocess_data_sklearn as preprocess_data
+    preprocess_data_sklearn as preprocess_data,
 )
 from examplecode.shared import evaluate_multi_label
 
@@ -24,9 +24,9 @@ def main():
 
     # Active learning parameters
     clf_template = ConfidenceEnhancedLinearSVC()
-    clf_factory = SklearnClassifierFactory(clf_template,
-                                           num_classes,
-                                           kwargs=dict({'multi_label': True}))
+    clf_factory = SklearnClassifierFactory(
+        clf_template, num_classes, kwargs=dict({"multi_label": True})
+    )
     query_strategy = RandomSampling()
 
     # Active learner
@@ -36,9 +36,9 @@ def main():
     try:
         perform_active_learning(active_learner, train, labeled_indices, test)
     except PoolExhaustedException:
-        print('Error! Not enough samples left to handle the query.')
+        print("Error! Not enough samples left to handle the query.")
     except EmptyPoolException:
-        print('Error! No more samples left. (Unlabeled pool is empty)')
+        print("Error! No more samples left. (Unlabeled pool is empty)")
 
 
 def perform_active_learning(active_learner, train, labeled_indices, test):
@@ -62,7 +62,7 @@ def perform_active_learning(active_learner, train, labeled_indices, test):
 
         labeled_indices = np.concatenate([queried_indices, labeled_indices])
 
-        print('Iteration #{:d} ({} samples)'.format(i, len(labeled_indices)))
+        print("Iteration #{:d} ({} samples)".format(i, len(labeled_indices)))
         evaluate_multi_label(active_learner, train[labeled_indices], test)
 
 
@@ -78,5 +78,5 @@ def initialize_active_learner(active_learner, y_train):
     return indices_initial
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -10,32 +10,35 @@ from small_text.query_strategies import (
     greedy_coreset,
     GreedyCoreset,
     lightweight_coreset,
-    LightweightCoreset
+    LightweightCoreset,
 )
 
-from tests.unit.small_text.query_strategies.test_strategies import (DEFAULT_QUERY_SIZE,
-                                                                    SamplingStrategiesTests,
-                                                                    query_random_data)
+from tests.unit.small_text.query_strategies.test_strategies import (
+    DEFAULT_QUERY_SIZE,
+    SamplingStrategiesTests,
+    query_random_data,
+)
 
 
 class GreedyCoresetMethodTest(unittest.TestCase):
-
     def test_query_with_overlarge_n(self, num_samples=20, num_features=100):
         x = np.random.rand(num_samples, num_features)
         indices = np.arange(num_samples)
         indices_mid = int(num_samples / 2)
         with self.assertRaises(ValueError):
-            greedy_coreset(x, indices[:indices_mid], indices[indices_mid:], num_samples+1)
+            greedy_coreset(
+                x, indices[:indices_mid], indices[indices_mid:], num_samples + 1
+            )
 
 
-@parameterized_class([{'normalize': True}, {'normalize': False}])
+@parameterized_class([{"normalize": True}, {"normalize": False}])
 class GreedyCoresetTest(unittest.TestCase, SamplingStrategiesTests):
 
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):
         if cls == GreedyCoresetTest:
-            raise unittest.SkipTest('parameterized_class bug')
+            raise unittest.SkipTest("parameterized_class bug")
         super().setUpClass()
 
     def _get_clf(self):
@@ -46,31 +49,43 @@ class GreedyCoresetTest(unittest.TestCase, SamplingStrategiesTests):
 
     # overrides test from SamplingStrategiesTests (to use embeddings)
     def test_simple_query(self, embedding_dim=100):
-        embeddings = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim)
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES,
-                              n=5,
-                              embeddings=embeddings)
+        embeddings = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
+        indices = self._query(
+            self._get_query_strategy(),
+            num_samples=self.DEFAULT_NUM_SAMPLES,
+            n=5,
+            embeddings=embeddings,
+        )
         self.assertEqual(5, len(indices))
 
     # overrides test from SamplingStrategiesTests (to use embeddings)
     def test_default_query(self, embedding_dim=100):
-        embeddings = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim)
-        indices = self._query(self._get_query_strategy(), num_samples=100, embeddings=embeddings)
+        embeddings = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
+        indices = self._query(
+            self._get_query_strategy(), num_samples=100, embeddings=embeddings
+        )
         self.assertEqual(DEFAULT_QUERY_SIZE, len(indices))
 
     # overrides test from SamplingStrategiesTests (to use embeddings)
     def test_query_takes_remaining_pool(self, embedding_dim=100):
-        embeddings = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim)
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES,
-                              n=10,
-                              embeddings=embeddings)
+        embeddings = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
+        indices = self._query(
+            self._get_query_strategy(),
+            num_samples=self.DEFAULT_NUM_SAMPLES,
+            n=10,
+            embeddings=embeddings,
+        )
         self.assertEqual(DEFAULT_QUERY_SIZE, len(indices))
 
     def test_str(self):
         strategy = self._get_query_strategy()
-        expected_str = f'GreedyCoreset(normalize={str(self.normalize)}, batch_size=100)'
+        expected_str = f"GreedyCoreset(normalize={str(self.normalize)}, batch_size=100)"
         self.assertEqual(expected_str, str(strategy))
 
     def test_query_default(self):
@@ -80,8 +95,9 @@ class GreedyCoresetTest(unittest.TestCase, SamplingStrategiesTests):
     def test_query_empty_pool(self, num_samples=20, n=10):
         strategy = self._get_query_strategy()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices_unlabeled = []
@@ -92,21 +108,20 @@ class GreedyCoresetTest(unittest.TestCase, SamplingStrategiesTests):
 
 
 class LightweightCoresetMethodTest(unittest.TestCase):
-
     def test_query_with_overlarge_n(self, num_samples=20, num_features=100):
         x = np.random.rand(num_samples, num_features)
         with self.assertRaises(ValueError):
-            lightweight_coreset(x, np.mean(x, axis=0), num_samples+1)
+            lightweight_coreset(x, np.mean(x, axis=0), num_samples + 1)
 
 
-@parameterized_class([{'normalize': True}, {'normalize': False}])
+@parameterized_class([{"normalize": True}, {"normalize": False}])
 class LightweightCoresetTest(unittest.TestCase, SamplingStrategiesTests):
 
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):
         if cls == LightweightCoresetTest:
-            raise unittest.SkipTest('parameterized_class bug')
+            raise unittest.SkipTest("parameterized_class bug")
         super().setUpClass()
 
     def _get_clf(self):
@@ -117,31 +132,43 @@ class LightweightCoresetTest(unittest.TestCase, SamplingStrategiesTests):
 
     # overrides test from SamplingStrategiesTests (to use embeddings)
     def test_simple_query(self, embedding_dim=100):
-        embeddings = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim)
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES,
-                              n=5,
-                              embeddings=embeddings)
+        embeddings = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
+        indices = self._query(
+            self._get_query_strategy(),
+            num_samples=self.DEFAULT_NUM_SAMPLES,
+            n=5,
+            embeddings=embeddings,
+        )
         self.assertEqual(5, len(indices))
 
     # overrides test from SamplingStrategiesTests (to use embeddings)
     def test_default_query(self, embedding_dim=100):
-        embeddings = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim)
-        indices = self._query(self._get_query_strategy(), num_samples=100, embeddings=embeddings)
+        embeddings = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
+        indices = self._query(
+            self._get_query_strategy(), num_samples=100, embeddings=embeddings
+        )
         self.assertEqual(DEFAULT_QUERY_SIZE, len(indices))
 
     # overrides test from SamplingStrategiesTests (to use embeddings)
     def test_query_takes_remaining_pool(self, embedding_dim=100):
-        embeddings = np.random.rand(SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim)
-        indices = self._query(self._get_query_strategy(),
-                              num_samples=self.DEFAULT_NUM_SAMPLES,
-                              n=10,
-                              embeddings=embeddings)
+        embeddings = np.random.rand(
+            SamplingStrategiesTests.DEFAULT_NUM_SAMPLES, embedding_dim
+        )
+        indices = self._query(
+            self._get_query_strategy(),
+            num_samples=self.DEFAULT_NUM_SAMPLES,
+            n=10,
+            embeddings=embeddings,
+        )
         self.assertEqual(DEFAULT_QUERY_SIZE, len(indices))
 
     def test_lightweight_coreset_str(self):
         strategy = self._get_query_strategy()
-        expected_str = f'LightweightCoreset(normalize={str(self.normalize)})'
+        expected_str = f"LightweightCoreset(normalize={str(self.normalize)})"
         self.assertEqual(expected_str, str(strategy))
 
     def test_lightweight_coreset_query_default(self):
@@ -151,8 +178,9 @@ class LightweightCoresetTest(unittest.TestCase, SamplingStrategiesTests):
     def test_lightweight_coreset_empty_pool(self, num_samples=20, n=10):
         strategy = self._get_query_strategy()
 
-        dataset = SklearnDataset(np.random.rand(num_samples, 10),
-                                 np.random.randint(0, high=2, size=10))
+        dataset = SklearnDataset(
+            np.random.rand(num_samples, 10), np.random.randint(0, high=2, size=10)
+        )
 
         indices_labeled = np.random.choice(np.arange(100), size=10, replace=False)
         indices_unlabeled = []

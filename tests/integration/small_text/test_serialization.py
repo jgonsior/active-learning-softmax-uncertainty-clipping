@@ -15,14 +15,15 @@ from tests.utils.object_factory import get_initialized_active_learner
 
 
 class SerializationTest(unittest.TestCase):
-
     def test_save_and_load_with_file_str(self):
         clf_factory = SklearnClassifierFactory(ConfidenceEnhancedLinearSVC(), 2)
         query_strategy = RandomSampling()
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            file_str = tmp_dir_name + '/active_learner.pkl'
-            active_learner, ind_initial, ind_queried = self._write(file_str, query_strategy, clf_factory)
+            file_str = tmp_dir_name + "/active_learner.pkl"
+            active_learner, ind_initial, ind_queried = self._write(
+                file_str, query_strategy, clf_factory
+            )
             self._load(file_str, query_strategy, ind_initial, ind_queried)
 
     def test_save_and_load_with_path(self):
@@ -30,8 +31,10 @@ class SerializationTest(unittest.TestCase):
         query_strategy = RandomSampling()
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            file_path = Path(tmp_dir_name + '/active_learner.pkl')
-            active_learner, ind_initial, ind_queried = self._write(file_path, query_strategy, clf_factory)
+            file_path = Path(tmp_dir_name + "/active_learner.pkl")
+            active_learner, ind_initial, ind_queried = self._write(
+                file_path, query_strategy, clf_factory
+            )
             self._load(file_path, query_strategy, ind_initial, ind_queried)
 
     def test_save_and_load_with_file_handle(self):
@@ -39,10 +42,12 @@ class SerializationTest(unittest.TestCase):
         query_strategy = RandomSampling()
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            file_str = tmp_dir_name + '/active_learner.pkl'
-            with open(file_str, 'wb') as f:
-                active_learner, ind_initial, ind_queried = self._write(f, query_strategy, clf_factory)
-            with open(file_str, 'rb') as f:
+            file_str = tmp_dir_name + "/active_learner.pkl"
+            with open(file_str, "wb") as f:
+                active_learner, ind_initial, ind_queried = self._write(
+                    f, query_strategy, clf_factory
+                )
+            with open(file_str, "rb") as f:
                 self._load(f, query_strategy, ind_initial, ind_queried)
 
     def _write(self, file, query_strategy, clf_factory):
@@ -65,6 +70,10 @@ class SerializationTest(unittest.TestCase):
         active_learner = PoolBasedActiveLearner.load(file)
         self.assertIsNotNone(active_learner)
 
-        assert_array_equal(np.concatenate([ind_initial, ind_queried]), active_learner.indices_labeled)
+        assert_array_equal(
+            np.concatenate([ind_initial, ind_queried]), active_learner.indices_labeled
+        )
         self.assertIsNotNone(active_learner.classifier)
-        self.assertEqual(query_strategy.__class__, active_learner.query_strategy.__class__)
+        self.assertEqual(
+            query_strategy.__class__, active_learner.query_strategy.__class__
+        )

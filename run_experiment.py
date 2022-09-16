@@ -61,9 +61,7 @@ def _chunks(l, n):
 
 
 def generate_workload(
-    param_grid,
-    array_job_id: int = 0,
-    n_array_jobs: int = 1,
+    param_grid, array_job_id: int = 0, n_array_jobs: int = 1,
 ):
     print(f"Job Id {array_job_id}")
     done_param_list = []
@@ -183,21 +181,15 @@ if __name__ == "__main__":
 
     if args.workload == "dev":
         _, open_param_list, full_param_list = generate_workload(
-            dev_param_grid,
-            args.array_job_id,
-            args.n_array_jobs,
+            dev_param_grid, args.array_job_id, args.n_array_jobs,
         )
     elif args.workload == "baselines":
         _, open_param_list, full_param_list = generate_workload(
-            baselines_param_grid,
-            args.array_job_id,
-            args.n_array_jobs,
+            baselines_param_grid, args.array_job_id, args.n_array_jobs,
         )
     elif args.workload == "my":
         _, open_param_list, full_param_list = generate_workload(
-            my_methods_param_grid,
-            args.array_job_id,
-            args.n_array_jobs,
+            my_methods_param_grid, args.array_job_id, args.n_array_jobs,
         )
     else:
         exit(-1)

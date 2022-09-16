@@ -16,61 +16,92 @@ except (ImportError, PytorchNotFoundError):
 
 @pytest.mark.pytorch
 class TransformersDatasetTest(unittest.TestCase):
-
     def test_dataset_to(self):
         ds = random_transformer_dataset(10)
-        ds = ds.to('cpu')
+        ds = ds.to("cpu")
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device == torch.device('cpu')
-                    for item in ds.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device == torch.device("cpu")
+                    for item in ds.data
+                ]
+            )
         )
 
-        ds = ds.to('cuda')
+        ds = ds.to("cuda")
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device.type == 'cuda'
-                    for item in ds.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device.type == "cuda"
+                    for item in ds.data
+                ]
+            )
         )
 
     def test_dataset_to_non_blocking(self):
         ds = random_transformer_dataset(10)
-        ds = ds.to('cpu')
+        ds = ds.to("cpu")
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device == torch.device('cpu')
-                    for item in ds.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device == torch.device("cpu")
+                    for item in ds.data
+                ]
+            )
         )
 
-        ds = ds.to('cuda', non_blocking=True)
+        ds = ds.to("cuda", non_blocking=True)
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device.type == 'cuda'
-                    for item in ds.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device.type == "cuda"
+                    for item in ds.data
+                ]
+            )
         )
 
     def test_dataset_to_copy(self):
         ds = random_transformer_dataset(10)
-        ds = ds.to('cpu')
+        ds = ds.to("cpu")
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device == torch.device('cpu')
-                    for item in ds.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device == torch.device("cpu")
+                    for item in ds.data
+                ]
+            )
         )
 
-        ds_new = ds.to('cuda', copy=True)
+        ds_new = ds.to("cuda", copy=True)
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device.type == 'cuda'
-                    for item in ds_new.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device.type == "cuda"
+                    for item in ds_new.data
+                ]
+            )
         )
 
     def test_dataset_to_copy_with_target_labels_explicit(self):
-        ds = random_transformer_dataset(10, target_labels='explicit')
-        ds = ds.to('cpu')
+        ds = random_transformer_dataset(10, target_labels="explicit")
+        ds = ds.to("cpu")
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device == torch.device('cpu')
-                    for item in ds.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device == torch.device("cpu")
+                    for item in ds.data
+                ]
+            )
         )
 
-        ds_new = ds.to('cuda', copy=True)
+        ds_new = ds.to("cuda", copy=True)
         self.assertTrue(
-            np.all([item[TransformersDataset.INDEX_TEXT].device.type == 'cuda'
-                    for item in ds_new.data])
+            np.all(
+                [
+                    item[TransformersDataset.INDEX_TEXT].device.type == "cuda"
+                    for item in ds_new.data
+                ]
+            )
         )
 
         # test for object equality

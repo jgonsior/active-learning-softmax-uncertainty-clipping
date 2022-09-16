@@ -14,14 +14,16 @@ from tests.utils.testing import (
     assert_array_not_equal,
     assert_csr_matrix_equal,
     assert_csr_matrix_not_equal,
-    assert_list_of_tensors_equal
+    assert_list_of_tensors_equal,
 )
 
 try:
     import torch
 
     from small_text.integrations.pytorch.query_strategies import (
-        ExpectedGradientLength, ExpectedGradientLengthMaxWord)
+        ExpectedGradientLength,
+        ExpectedGradientLengthMaxWord,
+    )
     from small_text.integrations.transformers.datasets import TransformersDataset
     from tests.utils.datasets import random_transformer_dataset
 except (ModuleNotFoundError, PytorchNotFoundError):
@@ -29,22 +31,30 @@ except (ModuleNotFoundError, PytorchNotFoundError):
 
 
 @pytest.mark.pytorch
-@parameterized_class([{'target_labels': 'explicit', 'multi_label': True},
-                      {'target_labels': 'explicit', 'multi_label': False},
-                      {'target_labels': 'inferred', 'multi_label': True},
-                      {'target_labels': 'inferred', 'multi_label': False}])
+@parameterized_class(
+    [
+        {"target_labels": "explicit", "multi_label": True},
+        {"target_labels": "explicit", "multi_label": False},
+        {"target_labels": "inferred", "multi_label": True},
+        {"target_labels": "inferred", "multi_label": False},
+    ]
+)
 class TransformersDatasetTest(unittest.TestCase):
     NUM_SAMPLES = 100
     NUM_LABELS = 3
 
     def _random_data(self, num_samples=NUM_SAMPLES):
-        if self.target_labels not in ['explicit', 'inferred']:
-            raise ValueError('Invalid test parameter value for target_labels:' + self.target_labels)
+        if self.target_labels not in ["explicit", "inferred"]:
+            raise ValueError(
+                "Invalid test parameter value for target_labels:" + self.target_labels
+            )
 
-        return random_transformer_dataset(num_samples=num_samples,
-                                          multi_label=self.multi_label,
-                                          num_classes=self.NUM_LABELS,
-                                          target_labels=self.target_labels)
+        return random_transformer_dataset(
+            num_samples=num_samples,
+            multi_label=self.multi_label,
+            num_classes=self.NUM_LABELS,
+            target_labels=self.target_labels,
+        )
 
     def test_init(self):
         ds = self._random_data()
@@ -96,9 +106,9 @@ class TransformersDatasetTest(unittest.TestCase):
 
     def test_set_labels_with_mismatching_data_length(self):
         ds = self._random_data(num_samples=self.NUM_SAMPLES)
-        ds_new = self._random_data(num_samples=self.NUM_SAMPLES+1)
+        ds_new = self._random_data(num_samples=self.NUM_SAMPLES + 1)
 
-        with self.assertRaisesRegex(ValueError, 'Size mismatch: '):
+        with self.assertRaisesRegex(ValueError, "Size mismatch: "):
             ds.y = ds_new.y
 
     def test_is_multi_label(self):
@@ -122,7 +132,7 @@ class TransformersDatasetTest(unittest.TestCase):
     def test_set_target_labels_where_existing_labels_are_outside_of_given_set(self):
         ds = self._random_data(num_samples=self.NUM_SAMPLES)
         new_target_labels = np.array([0])
-        with self.assertRaisesRegex(ValueError, 'Cannot remove existing labels'):
+        with self.assertRaisesRegex(ValueError, "Cannot remove existing labels"):
             ds.target_labels = new_target_labels
 
     def test_get_data(self):

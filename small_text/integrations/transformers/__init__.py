@@ -5,6 +5,7 @@ try:
     from small_text.integrations.transformers.classifiers.classification import (
         TransformerModelArguments,
         TransformerBasedClassification,
-        TransformerBasedEmbeddingMixin)
+        TransformerBasedEmbeddingMixin,
+    )
 except PytorchNotFoundError:
     pass

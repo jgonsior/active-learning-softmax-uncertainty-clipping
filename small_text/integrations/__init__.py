@@ -1,7 +1,11 @@
-from small_text.integrations.pytorch.exceptions import PytorchNotFoundError as _PytorchNotFoundError
+from small_text.integrations.pytorch.exceptions import (
+    PytorchNotFoundError as _PytorchNotFoundError,
+)
 
 try:
-    from small_text.integrations.pytorch.datasets import PytorchTextClassificationDataset
+    from small_text.integrations.pytorch.datasets import (
+        PytorchTextClassificationDataset,
+    )
 except _PytorchNotFoundError:
     pass
 

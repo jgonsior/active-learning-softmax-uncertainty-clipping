@@ -11,34 +11,26 @@ from small_text.utils.labels import (
     get_ignored_labels_mask,
     get_num_labels,
     list_to_csr,
-    remove_by_index
+    remove_by_index,
 )
 
 from tests.utils.testing import assert_csr_matrix_equal
 
 
 class LabelUtilsTest(unittest.TestCase):
-
     def test_get_num_labels_dense(self):
         self.assertEqual(4, get_num_labels(np.array([3, 2, 1, 0])))
         self.assertEqual(4, get_num_labels(np.array([3])))
-        with self.assertRaisesRegex(ValueError, 'Invalid labeling'):
+        with self.assertRaisesRegex(ValueError, "Invalid labeling"):
             self.assertEqual(0, get_num_labels(np.array([])))
 
     def test_get_num_labels_sparse(self):
-        mat = csr_matrix(np.array([
-            [1, 1],
-            [0, 1],
-            [1, 0],
-            [0, 0]
-        ]))
+        mat = csr_matrix(np.array([[1, 1], [0, 1], [1, 0], [0, 0]]))
         self.assertEqual(2, get_num_labels(mat))
-        mat = csr_matrix(np.array([
-            [1, 1]
-        ]))
+        mat = csr_matrix(np.array([[1, 1]]))
         self.assertEqual(2, get_num_labels(mat))
         mat = csr_matrix((0, 0), dtype=np.int64)
-        with self.assertRaisesRegex(ValueError, 'Invalid labeling'):
+        with self.assertRaisesRegex(ValueError, "Invalid labeling"):
             self.assertEqual(0, get_num_labels(mat))
 
     def test_concatenate_dense(self):
@@ -56,9 +48,7 @@ class LabelUtilsTest(unittest.TestCase):
 
         result = concatenate(x, y)
         expected = csr_matrix(
-            np.array([
-                [0, 1], [1, 0], [1, 1], [1, 1], [1, 0], [0, 1]
-            ])
+            np.array([[0, 1], [1, 0], [1, 1], [1, 1], [1, 0], [0, 1]])
         )
 
         assert_csr_matrix_equal(expected, result)
@@ -72,7 +62,11 @@ class LabelUtilsTest(unittest.TestCase):
 
     def test_get_ignored_labels_mask_sparse(self):
 
-        y = csr_matrix(np.array([[1, 1], [LABEL_IGNORED, 0], [LABEL_IGNORED, LABEL_IGNORED], [1, 0]]))
+        y = csr_matrix(
+            np.array(
+                [[1, 1], [LABEL_IGNORED, 0], [LABEL_IGNORED, LABEL_IGNORED], [1, 0]]
+            )
+        )
         mask = get_ignored_labels_mask(y, LABEL_IGNORED)
 
         assert_array_equal(np.array([False, True, True, False]), mask)
@@ -95,11 +89,7 @@ class LabelUtilsTest(unittest.TestCase):
         y = csr_matrix(np.array([[1, 1], [1, 0], [0, 1], [1, 1]]))
 
         y_new = remove_by_index(y, 2)
-        expected = csr_matrix(
-            np.array([
-                [1, 1], [1, 0], [1, 1]
-            ])
-        )
+        expected = csr_matrix(np.array([[1, 1], [1, 0], [1, 1]]))
 
         assert_csr_matrix_equal(expected, y_new)
 
@@ -107,20 +97,11 @@ class LabelUtilsTest(unittest.TestCase):
         y = csr_matrix(np.array([[1, 1], [1, 0], [0, 1], [1, 1]]))
 
         y_new = remove_by_index(y, [2, 3])
-        expected = csr_matrix(
-            np.array([
-                [1, 1], [1, 0]
-            ])
-        )
+        expected = csr_matrix(np.array([[1, 1], [1, 0]]))
         assert_csr_matrix_equal(expected, y_new)
 
     def test_csr_to_list(self):
-        mat = csr_matrix(np.array([
-            [1, 1],
-            [0, 1],
-            [1, 0],
-            [0, 0]
-        ]))
+        mat = csr_matrix(np.array([[1, 1], [0, 1], [1, 0], [0, 0]]))
         label_list = csr_to_list(mat)
         self.assertEqual([[0, 1], [1], [0], []], label_list)
 

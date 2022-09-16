@@ -16,11 +16,10 @@ except PytorchNotFoundError:
 
 @pytest.mark.pytorch
 class KimCNNFactoryTest(unittest.TestCase):
-
     def test_factory_new(self):
         vocab_length = 10
         embedding_matrix = torch.Tensor(np.random.rand(vocab_length, 100))
-        factory = KimCNNFactory('kimcnn', 6, {'embedding_matrix': embedding_matrix})
+        factory = KimCNNFactory("kimcnn", 6, {"embedding_matrix": embedding_matrix})
 
         clf = factory.new()
         self.assertTrue(isinstance(clf, KimCNNClassifier))

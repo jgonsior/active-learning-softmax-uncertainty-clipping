@@ -6,9 +6,8 @@ from small_text.data.sampling import _get_class_histogram
 
 
 class StratifiedSamplingTest(unittest.TestCase):
-
     def test_stratified_sampling(self):
-        y = np.array([0]*10 + [1]*10 + [2]*10 + [3]*70)
+        y = np.array([0] * 10 + [1] * 10 + [2] * 10 + [3] * 70)
         indices = stratified_sampling(y, n_samples=10)
         stratified_labels = [y[i] for i in indices]
 
@@ -23,7 +22,7 @@ class StratifiedSamplingTest(unittest.TestCase):
         self.assertEqual(7, counts[3])
 
     def test_stratified_sampling_with_rare_class(self):
-        y = np.array([0]*1 + [1]*10 + [2]*10 + [3]*79)
+        y = np.array([0] * 1 + [1] * 10 + [2] * 10 + [3] * 79)
         indices = stratified_sampling(y, n_samples=10)
         stratified_labels = [y[i] for i in indices]
 
@@ -55,16 +54,15 @@ class StratifiedSamplingTest(unittest.TestCase):
         self.assertEqual(3, len(counts[counts >= 7]))
 
     def test_stratified_sampling_num_samples_too_large(self):
-        y = np.array([0]*25 + [1]*25 + [2]*25 + [3]*25)
+        y = np.array([0] * 25 + [1] * 25 + [2] * 25 + [3] * 25)
 
         with self.assertRaises(ValueError):
             stratified_sampling(y, n_samples=101)
 
 
 class BalancedSamplingTest(unittest.TestCase):
-
     def test_balanced_sampling(self):
-        y = [0]*10 + [1]*10 + [2]*10 + [3]*70
+        y = [0] * 10 + [1] * 10 + [2] * 10 + [3] * 70
         indices = balanced_sampling(y, n_samples=10)
         stratified_labels = [y[i] for i in indices]
 
@@ -76,7 +74,7 @@ class BalancedSamplingTest(unittest.TestCase):
         self.assertTrue(np.all(counts >= 2))
 
     def test_balanced_sampling_with_rare_class(self):
-        y = [0]*1 + [1]*10 + [2]*10 + [3]*79
+        y = [0] * 1 + [1] * 10 + [2] * 10 + [3] * 79
         indices = balanced_sampling(y, n_samples=10)
         stratified_labels = [y[i] for i in indices]
 
@@ -108,7 +106,7 @@ class BalancedSamplingTest(unittest.TestCase):
         self.assertEqual(3, len(counts[counts >= 7]))
 
     def test_balanced_sampling_num_samples_too_large(self):
-        y = [0]*25 + [1]*25 + [2]*25 + [3]*25
+        y = [0] * 25 + [1] * 25 + [2] * 25 + [3] * 25
 
         with self.assertRaises(ValueError):
             balanced_sampling(y, n_samples=101)

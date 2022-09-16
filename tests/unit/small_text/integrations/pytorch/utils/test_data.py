@@ -20,7 +20,6 @@ except (ModuleNotFoundError, PytorchNotFoundError):
 
 @pytest.mark.pytorch
 class DataloaderTest(unittest.TestCase):
-
     def test_dataloader_train(self):
         ds = random_text_classification_dataset(10)
         loader = dataloader(ds, 3, kimcnn_collate_fn)
@@ -40,11 +39,10 @@ class DataloaderTest(unittest.TestCase):
 
 @pytest.mark.pytorch
 class ClassWeightsTest(unittest.TestCase):
-
     def test_get_class_weights_binary(self):
         y = np.array([0, 1, 1, 1, 1])
         class_weights = get_class_weights(y, 2)
-        self.assertTrue(torch.equal(torch.tensor([4., 1.0]), class_weights))
+        self.assertTrue(torch.equal(torch.tensor([4.0, 1.0]), class_weights))
 
     def test_get_class_weights_multiclass(self):
         y = np.array([0, 1, 1, 1, 1, 2, 3, 3])
@@ -54,15 +52,21 @@ class ClassWeightsTest(unittest.TestCase):
     def test_get_class_weights_multi_label(self):
         num_classes = 4
 
-        y = np.array([[1, 0, 1, 0],
-                      [1, 1, 0, 0],
-                      [0, 1, 1, 0],
-                      [0, 1, 0, 0],
-                      [1, 1, 0, 0],
-                      [0, 0, 1, 0],
-                      [0, 1, 1, 1],
-                      [1, 1, 0, 1]])
+        y = np.array(
+            [
+                [1, 0, 1, 0],
+                [1, 1, 0, 0],
+                [0, 1, 1, 0],
+                [0, 1, 0, 0],
+                [1, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 1, 1, 1],
+                [1, 1, 0, 1],
+            ]
+        )
         y = csr_matrix(y, shape=(y.shape[0], num_classes))
 
         class_weights = get_class_weights(y, num_classes)
-        assert_array_almost_equal(np.array([3.0, 10/6, 3.0, 7.0]), class_weights.cpu().numpy())
+        assert_array_almost_equal(
+            np.array([3.0, 10 / 6, 3.0, 7.0]), class_weights.cpu().numpy()
+        )

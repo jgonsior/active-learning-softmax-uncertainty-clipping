@@ -32,14 +32,25 @@ try:
     import torch.nn as nn
     import torch.nn.functional as F
 except ImportError as e:
-    raise PytorchNotFoundError('Could not import pytorch or one of its dependencies: ' + str(e))
+    raise PytorchNotFoundError(
+        "Could not import pytorch or one of its dependencies: " + str(e)
+    )
 
 
 class KimCNN(nn.Module):
-
-    def __init__(self, vocabulary_size, max_seq_length, num_classes=2, out_channels=100,
-                 embed_dim=300, padding_idx=0, kernel_heights=[3, 4, 5], dropout=0.5,
-                 embedding_matrix=None, freeze_embedding_layer=False):
+    def __init__(
+        self,
+        vocabulary_size,
+        max_seq_length,
+        num_classes=2,
+        out_channels=100,
+        embed_dim=300,
+        padding_idx=0,
+        kernel_heights=[3, 4, 5],
+        dropout=0.5,
+        embedding_matrix=None,
+        freeze_embedding_layer=False,
+    ):
         """
         Parameters
         ----------
@@ -81,26 +92,22 @@ class KimCNN(nn.Module):
 
         if embedding_matrix is not None:
             # Load pre-trained weights. Should be torch FloatTensor
-            self.embedding = self.embedding.from_pretrained(embedding_matrix.float(),
-                                                            padding_idx=padding_idx)
+            self.embedding = self.embedding.from_pretrained(
+                embedding_matrix.float(), padding_idx=padding_idx
+            )
 
         self.embedding.weight.requires_grad = not freeze_embedding_layer
 
         self.convs = nn.ModuleList(
             [
                 nn.Conv2d(
-                    self.in_channels,
-                    self.out_channels,
-                    kernel_size=(k, embed_dim)
+                    self.in_channels, self.out_channels, kernel_size=(k, embed_dim)
                 )
                 for k in kernel_heights
             ]
         )
         self.pools = nn.ModuleList(
-            [
-                nn.MaxPool2d(kernel_size=pool_size)
-                for pool_size in self.pool_sizes
-            ]
+            [nn.MaxPool2d(kernel_size=pool_size) for pool_size in self.pool_sizes]
         )
 
         self.dropout = nn.Dropout(dropout)

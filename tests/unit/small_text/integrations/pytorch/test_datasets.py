@@ -15,7 +15,7 @@ from tests.utils.testing import (
     assert_array_not_equal,
     assert_csr_matrix_equal,
     assert_csr_matrix_not_equal,
-    assert_list_of_tensors_equal
+    assert_list_of_tensors_equal,
 )
 
 
@@ -23,32 +23,44 @@ try:
     import torch
     from torchtext.vocab import Vocab
 
-    from small_text.integrations.pytorch.datasets import PytorchTextClassificationDataset, \
-        PytorchDatasetView
+    from small_text.integrations.pytorch.datasets import (
+        PytorchTextClassificationDataset,
+        PytorchDatasetView,
+    )
     from small_text.integrations.pytorch.query_strategies import (
-        ExpectedGradientLength, ExpectedGradientLengthMaxWord)
+        ExpectedGradientLength,
+        ExpectedGradientLengthMaxWord,
+    )
 except (PytorchNotFoundError, ModuleNotFoundError):
     pass
 
 
 @pytest.mark.pytorch
-@parameterized_class([{'target_labels': 'explicit', 'multi_label': True},
-                      {'target_labels': 'explicit', 'multi_label': False},
-                      {'target_labels': 'inferred', 'multi_label': True},
-                      {'target_labels': 'inferred', 'multi_label': False}])
+@parameterized_class(
+    [
+        {"target_labels": "explicit", "multi_label": True},
+        {"target_labels": "explicit", "multi_label": False},
+        {"target_labels": "inferred", "multi_label": True},
+        {"target_labels": "inferred", "multi_label": False},
+    ]
+)
 class PytorchTextClassificationDatasetTest(unittest.TestCase):
 
     NUM_SAMPLES = 100
     NUM_LABELS = 3
 
     def _random_data(self, num_samples=100, num_labels=NUM_LABELS):
-        if self.target_labels not in ['explicit', 'inferred']:
-            raise ValueError('Invalid test parameter value for target_labels:' + self.target_labels)
+        if self.target_labels not in ["explicit", "inferred"]:
+            raise ValueError(
+                "Invalid test parameter value for target_labels:" + self.target_labels
+            )
 
-        return random_text_classification_dataset(num_samples=num_samples,
-                                                  multi_label=self.multi_label,
-                                                  num_classes=num_labels,
-                                                  target_labels=self.target_labels)
+        return random_text_classification_dataset(
+            num_samples=num_samples,
+            multi_label=self.multi_label,
+            num_classes=num_labels,
+            target_labels=self.target_labels,
+        )
 
     def test_init(self):
         ds = random_text_classification_dataset(num_samples=self.NUM_SAMPLES)
@@ -67,8 +79,7 @@ class PytorchTextClassificationDatasetTest(unittest.TestCase):
 
         self.assertEqual(len(ds.x), len(ds_new.x))
         tensor_pairs = zip([item for item in ds.x], [item for item in ds_new.x])
-        is_equal = [torch.equal(first, second)
-                    for first, second in tensor_pairs]
+        is_equal = [torch.equal(first, second) for first, second in tensor_pairs]
         self.assertTrue(np.alltrue(is_equal))
 
     def test_get_labels(self):
@@ -106,9 +117,9 @@ class PytorchTextClassificationDatasetTest(unittest.TestCase):
 
     def test_set_labels_with_mismatching_data_length(self):
         ds = self._random_data(num_samples=self.NUM_SAMPLES)
-        ds_new = self._random_data(num_samples=self.NUM_SAMPLES+1)
+        ds_new = self._random_data(num_samples=self.NUM_SAMPLES + 1)
 
-        with self.assertRaisesRegex(ValueError, 'Size mismatch: '):
+        with self.assertRaisesRegex(ValueError, "Size mismatch: "):
             ds.y = ds_new.y
 
     def test_is_multi_label(self):
@@ -125,14 +136,14 @@ class PytorchTextClassificationDatasetTest(unittest.TestCase):
 
     def test_set_target_labels(self):
         ds = self._random_data(num_samples=self.NUM_SAMPLES)
-        new_target_labels = np.arange(self.NUM_LABELS+1)
+        new_target_labels = np.arange(self.NUM_LABELS + 1)
         ds.target_labels = new_target_labels
         assert_array_equal(new_target_labels, ds.target_labels)
 
     def test_set_target_labels_where_existing_labels_are_outside_of_given_set(self):
         ds = self._random_data(num_samples=self.NUM_SAMPLES)
         new_target_labels = np.array([0])
-        with self.assertRaisesRegex(ValueError, 'Cannot remove existing labels'):
+        with self.assertRaisesRegex(ValueError, "Cannot remove existing labels"):
             ds.target_labels = new_target_labels
 
     def test_get_data(self):
@@ -151,7 +162,7 @@ class PytorchTextClassificationDatasetTest(unittest.TestCase):
     def test_indexing_list_index(self):
         index = [1, 42, 56, 99]
         ds = self._random_data(num_samples=self.NUM_SAMPLES)
- 
+
         result = ds[index]
         self.assertEqual(len(index), len(result))
         self.assertTrue(isinstance(result, PytorchDatasetView))
@@ -226,7 +237,9 @@ class _PytorchDatasetViewTest(object):
         dataset = self._dataset()
         selection = np.random.randint(0, high=len(dataset), size=10)
         dataset_view = PytorchDatasetView(dataset, selection)
-        assert_list_of_tensors_equal(self, [dataset.x[i] for i in selection], dataset_view.x)
+        assert_list_of_tensors_equal(
+            self, [dataset.x[i] for i in selection], dataset_view.x
+        )
 
     def test_set_x(self):
         dataset = self._dataset()
@@ -283,32 +296,36 @@ class _PytorchDatasetViewTest(object):
 
 
 class PytorchDatasetViewSingleLabelTest(unittest.TestCase, _PytorchDatasetViewTest):
-
     def _dataset(self, num_labels=3):
         assert self.NUM_SAMPLES > self.NUM_SAMPLES_VIEW
         self.multi_label = False
 
-        dataset = random_text_classification_dataset(num_samples=self.NUM_SAMPLES,
-                                                     multi_label=self.multi_label,
-                                                     num_classes=num_labels,
-                                                     target_labels='explicit')
-        return PytorchDatasetView(dataset, np.s_[:self.NUM_SAMPLES_VIEW])
+        dataset = random_text_classification_dataset(
+            num_samples=self.NUM_SAMPLES,
+            multi_label=self.multi_label,
+            num_classes=num_labels,
+            target_labels="explicit",
+        )
+        return PytorchDatasetView(dataset, np.s_[: self.NUM_SAMPLES_VIEW])
 
 
 class PytorchDatasetViewMultiLabelTest(unittest.TestCase, _PytorchDatasetViewTest):
-
     def _dataset(self, num_labels=3):
         assert self.NUM_SAMPLES > self.NUM_SAMPLES_VIEW
         self.multi_label = True
 
-        dataset = random_text_classification_dataset(num_samples=self.NUM_SAMPLES,
-                                                     multi_label=self.multi_label,
-                                                     num_classes=num_labels,
-                                                     target_labels='explicit')
-        return PytorchDatasetView(dataset, np.s_[:self.NUM_SAMPLES_VIEW])
+        dataset = random_text_classification_dataset(
+            num_samples=self.NUM_SAMPLES,
+            multi_label=self.multi_label,
+            num_classes=num_labels,
+            target_labels="explicit",
+        )
+        return PytorchDatasetView(dataset, np.s_[: self.NUM_SAMPLES_VIEW])
 
 
-class NestedPytorchDatasetViewSingleLabelTest(unittest.TestCase, _PytorchDatasetViewTest):
+class NestedPytorchDatasetViewSingleLabelTest(
+    unittest.TestCase, _PytorchDatasetViewTest
+):
 
     NUM_SAMPLES_VIEW_OUTER = 17
 
@@ -316,15 +333,19 @@ class NestedPytorchDatasetViewSingleLabelTest(unittest.TestCase, _PytorchDataset
         assert self.NUM_SAMPLES > self.NUM_SAMPLES_VIEW_OUTER > self.NUM_SAMPLES_VIEW
         self.multi_label = False
 
-        ds = random_text_classification_dataset(num_samples=self.NUM_SAMPLES,
-                                                multi_label=self.multi_label,
-                                                num_classes=num_labels,
-                                                target_labels='explicit')
-        ds_view_outer = PytorchDatasetView(ds, np.s_[:self.NUM_SAMPLES_VIEW_OUTER])
-        return PytorchDatasetView(ds_view_outer, np.s_[:self.NUM_SAMPLES_VIEW])
+        ds = random_text_classification_dataset(
+            num_samples=self.NUM_SAMPLES,
+            multi_label=self.multi_label,
+            num_classes=num_labels,
+            target_labels="explicit",
+        )
+        ds_view_outer = PytorchDatasetView(ds, np.s_[: self.NUM_SAMPLES_VIEW_OUTER])
+        return PytorchDatasetView(ds_view_outer, np.s_[: self.NUM_SAMPLES_VIEW])
 
 
-class NestedPytorchDatasetViewMultiLabelTest(unittest.TestCase, _PytorchDatasetViewTest):
+class NestedPytorchDatasetViewMultiLabelTest(
+    unittest.TestCase, _PytorchDatasetViewTest
+):
 
     NUM_SAMPLES_VIEW_OUTER = 17
 
@@ -332,9 +353,11 @@ class NestedPytorchDatasetViewMultiLabelTest(unittest.TestCase, _PytorchDatasetV
         assert self.NUM_SAMPLES > self.NUM_SAMPLES_VIEW_OUTER > self.NUM_SAMPLES_VIEW
         self.multi_label = True
 
-        ds = random_text_classification_dataset(num_samples=self.NUM_SAMPLES,
-                                                multi_label=self.multi_label,
-                                                num_classes=num_labels,
-                                                target_labels='explicit')
-        ds_view_outer = PytorchDatasetView(ds, np.s_[:self.NUM_SAMPLES_VIEW_OUTER])
-        return PytorchDatasetView(ds_view_outer, np.s_[:self.NUM_SAMPLES_VIEW])
+        ds = random_text_classification_dataset(
+            num_samples=self.NUM_SAMPLES,
+            multi_label=self.multi_label,
+            num_classes=num_labels,
+            target_labels="explicit",
+        )
+        ds_view_outer = PytorchDatasetView(ds, np.s_[: self.NUM_SAMPLES_VIEW_OUTER])
+        return PytorchDatasetView(ds_view_outer, np.s_[: self.NUM_SAMPLES_VIEW])

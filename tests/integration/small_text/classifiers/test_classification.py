@@ -12,12 +12,11 @@ from tests.utils.datasets import random_matrix_data
 
 
 class _SklearnClassifierBaseTest(object):
-
     def get_dataset(self):
-        raise NotImplementedError('get_dataset() must be overridden')
+        raise NotImplementedError("get_dataset() must be overridden")
 
     def get_clf(self):
-        raise NotImplementedError('get_clf() must be overridden')
+        raise NotImplementedError("get_clf() must be overridden")
 
     def test_fit_and_predict(self):
         """Admittedly, This tests predict and predict_proba together in order to
@@ -40,10 +39,10 @@ class _SklearnClassifierBaseTest(object):
 
 @pytest.mark.pytorch
 class LinearSVCSingleLabelTest(unittest.TestCase, _SklearnClassifierBaseTest):
-
     def get_dataset(self, num_samples=100):
-        return SklearnDataset(*random_matrix_data('dense', 'dense', num_samples=num_samples,
-                                                  num_labels=3))
+        return SklearnDataset(
+            *random_matrix_data("dense", "dense", num_samples=num_samples, num_labels=3)
+        )
 
     def get_clf(self):
         return SklearnClassifier(ConfidenceEnhancedLinearSVC(), 3)
@@ -51,10 +50,12 @@ class LinearSVCSingleLabelTest(unittest.TestCase, _SklearnClassifierBaseTest):
 
 @pytest.mark.pytorch
 class LinearSVCMultiLabelTest(unittest.TestCase, _SklearnClassifierBaseTest):
-
     def get_dataset(self, num_samples=100):
-        return SklearnDataset(*random_matrix_data('dense', 'sparse', num_samples=num_samples,
-                                                  num_labels=3))
+        return SklearnDataset(
+            *random_matrix_data(
+                "dense", "sparse", num_samples=num_samples, num_labels=3
+            )
+        )
 
     def get_clf(self):
         return SklearnClassifier(ConfidenceEnhancedLinearSVC(), 3, multi_label=True)

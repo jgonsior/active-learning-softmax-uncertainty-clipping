@@ -5,7 +5,6 @@ from tests.utils.datasets import random_transformer_dataset
 
 
 class TransformersDatasetTest(unittest.TestCase):
-
     def test_init_and_len(self):
         data = random_transformer_dataset(10)
         dataset = TransformersDataset(data)

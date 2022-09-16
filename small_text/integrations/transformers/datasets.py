@@ -9,12 +9,13 @@ try:
     from small_text.integrations.pytorch.datasets import PytorchDataset
     from small_text.integrations.pytorch.datasets import PytorchDatasetView
 except ModuleNotFoundError:
-    raise PytorchNotFoundError('Could not import torchtext')
+    raise PytorchNotFoundError("Could not import torchtext")
 
 
 class TransformersDataset(PytorchDataset):
     """Dataset class for classifiers from Transformers Integration.
     """
+
     INDEX_TEXT = 0
     INDEX_MASK = 1
     INDEX_LABEL = 2
@@ -54,9 +55,14 @@ class TransformersDataset(PytorchDataset):
 
     def _get_flattened_unique_labels(self):
         if self.multi_label:
-            labels = np.concatenate([d[self.INDEX_LABEL] for d in self._data
-                                     if d[self.INDEX_LABEL] is not None
-                                     and len(d[self.INDEX_LABEL].shape) > 0])
+            labels = np.concatenate(
+                [
+                    d[self.INDEX_LABEL]
+                    for d in self._data
+                    if d[self.INDEX_LABEL] is not None
+                    and len(d[self.INDEX_LABEL].shape) > 0
+                ]
+            )
             labels = np.unique(labels)
         else:
             labels = np.unique([d[self.INDEX_LABEL] for d in self._data])
@@ -75,18 +81,32 @@ class TransformersDataset(PytorchDataset):
     @x.setter
     def x(self, x):
         for i, _x in enumerate(x):
-            self._data[i] = (_x, self._data[i][self.INDEX_MASK], self._data[i][self.INDEX_LABEL])
+            self._data[i] = (
+                _x,
+                self._data[i][self.INDEX_MASK],
+                self._data[i][self.INDEX_LABEL],
+            )
 
     @property
     def y(self):
         if self.multi_label:
-            label_list = [d[self.INDEX_LABEL] if d[self.INDEX_LABEL] is not None else []
-                          for d in self._data]
-            return list_to_csr(label_list, shape=(len(self.data), len(self._target_labels)))
+            label_list = [
+                d[self.INDEX_LABEL] if d[self.INDEX_LABEL] is not None else []
+                for d in self._data
+            ]
+            return list_to_csr(
+                label_list, shape=(len(self.data), len(self._target_labels))
+            )
         else:
-            return np.array([d[self.INDEX_LABEL] if d[self.INDEX_LABEL] is not None
-                             else LABEL_UNLABELED
-                             for d in self._data], dtype=int)
+            return np.array(
+                [
+                    d[self.INDEX_LABEL]
+                    if d[self.INDEX_LABEL] is not None
+                    else LABEL_UNLABELED
+                    for d in self._data
+                ],
+                dtype=int,
+            )
 
     @y.setter
     def y(self, y):
@@ -96,17 +116,21 @@ class TransformersDataset(PytorchDataset):
             check_size(expected_num_samples, num_samples)
 
             for i, p in enumerate(range(num_samples)):
-                self._data[i] = (self._data[i][self.INDEX_TEXT],
-                                 self._data[i][self.INDEX_MASK],
-                                 y.indices[y.indptr[p]:y.indptr[p+1]])
+                self._data[i] = (
+                    self._data[i][self.INDEX_TEXT],
+                    self._data[i][self.INDEX_MASK],
+                    y.indices[y.indptr[p] : y.indptr[p + 1]],
+                )
         else:
             num_samples = y.shape[0]
             check_size(expected_num_samples, num_samples)
 
             for i, _y in enumerate(y):
-                self._data[i] = (self._data[i][self.INDEX_TEXT],
-                                 self._data[i][self.INDEX_MASK],
-                                 _y)
+                self._data[i] = (
+                    self._data[i][self.INDEX_TEXT],
+                    self._data[i][self.INDEX_MASK],
+                    _y,
+                )
         self._infer_target_labels()
 
     @property
@@ -132,15 +156,22 @@ class TransformersDataset(PytorchDataset):
     def target_labels(self, target_labels):
         encountered_labels = self._get_flattened_unique_labels()
         if np.setdiff1d(encountered_labels, target_labels).shape[0] > 0:
-            raise ValueError('Cannot remove existing labels from target_labels as long as they '
-                             'still exists in the data. Create a new dataset instead.')
+            raise ValueError(
+                "Cannot remove existing labels from target_labels as long as they "
+                "still exists in the data. Create a new dataset instead."
+            )
         self._target_labels = target_labels
 
     def to(self, other, non_blocking=False, copy=False):
 
-        data = [(d[self.INDEX_TEXT].to(other, non_blocking=non_blocking, copy=copy),
-                 d[self.INDEX_MASK].to(other, non_blocking=non_blocking, copy=copy),
-                 d[self.INDEX_LABEL]) for d in self._data]
+        data = [
+            (
+                d[self.INDEX_TEXT].to(other, non_blocking=non_blocking, copy=copy),
+                d[self.INDEX_MASK].to(other, non_blocking=non_blocking, copy=copy),
+                d[self.INDEX_LABEL],
+            )
+            for d in self._data
+        ]
 
         if copy is True:
             target_labels = None if self.track_target_labels else self._target_labels

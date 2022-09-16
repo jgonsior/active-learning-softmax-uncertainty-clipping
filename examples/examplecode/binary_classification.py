@@ -30,9 +30,9 @@ def main():
     try:
         perform_active_learning(active_learner, train, labeled_indices, test)
     except PoolExhaustedException:
-        print('Error! Not enough samples left to handle the query.')
+        print("Error! Not enough samples left to handle the query.")
     except EmptyPoolException:
-        print('Error! No more samples left. (Unlabeled pool is empty)')
+        print("Error! No more samples left. (Unlabeled pool is empty)")
 
 
 def perform_active_learning(active_learner, train, indices_labeled, test):
@@ -56,7 +56,7 @@ def perform_active_learning(active_learner, train, indices_labeled, test):
 
         indices_labeled = np.concatenate([indices_queried, indices_labeled])
 
-        print('Iteration #{:d} ({} samples)'.format(i, len(indices_labeled)))
+        print("Iteration #{:d} ({} samples)".format(i, len(indices_labeled)))
         evaluate(active_learner, train[indices_labeled], test)
 
 
@@ -66,8 +66,12 @@ def initialize_active_learner(active_learner, y_train):
     indices_pos_label = np.where(y_train == 1)[0]
     indices_neg_label = np.where(y_train == 0)[0]
 
-    indices_initial = np.concatenate([np.random.choice(indices_pos_label, 10, replace=False),
-                                        np.random.choice(indices_neg_label, 10, replace=False)])
+    indices_initial = np.concatenate(
+        [
+            np.random.choice(indices_pos_label, 10, replace=False),
+            np.random.choice(indices_neg_label, 10, replace=False),
+        ]
+    )
 
     indices_initial = indices_initial.astype(int)
     y_initial = np.array([y_train[i] for i in indices_initial])
@@ -77,5 +81,5 @@ def initialize_active_learner(active_learner, y_train):
     return indices_initial
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
