@@ -213,7 +213,6 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
                 X=dataset[_indices_labeled], Y=_y[_indices_labeled]
             )
         proba = clf.predict_proba(dataset)
-        proba = clf.predict_proba(dataset)
         return np.apply_along_axis(lambda x: self._best_versus_second_best(x), 1, proba)
 
     @staticmethod

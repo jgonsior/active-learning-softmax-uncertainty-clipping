@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from copy import deepcopy
+import copy
 import enum
 import itertools
 import json
@@ -19,7 +21,67 @@ from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
 
-sns.set_theme(style="white")
+font_size = 8
+
+tex_fonts = {
+    # Use LaTeX to write all text
+    "text.usetex": True,
+    # "text.usetex": False,
+    "font.family": "times",
+    # Use 10pt font in plots, to match 10pt font in document
+    "axes.labelsize": font_size,
+    "font.size": font_size,
+    # Make the legend/label fonts a little smaller
+    "legend.fontsize": font_size,
+    "xtick.labelsize": font_size,
+    "ytick.labelsize": font_size,
+    "xtick.bottom": True,
+    "figure.autolayout": True,
+}
+
+sns.set_style("white")
+sns.set_context("paper")
+plt.rcParams.update(tex_fonts)  # type: ignore
+
+
+# https://jwalton.info/Embed-Publication-Matplotlib-Latex/
+def set_matplotlib_size(width, fraction=1):
+    """Set figure dimensions to avoid scaling in LaTeX.
+
+    Parameters
+    ----------
+    width: float
+            Document textwidth or columnwidth in pts
+    fraction: float, optional
+            Fraction of the width which you wish the figure to occupy
+
+    Returns
+    -------
+    fig_dim: tuple
+            Dimensions of figure in inches
+    """
+    # Width of figure (in pts)
+    fig_width_pt = width * fraction
+
+    # Convert from pt to inches
+    inches_per_pt = 1 / 72.27
+
+    # Golden ratio to set aesthetic figure height
+    # https://disq.us/p/2940ij3
+    golden_ratio = (5**0.5 - 1) / 2
+
+    # Figure width in inches
+    fig_width_in = fig_width_pt * inches_per_pt
+    # Figure height in inches
+    fig_height_in = fig_width_in * golden_ratio
+
+    fig_dim = (fig_width_in, fig_height_in)
+
+    return fig_dim
+
+
+width = 505.89
+width = 358.5049
 
 
 def queried_samples_table(
@@ -31,6 +93,7 @@ def queried_samples_table(
     param_grid: Dict[str, Any],
     num_iterations: int,
     metric,
+    table_title_prefix: str,
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
@@ -65,6 +128,12 @@ def queried_samples_table(
     df.sort_values(by="Mean", inplace=True)
     print(tabulate(df, headers="keys"))
 
+    table_file = Path(
+        f"tables/queried_samples_data_{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.tex"
+    )
+    table_file.parent.mkdir(parents=True, exist_ok=True)
+    table_file.write_text(tabulate(df, headers="keys", tablefmt="latex_booktabs"))
+
 
 def runtime_plots(
     exp_name: str,
@@ -75,6 +144,7 @@ def runtime_plots(
     param_grid: Dict[str, Any],
     num_iterations: int,
     metric,
+    table_title_prefix,
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
@@ -98,6 +168,7 @@ def runtime_plots(
             df_data.append((k, sum(value)))
     data_df = pd.DataFrame(df_data, columns=["Strategy", metric])
     print(data_df)
+    fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
     sns.catplot(data=data_df, y="Strategy", x=metric, kind="bar")
 
     plots_path = Path("plots/")
@@ -121,6 +192,12 @@ def runtime_plots(
     df.sort_values(by="Mean", inplace=True)
     print(tabulate(df, headers="keys"))
 
+    table_file = Path(
+        f"tables/runtime_{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.tex"
+    )
+    table_file.parent.mkdir(parents=True, exist_ok=True)
+    table_file.write_text(tabulate(df, headers="keys", tablefmt="latex_booktabs"))
+
 
 def uncertainty_histogram_plots(
     exp_name: str,
@@ -131,6 +208,7 @@ def uncertainty_histogram_plots(
     param_grid: Dict[str, Any],
     num_iterations: int,
     metric,
+    table_title_prefix: str,
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
@@ -177,13 +255,14 @@ def uncertainty_histogram_plots(
 
     for strat in df["Strategy"].unique():
         print(strat)
+        fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
         sns.histplot(
             data=df.loc[df["Strategy"] == strat],
             x=metric,
         )
         plt.title(f"{strat}")
         plot_path = Path(
-            f"./plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}"
+            f"./plots/{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}"
         )
         plot_path.mkdir(exist_ok=True, parents=True)
 
@@ -192,13 +271,14 @@ def uncertainty_histogram_plots(
         plt.clf()
 
         for iteration in df["iteration"].unique():
+            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
             sns.histplot(
                 data=df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)],
                 x=metric,
             )
             plt.title(f"{strat}: {iteration}")
             plot_path = Path(
-                f"./plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}/{strat.replace('/', '-')}/"
+                f"./plots/{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}/{strat.replace('/', '-')}/"
             )
             plot_path.mkdir(exist_ok=True, parents=True)
 
@@ -272,6 +352,7 @@ def table_stats(
     param_grid: Dict[str, Any],
     num_iterations: int,
     metric="test_accs",
+    table_title_prefix="",
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
@@ -296,7 +377,7 @@ def table_stats(
         data_df = pd.DataFrame(
             df_data, columns=["Strategy", metric, "Random Seed", "Iteration"]
         )
-
+        fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
         sns.lineplot(x="Iteration", y=metric, hue="Strategy", data=data_df)
 
         plots_path = Path("plots/")
@@ -323,6 +404,12 @@ def table_stats(
     df.sort_values(by="Mean", inplace=True)
     print(tabulate(df, headers="keys"))
 
+    table_file = Path(
+        f"tables/auc_stats_{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.tex"
+    )
+    table_file.parent.mkdir(parents=True, exist_ok=True)
+    table_file.write_text(tabulate(df, headers="keys", tablefmt="latex_booktabs"))
+
 
 def display_run_experiment_stats(param_grid):
     done_param_list, open_param_list, full_param_list = generate_workload(param_grid)
@@ -344,6 +431,12 @@ def display_run_experiment_stats(param_grid):
 # display_run_experiment_stats(param_grid=baselines_param_grid)
 
 
+def _filter_out_param(param_grid, param, values_to_delete):
+    for v in values_to_delete:
+        param_grid[param].remove(v)
+    return param_grid
+
+
 def tables_plots(param_grid):
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
@@ -357,94 +450,118 @@ def tables_plots(param_grid):
                                 f"{exp_name} - {transformer_model_name} - {dataset} - {initially_labeled_samples} - {batch_size} - {num_iteration}"
                             )
 
-                            queried_samples_table(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="queried_indices",
-                            )
+                            def _with_without_clipping(pg, clipping=True):
+                                if clipping:
+                                    table_title_prefix = "with_clipping"
+                                    param_grid_new = _filter_out_param(
+                                        pg, "uncertainty_clipping", [0.95, 0.9]
+                                    )
+                                else:
+                                    table_title_prefix = "without_clipping"
+                                    param_grid_new = _filter_out_param(pg, "", [])
 
-                            uncertainty_histogram_plots(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="confidence_scores",
-                            )
+                                runtime_plots(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="times_elapsed",
+                                    table_title_prefix=table_title_prefix,
+                                )
 
-                            uncertainty_histogram_plots(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="y_probas_test",
-                            )
+                                queried_samples_table(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="queried_indices",
+                                    table_title_prefix=table_title_prefix,
+                                )
 
-                            uncertainty_histogram_plots(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="y_probas_train",
-                            )
+                                table_stats(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="test_accs",
+                                    table_title_prefix=table_title_prefix,
+                                )
 
-                            runtime_plots(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="times_elapsed",
-                            )
+                                uncertainty_histogram_plots(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="confidence_scores",
+                                    table_title_prefix=table_title_prefix,
+                                )
 
-                            table_stats(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="test_accs",
-                            )
+                                uncertainty_histogram_plots(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="y_probas_test",
+                                    table_title_prefix=table_title_prefix,
+                                )
 
-                            table_stats(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="train_accs",
-                            )
+                                uncertainty_histogram_plots(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="y_probas_train",
+                                    table_title_prefix=table_title_prefix,
+                                )
 
-                            """runtime_plots(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="times_elapsed_model",
-                            )"""
-                            print()
+                                table_stats(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="train_accs",
+                                    table_title_prefix=table_title_prefix,
+                                )
+
+                                """runtime_plots(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="times_elapsed_model",
+                                )"""
+                                print()
+
+                            _with_without_clipping(
+                                copy.deepcopy(param_grid), clipping=True
+                            )
+                            _with_without_clipping(
+                                copy.deepcopy(param_grid), clipping=False
+                            )
 
 
 # tables_plots(baselines_param_grid)
