@@ -44,7 +44,7 @@ full_param_grid = {
     ],  # ["bert-base-uncased", "roberta-large"],
     "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb"],
     "initially_labeled_samples": [25],
-    "random_seed": [42, 43, 44, 45, 46],
+    "random_seed": [42, 43, 44, 45, 46, 47, 48, 49, 50, 51],
     "batch_size": [25],
     "num_iterations": [20],
     "uncertainty_clipping": [1.0, 0.95, 0.90],
