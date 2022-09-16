@@ -353,6 +353,7 @@ def table_stats(
     num_iterations: int,
     metric="test_accs",
     table_title_prefix="",
+    consider_last_n=21,
 ):
     # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
@@ -397,6 +398,7 @@ def table_stats(
     table_data = []
 
     for k, v in grouped_data.items():
+        v = [x[-consider_last_n:] for x in v]
         table_data.append((k, v, np.mean(v), np.std(v)))
 
     df = pd.DataFrame(table_data, columns=["Strategy", "Values", "Mean", "Std"])
@@ -460,6 +462,32 @@ def tables_plots(param_grid):
                                     table_title_prefix = "without_clipping"
                                     param_grid_new = _filter_out_param(pg, "", [])
 
+                                table_stats(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="test_accs",
+                                    table_title_prefix=table_title_prefix + "_last5",
+                                    consider_last_n=5,
+                                )
+
+                                table_stats(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid_new,
+                                    num_iteration,
+                                    metric="test_accs",
+                                    table_title_prefix=table_title_prefix,
+                                    consider_last_n=21,
+                                )
+                                exit(-1)
                                 runtime_plots(
                                     exp_name,
                                     transformer_model_name,
@@ -481,18 +509,6 @@ def tables_plots(param_grid):
                                     param_grid_new,
                                     num_iteration,
                                     metric="queried_indices",
-                                    table_title_prefix=table_title_prefix,
-                                )
-
-                                table_stats(
-                                    exp_name,
-                                    transformer_model_name,
-                                    dataset,
-                                    initially_labeled_samples,
-                                    batch_size,
-                                    param_grid_new,
-                                    num_iteration,
-                                    metric="test_accs",
                                     table_title_prefix=table_title_prefix,
                                 )
 
