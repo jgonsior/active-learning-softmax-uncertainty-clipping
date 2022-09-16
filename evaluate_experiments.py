@@ -232,7 +232,7 @@ def uncertainty_histogram_plots(
             # print(random_seed)
             for i, iteration in enumerate(random_seed):
                 for v in iteration:
-                    if metric is not "confidence_scores":
+                    if metric != "confidence_scores":
                         v = np.max(v)
                     if v < 0:
                         v = v * (-1)
