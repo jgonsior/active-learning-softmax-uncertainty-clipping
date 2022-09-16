@@ -1,6 +1,5 @@
 import abc
 import collections
-from typing_extensions import Self
 from small_text.integrations.pytorch.exceptions import PytorchNotFoundError
 from small_text.integrations.transformers.classifiers.classification import (
     TransformerBasedClassification,
