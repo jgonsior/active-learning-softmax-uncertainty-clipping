@@ -209,9 +209,7 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         if self.predict_proba_with_labeled_data:
-            clf.tell_me_so_far_labeled_data(
-                X=dataset[_indices_labeled], Y=_y[_indices_labeled]
-            )
+            clf.tell_me_so_far_labeled_data(X=dataset[_indices_labeled].x, Y=_y)
         proba = clf.predict_proba(dataset)
         return np.apply_along_axis(lambda x: self._best_versus_second_best(x), 1, proba)
 
@@ -235,9 +233,7 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         if self.predict_proba_with_labeled_data:
-            clf.tell_me_so_far_labeled_data(
-                X=dataset[_indices_labeled], Y=_y[_indices_labeled]
-            )
+            clf.tell_me_so_far_labeled_data(X=dataset[_indices_labeled].x, Y=_y)
         proba = clf.predict_proba(dataset)
 
         return np.amax(proba, axis=1)
@@ -256,9 +252,7 @@ class PredictionEntropy(ConfidenceBasedQueryStrategy):
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
         if self.predict_proba_with_labeled_data:
-            clf.tell_me_so_far_labeled_data(
-                X=dataset[_indices_labeled], Y=_y[_indices_labeled]
-            )
+            clf.tell_me_so_far_labeled_data(X=dataset[_indices_labeled].x, Y=_y)
         proba = clf.predict_proba(dataset)
         return np.apply_along_axis(lambda x: entropy(x), 1, proba)
 

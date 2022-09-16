@@ -11,6 +11,7 @@ import numpy as np
 from functools import partial
 from small_text.utils.logging import VERBOSITY_MORE_VERBOSE
 from small_text.integrations.transformers.classifiers.trust_score import TrustScore
+from small_text.integrations.transformers.datasets import TransformersDataset
 
 try:
     import torch
@@ -113,7 +114,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
             verbosity,
             cache_dir,
         )
-        self.temperature = 1
+        self.temperature = 1.5
 
     def _temperature_scale(self, logits):
         return logits / self.temperature
@@ -674,6 +675,7 @@ class TrustScoreUncertaintyClassifier(Student2UncertaintyClassifier):
 
         k = 1
         trust_model = TrustScore(k=k, alpha=0.1, filtering="density")
+
         trust_model.fit(self.so_far_labeled_X, self.so_far_labeled_Y)
 
         # Compute trusts score, given (unlabeled) testing examples and (hard) model predictions.
