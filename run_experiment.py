@@ -56,6 +56,8 @@ dev_param_grid = copy.deepcopy(full_param_grid)
 dev_param_grid["num_iterations"] = [2]
 dev_param_grid["random_seed"] = [42]
 dev_param_grid["exp_name"] = ["lunchtest"]
+dev_param_grid["uncertainty_clipping"] = [1.0, 0.7]
+dev_param_grid["transformer_model_name"] = ["bert-base-uncased"]
 
 baselines_param_grid = copy.deepcopy(full_param_grid)
 baselines_param_grid["uncertainty_method"] = ["softmax"]
@@ -91,7 +93,8 @@ def generate_workload(
             continue
 
         if (
-            params["query_strategy"] in ["MM", "Ent", "Rand", "QBC_KLD", "QBC_VE"]
+            params["query_strategy"]
+            in ["MM", "Ent", "Rand", "QBC_KLD", "QBC_VE", "trustscore", "passive"]
             and params["uncertainty_method"] != "softmax"
         ):
             continue
