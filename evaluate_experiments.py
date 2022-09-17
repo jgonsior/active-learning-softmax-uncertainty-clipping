@@ -96,7 +96,7 @@ def queried_samples_table(
     metric,
     table_title_prefix: str,
 ):
-    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    # available metrics: train_accs, test_acc, train_eces, test_ece, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
     grouped_data = _load_grouped_data(
         exp_name,
@@ -147,7 +147,7 @@ def runtime_plots(
     metric,
     table_title_prefix,
 ):
-    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    # available metrics: train_accs, test_acc, train_eces, test_ece, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
     grouped_data = _load_grouped_data(
         exp_name,
@@ -211,7 +211,7 @@ def uncertainty_histogram_plots(
     metric,
     table_title_prefix: str,
 ):
-    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    # available metrics: train_accs, test_acc, train_eces, test_ece, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
     grouped_data = _load_grouped_data(
         exp_name,
@@ -303,7 +303,7 @@ def _load_grouped_data(
     batch_size: int,
     param_grid: Dict[str, Any],
     num_iterations: int,
-    metric="test_accs",
+    metric="test_acc",
 ):
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
@@ -333,6 +333,7 @@ def _load_grouped_data(
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
                             )
+                            #print(metrics.files)
                             # args = json.loads(
                             #    Path(exp_results_dir / "args.json").read_text()
                             # )
@@ -352,11 +353,11 @@ def table_stats(
     batch_size: int,
     param_grid: Dict[str, Any],
     num_iterations: int,
-    metric="test_accs",
+    metric="test_acc",
     table_title_prefix="",
     consider_last_n=21,
 ):
-    # available metrics: train_accs, test_accs, train_eces, test_eces, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
+    # available metrics: train_accs, test_acc, train_eces, test_ece, y_probas_train/test, times_elapsed, times_elapsed_model, queried_indices, acc_bins_train, proba_+ins, confidence scores
     print(f"Metric: {metric}")
     grouped_data = _load_grouped_data(
         exp_name,
@@ -469,7 +470,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 batch_size,
                                 param_grid_new,
                                 num_iteration,
-                                metric="test_accs",
+                                metric="test_acc",
                                 table_title_prefix=table_title_prefix + "_last5",
                                 consider_last_n=5,
                             )
@@ -482,7 +483,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 batch_size,
                                 param_grid_new,
                                 num_iteration,
-                                metric="test_accs",
+                                metric="test_acc",
                                 table_title_prefix=table_title_prefix,
                                 consider_last_n=21,
                             )
@@ -495,7 +496,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 batch_size,
                                 param_grid_new,
                                 num_iteration,
-                                metric="test_eces",
+                                metric="test_ece",
                                 table_title_prefix=table_title_prefix + "_last5",
                                 consider_last_n=5,
                             )
@@ -508,7 +509,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 batch_size,
                                 param_grid_new,
                                 num_iteration,
-                                metric="test_eces",
+                                metric="test_ece",
                                 table_title_prefix=table_title_prefix,
                                 consider_last_n=21,
                             )
@@ -557,45 +558,10 @@ def _execute_parallel(param_grid, dataset: str):
                                 batch_size,
                                 param_grid_new,
                                 num_iteration,
-                                metric="y_probas_test",
+                                metric="y_proba_test_active",
                                 table_title_prefix=table_title_prefix,
                             )
 
-                            uncertainty_histogram_plots(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid_new,
-                                num_iteration,
-                                metric="y_probas_train",
-                                table_title_prefix=table_title_prefix,
-                            )
-
-                            table_stats(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid_new,
-                                num_iteration,
-                                metric="train_accs",
-                                table_title_prefix=table_title_prefix,
-                            )
-
-                            table_stats(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid_new,
-                                num_iteration,
-                                metric="train_eces",
-                                table_title_prefix=table_title_prefix,
-                            )
                             """runtime_plots(
                                             exp_name,
                                             transformer_model_name,
@@ -624,5 +590,5 @@ def tables_plots(param_grid):
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
-# tables_plots(full_param_grid)
-tables_plots(dev_param_grid)
+tables_plots(full_param_grid)
+# tables_plots(dev_param_grid)
