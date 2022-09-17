@@ -379,7 +379,9 @@ class QBC_Base(ConfidenceBasedQueryStrategy):
             np.random.seed(seed)
             random.seed(seed)
 
-            new_classifier = self.factory.new()
+            new_classifier, _ = self.factory.new()
+
+            # TODO: sollte factory später mal mit was anderem als nur softmax umgehen -> hier die ganzen anderen active classifier verwenden!
             new_classifier.fit(dataset[_indices_labeled])
             new_probas = self.get_probas(new_classifier, dataset)
             ensemble_probas.append(new_probas)
