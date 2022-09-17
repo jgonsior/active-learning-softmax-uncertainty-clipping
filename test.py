@@ -1,6 +1,6 @@
 """Example of a binary active learning text classification.
 """
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import gc
 import json
 from pathlib import Path
@@ -144,45 +144,41 @@ def main(
 
 
 def _evaluate(active_learner, train, test, query_strategy_name=None):
-    y_pred_train = active_learner.classifier.predict(train)
-    y_proba_train = active_learner.classifier.predict_proba(train)
-
     y_pred_test = active_learner.classifier.predict(test)
     y_proba_test = active_learner.classifier.predict_proba(test)
+    y_proba_test_active = active_learner.active_classifier.predict_proba(test)
 
     test_acc = accuracy_score(y_pred_test, test.y)
-    train_acc = accuracy_score(y_pred_train, train.y)
+
     test_ece, acc_bins_test, proba_bins_test = _expected_calibration_error(
         y_pred_test, y_proba_test, test.y
     )
-    train_ece, acc_bins_train, proba_bins_train = _expected_calibration_error(
-        y_pred_train, y_proba_train, train.y
-    )
 
-    print(f"Train acc: {train_acc}")
+    (
+        test_ece_active,
+        acc_bins_test_active,
+        proba_bins_test_active,
+    ) = _expected_calibration_error(y_pred_test, y_proba_test_active, test.y)
+
     print(f"Test acc: {test_acc}")
-    print(f"Test ece: {train_ece}")
     print(f"Test ece: {test_ece}")
-
-    if query_strategy_name == "passive":
-        wrong_sample_ids = np.logical_not(np.equal(test.y, y_pred_test))
-        print(wrong_sample_ids)
-
-        train_ece = [train_ece, wrong_sample_ids]
-
+    print(f"Teac ece: {test_ece_active}")
     print("---")
-    return (
-        train_acc,
-        test_acc,
-        train_ece,
-        test_ece,
-        y_proba_test,
-        y_proba_train,
-        acc_bins_train,
-        proba_bins_train,
-        acc_bins_test,
-        proba_bins_test,
-    )
+
+    metrics = {
+        "test_acc": test_acc,
+        "test_ece": test_ece,
+        "y_proba_test": y_proba_test,
+        "acc_bins_test": acc_bins_test,
+        "proba_bins_test": proba_bins_test,
+        "test_ece_active": test_ece_active,
+        "y_proba_test_active": y_proba_test_active,
+        "acc_bins_test_active": acc_bins_test_active,
+        "proba_bins_test_active": proba_bins_test_active,
+    }
+    if query_strategy_name == "passive":
+        metrics["passive_outlier"] = np.logical_not(np.equal(test.y, y_pred_test))
+    return metrics
 
 
 def _expected_calibration_error(y_pred, probas, y_true, n_bins=10):
@@ -224,65 +220,30 @@ def perform_active_learning(
     batch_size,
     query_strategy_name=None,
 ):
-    test_accs = []
-    train_accs = []
-    test_eces = []
-    train_eces = []
-    y_probas_test = []
-    y_probas_train = []
-    times_elapsed = []
-    times_elapsed_model = []
-    queried_indices = []
-    acc_binss_train = []
-    proba_binss_train = []
-    acc_binss_test = []
-    proba_binss_test = []
-    confidence_scores = []
-    passive_outliers = []
+    metric_lists = defaultdict(lambda: list())
 
     # calculate passive accuracy before
     print("Initial Performance")
     start = timer()
 
-    (
-        train_acc,
-        test_acc,
-        train_ece,
-        test_ece,
-        y_proba_test,
-        y_proba_train,
-        acc_bins_train,
-        proba_bins_train,
-        acc_bins_test,
-        proba_bins_test,
-    ) = _evaluate(
+    metrics = _evaluate(
         active_learner,
         train[indices_labeled],
         test,
         query_strategy_name=query_strategy_name,
     )
-    end = timer()
 
-    if query_strategy_name == "passive":
-        passive_outliers.append(train_ece[1])
-        train_ece = train_ece[0]
+    end = timer()
 
     time_elapsed = end - start
 
-    train_accs.append(train_acc)
-    test_accs.append(test_acc)
-    train_eces.append(train_ece)
-    test_eces.append(test_ece)
-    y_probas_test.append(y_proba_test)
-    y_probas_train.append(y_proba_train)
-    times_elapsed.append(time_elapsed)
-    times_elapsed_model.append(0)
-    queried_indices.append(indices_labeled)
-    acc_binss_train.append(acc_bins_train)
-    acc_binss_test.append(acc_bins_test)
-    proba_binss_test.append(proba_bins_test)
-    proba_binss_train.append(proba_bins_train)
-    confidence_scores.append(np.empty(1))
+    metric_lists["confidence_scores"].append(np.empty(1))
+    metric_lists["times_elapsed_model"].append(0)
+    metric_lists["times_elapsed"].append(time_elapsed)
+    metric_lists["queried_indices"].append(indices_labeled)
+
+    for metric, metric_values in metrics.items():
+        metric_lists[metric].append(metric_values)
 
     for i in range(num_iterations):
         # free memory
@@ -290,13 +251,12 @@ def perform_active_learning(
         gc.collect()
 
         start = timer()
-
         indices_queried = active_learner.query(num_samples=batch_size, save_scores=True)
         end = timer()
 
         time_elapsed = end - start
 
-        confidence_scores.append(active_learner.last_scores)
+        metric_lists["confidence_scores"].append(active_learner.last_scores)
 
         y = train.y[indices_queried]
 
@@ -312,50 +272,21 @@ def perform_active_learning(
                 i, len(indices_labeled), time_elapsed
             )
         )
-        (
-            train_acc,
-            test_acc,
-            train_ece,
-            test_ece,
-            y_proba_test,
-            y_proba_train,
-            acc_bins_train,
-            proba_bins_train,
-            acc_bins_test,
-            proba_bins_test,
-        ) = _evaluate(active_learner, train[indices_labeled], test)
 
-        train_accs.append(train_acc)
-        test_accs.append(test_acc)
-        train_eces.append(train_ece)
-        test_eces.append(test_ece)
-        y_probas_test.append(y_proba_test)
-        y_probas_train.append(y_proba_train)
-        times_elapsed.append(time_elapsed)
-        times_elapsed_model.append(time_elapsed_model)
-        queried_indices.append(indices_queried)
-        acc_binss_train.append(acc_bins_train)
-        acc_binss_test.append(acc_bins_test)
-        proba_binss_test.append(proba_bins_test)
-        proba_binss_train.append(proba_bins_train)
+        metrics = _evaluate(
+            active_learner,
+            train[indices_labeled],
+            test,
+        )
 
-    return (
-        train_accs,
-        test_accs,
-        train_eces,
-        test_eces,
-        y_probas_train,
-        y_probas_test,
-        times_elapsed,
-        times_elapsed_model,
-        queried_indices,
-        acc_binss_train,
-        proba_binss_train,
-        acc_binss_test,
-        proba_binss_test,
-        confidence_scores,
-        passive_outliers,
-    )
+        metric_lists["times_elapsed_model"].append(time_elapsed_model)
+        metric_lists["times_elapsed"].append(time_elapsed)
+        metric_lists["queried_indices"].append(indices_queried)
+
+        for metric, metric_values in metrics.items():
+            metric_lists[metric].append(metric_values)
+
+    return metric_lists
 
 
 def initialize_active_learner(active_learner, y_train, initially_labeled_samples: int):
@@ -491,23 +422,7 @@ if __name__ == "__main__":
     else:
         args.lower_is_better = False
 
-    (
-        train_accs,
-        test_accs,
-        train_eces,
-        test_eces,
-        y_probas_train,
-        y_probas_test,
-        times_elapsed,
-        times_elapsed_model,
-        queried_indices,
-        acc_binss_train,
-        proba_binss_train,
-        acc_binss_test,
-        proba_binss_test,
-        confidence_scores,
-        passive_outliers,
-    ) = main(
+    metrics = main(
         num_iterations=args.num_iterations,
         batch_size=args.batch_size,
         dataset=args.dataset,
@@ -533,21 +448,5 @@ if __name__ == "__main__":
         )
     )
 
-    np.savez_compressed(
-        exp_results_dir_metrics,
-        train_accs=train_accs,
-        test_accs=test_accs,
-        train_eces=train_eces,
-        test_eces=test_eces,
-        y_probas_train=y_probas_train,
-        y_probas_test=y_probas_test,
-        times_elapsed=times_elapsed,
-        times_elapsed_model=times_elapsed_model,
-        queried_indices=queried_indices,
-        acc_bins_train=acc_binss_train,
-        proba_bins_train=proba_binss_train,
-        acc_bins_test=acc_binss_test,
-        proba_bins_test=proba_binss_test,
-        confidence_scores=confidence_scores,
-        passive_outliers=passive_outliers,
-    )
+    print(metrics)
+    np.savez_compressed(exp_results_dir_metrics, **metrics)

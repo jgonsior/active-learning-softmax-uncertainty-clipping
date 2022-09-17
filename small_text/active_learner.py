@@ -407,6 +407,10 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
         return self._clf
 
     @property
+    def active_classifier(self):
+        return self._clf_active
+
+    @property
     def query_strategy(self):
         return self._query_strategy
 

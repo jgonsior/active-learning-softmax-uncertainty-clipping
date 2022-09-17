@@ -107,7 +107,6 @@ class PytorchClassifier(Classifier):
         pass
 
     def get_default_criterion(self):
-
         if self.multi_label or self.num_classes == 2:
             return BCEWithLogitsLoss(pos_weight=self.class_weights_)
         else:
