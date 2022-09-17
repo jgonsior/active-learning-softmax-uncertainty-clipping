@@ -448,5 +448,5 @@ if __name__ == "__main__":
         )
     )
 
-    print(metrics)
+    # print(metrics)
     np.savez_compressed(exp_results_dir_metrics, **metrics)
