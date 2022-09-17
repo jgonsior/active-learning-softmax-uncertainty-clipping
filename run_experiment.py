@@ -32,6 +32,7 @@ full_param_grid = {
         "QBC_KLD",
         "QBC_VE",
         "trustscore",
+        "passive"
         # "model_calibration",
         # "bayesian",
         # "evidential2",

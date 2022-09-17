@@ -107,6 +107,10 @@ def main(
         query_strategy = Trustscore2(
             uncertainty_clipping=uncertainty_clipping,
         )
+    elif query_strategy_name == "passive":
+        query_strategy = RandomSampling()
+        initially_labeled_samples = len(train)
+        num_iterations = 0
     else:
         print("Query Strategy not found")
         exit(-1)
@@ -125,7 +129,13 @@ def main(
         )
     try:
         return perform_active_learning(
-            active_learner, train, labeled_indices, test, num_iterations, batch_size
+            active_learner,
+            train,
+            labeled_indices,
+            test,
+            num_iterations,
+            batch_size,
+            query_strategy_name,
         )
     except PoolExhaustedException:
         print("Error! Not enough samples left to handle the query.")
@@ -133,7 +143,7 @@ def main(
         print("Error! No more samples left. (Unlabeled pool is empty)")
 
 
-def _evaluate(active_learner, train, test):
+def _evaluate(active_learner, train, test, query_strategy_name=None):
     y_pred_train = active_learner.classifier.predict(train)
     y_proba_train = active_learner.classifier.predict_proba(train)
 
@@ -153,6 +163,12 @@ def _evaluate(active_learner, train, test):
     print(f"Test acc: {test_acc}")
     print(f"Test ece: {train_ece}")
     print(f"Test ece: {test_ece}")
+
+    if query_strategy_name == "passive":
+        wrong_sample_ids = np.logical_not(np.equal(test.y, y_pred_test))
+        print(wrong_sample_ids)
+
+        train_ece = [train_ece, wrong_sample_ids]
 
     print("---")
     return (
@@ -200,7 +216,13 @@ def _expected_calibration_error(y_pred, probas, y_true, n_bins=10):
 
 
 def perform_active_learning(
-    active_learner, train, indices_labeled, test, num_iterations, batch_size
+    active_learner,
+    train,
+    indices_labeled,
+    test,
+    num_iterations,
+    batch_size,
+    query_strategy_name=None,
 ):
     test_accs = []
     train_accs = []
@@ -216,6 +238,7 @@ def perform_active_learning(
     acc_binss_test = []
     proba_binss_test = []
     confidence_scores = []
+    passive_outliers = []
 
     # calculate passive accuracy before
     print("Initial Performance")
@@ -232,8 +255,17 @@ def perform_active_learning(
         proba_bins_train,
         acc_bins_test,
         proba_bins_test,
-    ) = _evaluate(active_learner, train[indices_labeled], test)
+    ) = _evaluate(
+        active_learner,
+        train[indices_labeled],
+        test,
+        query_strategy_name=query_strategy_name,
+    )
     end = timer()
+
+    if query_strategy_name == "passive":
+        passive_outliers.append(train_ece[1])
+        train_ece = train_ece[0]
 
     time_elapsed = end - start
 
@@ -322,6 +354,7 @@ def perform_active_learning(
         acc_binss_test,
         proba_binss_test,
         confidence_scores,
+        passive_outliers,
     )
 
 
@@ -338,7 +371,7 @@ if __name__ == "__main__":
     import argparse
 
     logger = logging.getLogger()
-    # logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(
         description="An example that shows active learning "
@@ -393,6 +426,7 @@ if __name__ == "__main__":
             "QBC_KLD",
             "QBC_VE",
             "trustscore",
+            "passive"
             # "model_calibration",
             # "bayesian",
             # "evidential2",
@@ -472,6 +506,7 @@ if __name__ == "__main__":
         acc_binss_test,
         proba_binss_test,
         confidence_scores,
+        passive_outliers,
     ) = main(
         num_iterations=args.num_iterations,
         batch_size=args.batch_size,
@@ -514,4 +549,5 @@ if __name__ == "__main__":
         acc_bins_test=acc_binss_test,
         proba_bins_test=proba_binss_test,
         confidence_scores=confidence_scores,
+        passive_outliers=passive_outliers,
     )
