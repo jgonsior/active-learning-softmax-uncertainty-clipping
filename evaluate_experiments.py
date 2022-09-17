@@ -69,7 +69,7 @@ def set_matplotlib_size(width, fraction=1):
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
-    golden_ratio = (5 ** 0.5 - 1) / 2
+    golden_ratio = (5**0.5 - 1) / 2
 
     # Figure width in inches
     fig_width_in = fig_width_pt * inches_per_pt
@@ -258,7 +258,8 @@ def uncertainty_histogram_plots(
         print(strat)
         fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
         sns.histplot(
-            data=df.loc[df["Strategy"] == strat], x=metric,
+            data=df.loc[df["Strategy"] == strat],
+            x=metric,
         )
         plt.title(f"{strat}")
         plot_path = Path(
@@ -435,7 +436,8 @@ def display_run_experiment_stats(param_grid):
 
 def _filter_out_param(param_grid, param, values_to_delete):
     for v in values_to_delete:
-        param_grid[param].remove(v)
+        if v in param_grid[param]:
+            param_grid[param].remove(v)
     return param_grid
 
 
@@ -453,7 +455,7 @@ def _execute_parallel(param_grid, dataset: str):
                             if clipping:
                                 table_title_prefix = "with_clipping"
                                 param_grid_new = _filter_out_param(
-                                    pg, "uncertainty_clipping", [0.95, 0.9]
+                                    pg, "uncertainty_clipping", [0.95, 0.9, 0.7]
                                 )
                             else:
                                 table_title_prefix = "without_clipping"
@@ -622,5 +624,5 @@ def tables_plots(param_grid):
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
-tables_plots(full_param_grid)
-# tables_plots(dev_param_grid)
+# tables_plots(full_param_grid)
+tables_plots(dev_param_grid)
