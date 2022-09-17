@@ -33,28 +33,31 @@ class UncertaintyBasedClassificationFactory(TransformerBasedClassificationFactor
         super().__init__(transformer_model, num_classes, kwargs)
 
     def new(self):
+        original_transformer = TransformerBasedClassification(
+            self.transformer_model, self.num_classes, **self.kwargs
+        )
         if self.uncertainty_method == "softmax":
-            return SoftmaxUncertaintyClassifier(
+            return original_transformer, SoftmaxUncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         elif self.uncertainty_method == "temp_scaling":
-            return TemperatureScalingUncertaintyClassifier(
+            return original_transformer, TemperatureScalingUncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         elif self.uncertainty_method == "label_smoothing":
-            return LabelSmoothingUncertaintyClassifier(
+            return original_transformer, LabelSmoothingUncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         elif self.uncertainty_method == "MonteCarlo":
-            return MonteCarloDropoutUncertaintyClassifier(
+            return original_transformer, MonteCarloDropoutUncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         elif self.uncertainty_method == "inhibited":
-            return InhibitedSoftmaxUncertaintyClassifier(
+            return original_transformer, InhibitedSoftmaxUncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         elif self.uncertainty_method == "evidential1":
-            return EvidentialDeepLearning1UncertaintyClassifier(
+            return original_transformer, EvidentialDeepLearning1UncertaintyClassifier(
                 self.transformer_model, self.num_classes, **self.kwargs
             )
         else:

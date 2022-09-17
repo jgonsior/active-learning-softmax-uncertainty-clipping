@@ -31,13 +31,13 @@ except ImportError:
 
 class UncertaintyBaseClass(TransformerBasedClassification):
     @abc.abstractmethod
-    def predict_proba_active(self, to_be_predicted_data):
+    def predict_proba(self, to_be_predicted_data):
         raise NotImplementedError
 
 
 # works
 class SoftmaxUncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba_active(self, to_be_predicted_data):
+    def predict_proba(self, to_be_predicted_data):
         if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
@@ -212,7 +212,7 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
 
         return F.kl_div(output, target, reduction="sum").item()
 
-    def predict_proba_active(self, to_be_predicted_data):
+    def predict_proba(self, to_be_predicted_data):
         if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
@@ -255,7 +255,7 @@ class LabelSmoothingUncertaintyClassifier(SoftmaxUncertaintyClassifier):
 
 # works
 class MonteCarloDropoutUncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba_active(self, to_be_predicted_data):
+    def predict_proba(self, to_be_predicted_data):
         if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
@@ -380,7 +380,7 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
     # We not only use this softmax for the loss but also for the prediction
 
-    def predict_proba_active(self, to_be_predicted_data):
+    def predict_proba(self, to_be_predicted_data):
         if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
@@ -451,7 +451,7 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 #     Effective Deep Learning Implementation (Survoy (?) et al. - Kaplan)
 # works
 class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba_active(self, to_be_predicted_data):
+    def predict_proba(self, to_be_predicted_data):
         if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,
@@ -567,7 +567,7 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
 
 
 class Student2UncertaintyClassifier(UncertaintyBaseClass):
-    def predict_proba_active(self, to_be_predicted_data, logit=False):
+    def predict_proba(self, to_be_predicted_data, logit=False):
         if len(to_be_predicted_data) == 0:
             return empty_result(
                 self.multi_label,

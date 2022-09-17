@@ -206,7 +206,7 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
         representation = self.dataset if representation is None else representation
 
         self.indices_queried = self.query_strategy.query(
-            self._clf,
+            self._clf_active,
             representation,
             indices[self.mask],
             self.indices_labeled,
@@ -414,12 +414,13 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
         if self._clf is None or not self.reuse_model:
             if hasattr(self, "_clf"):
                 del self._clf
-            self._clf = self._clf_factory.new()
+            self._clf, self._clf_active = self._clf_factory.new()
 
         x = self.dataset[self.indices_labeled]
 
         if indices_validation is None:
             self._clf.fit(x)
+            self._clf_active.fit(x)
         else:
             indices = np.arange(self.indices_labeled.shape[0])
             mask = np.isin(indices, indices_validation)
@@ -428,6 +429,7 @@ class PoolBasedActiveLearner(AbstractPoolBasedActiveLearner):
             valid = x[indices[mask]]
 
             self._clf.fit(train, validation_set=valid)
+            self._clf_active.fit(train, validation_set=valid)
 
     def _build_index_to_position_dict(self):
         return dict(
