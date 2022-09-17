@@ -434,7 +434,8 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
             output_hidden_states=self.output_hidden_states,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(
-            self.transformer_model.tokenizer, cache_dir=cache_dir,
+            self.transformer_model.tokenizer,
+            cache_dir=cache_dir,
         )
 
         # Suppress "Some weights of the model checkpoint at [model name] were not [...]"-warnings
@@ -535,7 +536,10 @@ class TransformerBasedClassification(TransformerBasedEmbeddingMixin, PytorchClas
                 )
             else:
                 train_loss, train_acc = self._train_loop_process_batches(
-                    sub_train, optimizer, scheduler, epoch=epoch,
+                    sub_train,
+                    optimizer,
+                    scheduler,
+                    epoch=epoch,
                 )
 
                 if sub_valid is not None:
