@@ -145,6 +145,7 @@ def main(
 
 def _evaluate(active_learner, train, test, query_strategy_name=None):
     y_pred_test = active_learner.classifier.predict(test)
+    y_pred_train = active_learner.classifier.predict(train)
     y_proba_test = active_learner.classifier.predict_proba(test)
     y_proba_test_active = active_learner.active_classifier.predict_proba(test)
 
@@ -177,7 +178,7 @@ def _evaluate(active_learner, train, test, query_strategy_name=None):
         "proba_bins_test_active": proba_bins_test_active,
     }
     if query_strategy_name == "passive":
-        metrics["passive_outlier"] = np.logical_not(np.equal(test.y, y_pred_test))
+        metrics["passive_outlier"] = np.logical_not(np.equal(train.y, y_pred_train))
     return metrics
 
 

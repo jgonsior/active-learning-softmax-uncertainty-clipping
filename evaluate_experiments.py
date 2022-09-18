@@ -333,7 +333,7 @@ def _load_grouped_data(
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
                             )
-                            #print(metrics.files)
+                            # print(metrics.files)
                             # args = json.loads(
                             #    Path(exp_results_dir / "args.json").read_text()
                             # )
@@ -581,11 +581,13 @@ def _execute_parallel(param_grid, dataset: str):
 
 
 def tables_plots(param_grid):
-    with parallel_backend("loky", n_jobs=20):
-        Parallel()(
-            delayed(_execute_parallel)(param_grid, dataset)
-            for dataset in param_grid["dataset"]
-        )
+    for dataset in param_grid["dataset"]:
+        _execute_parallel(param_grid, dataset)
+    # with parallel_backend("loky", n_jobs=20):
+    #    Parallel()(
+    #        delayed(_execute_parallel)(param_grid, dataset)
+    #        for dataset in param_grid["dataset"]
+    #    )
 
 
 # tables_plots(baselines_param_grid)
