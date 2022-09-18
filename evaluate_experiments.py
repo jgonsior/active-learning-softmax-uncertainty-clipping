@@ -183,6 +183,7 @@ def runtime_plots(
         dpi=300,
     )
     plt.clf()
+    plt.close("all")
 
     table_data = []
 
@@ -252,14 +253,17 @@ def uncertainty_histogram_plots(
         f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}_grouped.jpg"
     )
     plt.clf()
+    plt.close('all')
     """
 
     for strat in df["Strategy"].unique():
-        print(strat)
+        counts, bins = np.histogram(df.loc[df["Strategy"] == strat][metric])
+
         fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
-        sns.histplot(
-            data=df.loc[df["Strategy"] == strat],
-            x=metric,
+        plt.hist(
+            bins[:-1],
+            weights=counts,
+            bins=bins,
         )
         plt.title(f"{strat}")
         plot_path = Path(
@@ -270,13 +274,27 @@ def uncertainty_histogram_plots(
         plt.savefig(plot_path / f"{strat.replace('/', '-')}.jpg")
         plt.savefig(plot_path / f"{strat.replace('/', '-')}.pdf", dpi=300)
         plt.clf()
+        plt.close("all")
 
         for iteration in df["iteration"].unique():
-            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
-            sns.histplot(
-                data=df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)],
-                x=metric,
+            counts, bins = np.histogram(
+                df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
+                    metric
+                ]
             )
+
+            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
+            plt.hist(
+                bins[:-1],
+                weights=counts,
+                bins=bins,
+            )
+
+            #  fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
+            #  sns.histplot(
+            #  data=df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)],
+            #  x=metric,
+            #  )
             plt.title(f"{strat}: {iteration}")
             plot_path = Path(
                 f"./plots/{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}/{strat.replace('/', '-')}/"
@@ -286,6 +304,7 @@ def uncertainty_histogram_plots(
             plt.savefig(plot_path / f"{iteration}.jpg")
             plt.savefig(plot_path / f"{iteration}.pdf", dpi=300)
             plt.clf()
+            plt.close("all")
 
 
 def _convert_config_to_path(config_dict) -> Path:
@@ -394,6 +413,7 @@ def table_stats(
             dpi=300,
         )
         plt.clf()
+        plt.close("all")
 
     _learning_curves_plot(grouped_data)
 
@@ -461,6 +481,17 @@ def _execute_parallel(param_grid, dataset: str):
                             else:
                                 table_title_prefix = "without_clipping"
                                 param_grid_new = _filter_out_param(pg, "", [])
+                            uncertainty_histogram_plots(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid_new,
+                                num_iteration,
+                                metric="confidence_scores",
+                                table_title_prefix=table_title_prefix,
+                            )
 
                             table_stats(
                                 exp_name,
@@ -538,7 +569,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 table_title_prefix=table_title_prefix,
                             )
 
-                            uncertainty_histogram_plots(
+                            """uncertainty_histogram_plots(
                                 exp_name,
                                 transformer_model_name,
                                 dataset,
@@ -560,7 +591,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 num_iteration,
                                 metric="y_proba_test_active",
                                 table_title_prefix=table_title_prefix,
-                            )
+                            )"""
 
                             """runtime_plots(
                                             exp_name,
@@ -581,13 +612,13 @@ def _execute_parallel(param_grid, dataset: str):
 
 
 def tables_plots(param_grid):
-    for dataset in param_grid["dataset"]:
-        _execute_parallel(param_grid, dataset)
-    # with parallel_backend("loky", n_jobs=20):
-    #    Parallel()(
-    #        delayed(_execute_parallel)(param_grid, dataset)
-    #        for dataset in param_grid["dataset"]
-    #    )
+    #  for dataset in param_grid["dataset"]:
+    #  _execute_parallel(param_grid, dataset)
+    with parallel_backend("loky", n_jobs=20):
+        Parallel()(
+            delayed(_execute_parallel)(param_grid, dataset)
+            for dataset in param_grid["dataset"]
+        )
 
 
 # tables_plots(baselines_param_grid)
