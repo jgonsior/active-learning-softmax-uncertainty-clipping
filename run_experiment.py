@@ -69,6 +69,7 @@ my_methods_param_grid["query_strategy"] = ["LC"]
 passive_param_grid = copy.deepcopy(full_param_grid)
 baselines_param_grid["uncertainty_method"] = ["softmax"]
 passive_param_grid["query_strategy"] = ["passive"]
+passive_param_grid["uncertainty_clipping"] = [1.0]
 
 # source: https://stackoverflow.com/a/54802737
 def _chunks(l, n):
