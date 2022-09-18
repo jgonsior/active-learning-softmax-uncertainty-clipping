@@ -66,6 +66,10 @@ my_methods_param_grid = copy.deepcopy(full_param_grid)
 my_methods_param_grid["uncertainty_method"].remove("softmax")
 my_methods_param_grid["query_strategy"] = ["LC"]
 
+passive_param_grid = copy.deepcopy(full_param_grid)
+baselines_param_grid["uncertainty_method"] = ["softmax"]
+passive_param_grid["query_strategy"] = ["passive"]
+
 # source: https://stackoverflow.com/a/54802737
 def _chunks(l, n):
     """Yield n number of striped chunks from l."""
@@ -183,7 +187,9 @@ if __name__ == "__main__":
         "for binary text classification."
     )
     parser.add_argument("--taurus", action="store_true")
-    parser.add_argument("--workload", type=str, choices=["dev", "baselines", "my"])
+    parser.add_argument(
+        "--workload", type=str, choices=["dev", "baselines", "my", "passive"]
+    )
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--array_job_id", type=int, default=0)
     parser.add_argument("--n_array_jobs", type=int, default=1)
@@ -212,6 +218,12 @@ if __name__ == "__main__":
     elif args.workload == "my":
         _, open_param_list, full_param_list = generate_workload(
             my_methods_param_grid,
+            args.array_job_id,
+            args.n_array_jobs,
+        )
+    elif args.workload == "passive":
+        _, open_param_list, full_param_list = generate_workload(
+            passive_param_grid,
             args.array_job_id,
             args.n_array_jobs,
         )
