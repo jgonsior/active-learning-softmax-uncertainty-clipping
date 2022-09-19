@@ -179,6 +179,7 @@ class TransformerBasedEmbeddingMixin(EmbeddingMixin):
         proba : np.ndarray
             Class probabilities for `data_set` (only if `return_predictions` is `True`).
         """
+        print("embed wird aufgerufen" * 100)
 
         if self.model is None:
             raise ValueError("Model is not trained. Please call fit() first.")

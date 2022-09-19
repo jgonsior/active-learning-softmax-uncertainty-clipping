@@ -71,6 +71,15 @@ baselines_param_grid["uncertainty_method"] = ["softmax"]
 passive_param_grid["query_strategy"] = ["passive"]
 passive_param_grid["uncertainty_clipping"] = [1.0]
 
+
+large_test_grid = copy.deepcopy(full_param_grid)
+large_test_grid["transformer_model_name"] = ["bert-large-cased", "roberta-large"]
+large_test_grid["query_strategy"] = ["Rand", "LC", "MM"]
+large_test_grid["random_seed"] = [42, 43, 44, 45, 46]
+large_test_grid["uncertainty_method"] = ["softmax"]
+large_test_grid["uncertainty_clipping"] = [1.0]
+large_test_grid["dataset"] = ["trec6", "ag_news"]
+
 # source: https://stackoverflow.com/a/54802737
 def _chunks(l, n):
     """Yield n number of striped chunks from l."""
@@ -189,7 +198,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--taurus", action="store_true")
     parser.add_argument(
-        "--workload", type=str, choices=["dev", "baselines", "my", "passive"]
+        "--workload", type=str, choices=["dev", "baselines", "my", "passive", "large"]
     )
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--array_job_id", type=int, default=0)
@@ -225,6 +234,12 @@ if __name__ == "__main__":
     elif args.workload == "passive":
         _, open_param_list, full_param_list = generate_workload(
             passive_param_grid,
+            args.array_job_id,
+            args.n_array_jobs,
+        )
+    elif args.workload == "large":
+        _, open_param_list, full_param_list = generate_workload(
+            large_test_grid,
             args.array_job_id,
             args.n_array_jobs,
         )
