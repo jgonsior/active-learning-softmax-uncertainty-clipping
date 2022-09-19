@@ -17,6 +17,8 @@ from run_experiment import (
     baselines_param_grid,
     my_methods_param_grid,
     generate_workload,
+    large_test_grid,
+    finetuning_test_grid,
 )
 from tabulate import tabulate
 import pandas as pd
@@ -481,7 +483,8 @@ def _execute_parallel(param_grid, dataset: str):
                             else:
                                 table_title_prefix = "without_clipping"
                                 param_grid_new = _filter_out_param(pg, "", [])
-                            uncertainty_histogram_plots(
+
+                            table_stats(
                                 exp_name,
                                 transformer_model_name,
                                 dataset,
@@ -489,10 +492,10 @@ def _execute_parallel(param_grid, dataset: str):
                                 batch_size,
                                 param_grid_new,
                                 num_iteration,
-                                metric="confidence_scores",
-                                table_title_prefix=table_title_prefix,
+                                metric="test_acc",
+                                table_title_prefix=table_title_prefix + "_last1",
+                                consider_last_n=1,
                             )
-
                             table_stats(
                                 exp_name,
                                 transformer_model_name,
@@ -623,5 +626,6 @@ def tables_plots(param_grid):
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
-tables_plots(full_param_grid)
+# tables_plots(full_param_grid)
 # tables_plots(dev_param_grid)
+tables_plots(finetuning_test_grid)
