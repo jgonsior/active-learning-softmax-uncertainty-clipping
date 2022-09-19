@@ -21,7 +21,13 @@ from timeit import default_timer as timer
 
 from small_text.active_learner import PoolBasedActiveLearner
 
-from small_text.integrations.transformers import TransformerModelArguments
+from small_text.integrations.transformers import (
+    TransformerModelArguments,
+)
+
+from small_text.integrations.transformers.classifiers.classification import (
+    FineTuningArguments,
+)
 from small_text.integrations.transformers.classifiers.factories import (
     UncertaintyBasedClassificationFactory,
 )
@@ -62,6 +68,8 @@ def main(
         print(f"cuda available, using {cpu_cuda}")
 
     transformer_model = TransformerModelArguments(transformer_model_name)
+    # transformer_model = FineTuningArguments(transformer_model_name)
+
     clf_factory = UncertaintyBasedClassificationFactory(
         transformer_model,
         num_classes,
@@ -71,6 +79,7 @@ def main(
                 "device": cpu_cuda,
                 "mini_batch_size": 64,
                 "class_weight": "balanced",
+                "fine_tuning_arguments": FineTuningArguments(0.2, 0.95),
             }
         ),
     )
@@ -307,7 +316,7 @@ if __name__ == "__main__":
     import argparse
 
     logger = logging.getLogger()
-    # -logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(
         description="An example that shows active learning "
