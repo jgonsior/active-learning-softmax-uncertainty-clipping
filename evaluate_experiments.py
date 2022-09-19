@@ -1,3 +1,4 @@
+from ast import FormattedValue
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
 import copy
@@ -24,7 +25,7 @@ from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
 
-font_size = 8
+font_size = 6
 
 tex_fonts = {
     # Use LaTeX to write all text
@@ -629,6 +630,113 @@ def tables_plots(param_grid):
     #    )
 
 
+def _rename_dataset_name(dataset):
+    if dataset == "trec6":
+        dataset2 = "TREC6"
+    elif dataset == "ag_news":
+        dataset2 = "AGN"
+    elif dataset == "subj":
+        dataset2 = "SUBJ"
+    elif dataset == "rotten":
+        dataset2 = "RT"
+    elif dataset == "imdb":
+        dataset2 = "IMDB"
+    return dataset2
+
+
+def _rename_strat(strategy, clipping=True):
+    strategy = strategy.replace("trustscore (softmax) True/1.0", "LC (trustscore)")
+    # rename strategies
+    strategy = strategy.replace("True/", "")
+    strategy = strategy.replace("MM (softmax)", "MM")
+    strategy = strategy.replace("LC (softmax)", "LC")
+    strategy = strategy.replace("Ent (softmax)", "Ent")
+    strategy = strategy.replace("Rand (softmax)", "Rand")
+    strategy = strategy.replace("passive (softmax)", "Passive")
+
+    strategy = strategy.replace("QBC_VE (softmax)", "LC (ensemble, VE)")
+    strategy = strategy.replace("QBC_KLD (softmax)", "LC (ensemble, KLD)")
+
+    strategy = strategy.replace("LC (evidential1)", "LC (evidential)")
+
+    strategy = strategy.replace("LC (label_smoothing)", "LC (label smoothing)")
+
+    if clipping:
+        strategy = strategy.replace(" 1.0", "")
+    return strategy
+
+
+def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
+    if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "", [])
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+                        table_file = Path(
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                        )
+                        plot_file = Path(
+                            f"final/boxplots_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                        )
+                        print(table_file)
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+
+                        table_data = []
+
+                        for (dataset, group) in groups:
+                            dataset2 = _rename_dataset_name(dataset)
+
+                            for k, v in group.items():
+                                print(k)
+                                k = _rename_strat(k, clipping=clipping)
+                                if k == "Passive":
+                                    continue
+                                v = [x[-consider_last_n:] for x in v]
+                                v = np.mean(v, axis=1)
+                                formatted_value = np.mean(v) * 100
+                                table_data.append((k, formatted_value))
+
+                        df = pd.DataFrame(table_data, columns=["Method", "Acc"])
+                        df2 = df.groupby(["Method"]).mean().sort_values("Acc")
+
+                        fig = plt.figure(
+                            figsize=set_matplotlib_size(width, fraction=1.0)
+                        )
+                        ax = sns.boxplot(data=df, x="Acc", y="Method", order=df2.index)
+                        plt.xlabel("")
+                        plt.ylabel("")
+
+                        plt.tight_layout()
+                        plt.savefig(
+                            plot_file,
+                            dpi=300,
+                        )
+                        # plt.show()
+                        plt.clf()
+                        plt.close("all")
+
+
 def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
     if clipping:
         table_title_prefix = ""
@@ -644,7 +752,10 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
                         table_file = Path(
-                            f"tables/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                        )
+                        plot_file = Path(
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
                         )
                         print(table_file)
 
@@ -665,36 +776,46 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         table_data = {}
 
                         for (dataset, group) in groups:
+                            dataset2 = _rename_dataset_name(dataset)
+
                             for k, v in group.items():
                                 v = [x[-consider_last_n:] for x in v]
+                                v = np.mean(v, axis=1)
+                                std_v = np.std(v) * 100
+                                mean_v = np.mean(v) * 100
 
-                                formatted_value = "{:.2f} +-({:.2f})".format(
-                                    np.mean(v) * 100, np.std(v) * 0.100
-                                )
+                                formatted_value = f"{mean_v:0.2f} +- ({std_v:0.2f})"
+
                                 if k not in table_data.keys():
-                                    table_data[k] = {dataset: formatted_value}
+                                    table_data[k] = {dataset2: formatted_value}
                                 else:
-                                    table_data[k][dataset] = formatted_value
+                                    table_data[k][dataset2] = formatted_value
 
                         for k, v in table_data.items():
-                            table_data[k]["Mean"] = np.mean(
+                            table_data[k]["Mean"] = f"{0:.2f}".format(
                                 [float(x[:5]) for x in v.values()]
                             )
 
-                        df = pd.DataFrame(table_data)  #
+                        df = pd.DataFrame(table_data)
                         df = df.T
                         df.reset_index(inplace=True)
                         df = df.rename(columns={"index": "Method"})
-                        df["Method"] = df["Method"].replace(
-                            "trustscore (softmax) True/1.0", "LC (trustscore)"
-                        )
                         df.sort_values(by="Mean", inplace=True)
 
-                        # rename strategies
                         df["Method"] = df["Method"].apply(
-                            lambda x: str(x).replace("True/", "")
+                            lambda x: _rename_strat(x, clipping=clipping)
                         )
-                        print(tabulate(df, headers="keys"))
+
+                        # df = df.set_index("Method")
+                        print(df)
+
+                        print(
+                            tabulate(
+                                df,
+                                headers="keys",
+                                floatfmt=("0.2f"),
+                            )
+                        )
 
                         table_file.parent.mkdir(parents=True, exist_ok=True)
                         table_file.write_text(
@@ -703,12 +824,116 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                                 headers="keys",
                                 tablefmt="latex_booktabs",
                                 showindex=False,
+                                floatfmt=("0.2f"),
                             )
                         )
 
 
-full_table_stat(full_param_grid)
+def show_values_on_bars(axs, h_v="v", space=4.0, xlim_additional=0):
+    def _show_on_single_plot(ax):
+        if h_v == "v":
+            for p in ax.patches:
+                _x = p.get_x() + p.get_width() / 2
+                _y = p.get_y() + p.get_height()
+                value = int(p.get_height())
+                ax.text(_x, _y, value, ha="center")
+        elif h_v == "h":
+            for p in ax.patches:
+                _x = p.get_x() + p.get_width() + float(space)
+                _y = p.get_y() + p.get_height() - 0.2
+                value = int(p.get_width())
+                ax.text(_x, _y, value, ha="left")
+                current_xlim = ax.get_xlim()
+                current_xlim = (current_xlim[0], current_xlim[1] + xlim_additional)
+                ax.set_xlim(current_xlim)
+
+    if isinstance(axs, np.ndarray):
+        for idx, ax in np.ndenumerate(axs):
+            _show_on_single_plot(ax)
+    else:
+        _show_on_single_plot(axs)
+
+
+def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_n=21):
+    if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "", [])
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+                        table_file = Path(
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                        )
+                        print(table_file)
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+
+                        if len(grouped_data) == 0:
+                            return
+
+                        # sum up elapsed times
+                        df_data = defaultdict(lambda: 0)
+                        for (dataset, group) in groups:
+                            for k, v in group.items():
+                                for value in v:
+                                    df_data[k] += sum(value)
+
+                        df_data2 = []
+                        for k, v in df_data.items():
+                            df_data2.append(
+                                [_rename_strat(k, clipping=clipping), v / 60]
+                            )
+
+                        data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
+
+                        data_df.sort_values(by=metric, inplace=True)
+
+                        fig = plt.figure(
+                            figsize=set_matplotlib_size(width, fraction=0.5)
+                        )
+                        ax = sns.barplot(data=data_df, y="Strategy", x=metric)
+
+                        show_values_on_bars(ax, "h", xlim_additional=3)
+
+                        plt.xlabel("")
+                        plt.ylabel("")
+
+                        plt.tight_layout()
+                        plt.savefig(
+                            table_file,
+                            dpi=300,
+                        )
+                        # plt.show()
+                        plt.clf()
+                        plt.close("all")
+
+
+full_boxplot(full_param_grid, clipping=False)
+exit(-1)
+full_boxplot(full_param_grid)
+exit(-1)
+full_runtime_stats(full_param_grid)
 full_table_stat(full_param_grid, clipping=False)
+
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
 # tables_plots(full_param_grid)
