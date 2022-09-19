@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 import copy
 import enum
@@ -331,6 +331,11 @@ def _load_grouped_data(
         for uncertainty_method in param_grid["uncertainty_method"]:
             for lower_is_better in param_grid["lower_is_better"]:
                 for uncertainty_clipping in param_grid["uncertainty_clipping"]:
+                    if (
+                        query_strategy in ["passive", "Rand"]
+                        and uncertainty_clipping != 1.0
+                    ):
+                        continue
                     key = f"{query_strategy} ({uncertainty_method}) {lower_is_better}/{uncertainty_clipping}"
                     grouped_data[key] = []
                     for random_seed in param_grid["random_seed"]:
@@ -476,12 +481,12 @@ def _execute_parallel(param_grid, dataset: str):
 
                         def _with_without_clipping(pg, clipping=True):
                             if clipping:
-                                table_title_prefix = "with_clipping"
+                                table_title_prefix = ""
                                 param_grid_new = _filter_out_param(
                                     pg, "uncertainty_clipping", [0.95, 0.9, 0.7]
                                 )
                             else:
-                                table_title_prefix = "without_clipping"
+                                table_title_prefix = "clipped"
                                 param_grid_new = _filter_out_param(pg, "", [])
 
                             table_stats(
@@ -522,7 +527,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 consider_last_n=21,
                             )
 
-                            table_stats(
+                            """table_stats(
                                 exp_name,
                                 transformer_model_name,
                                 dataset,
@@ -570,7 +575,7 @@ def _execute_parallel(param_grid, dataset: str):
                                 num_iteration,
                                 metric="queried_indices",
                                 table_title_prefix=table_title_prefix,
-                            )
+                            )"""
 
                             """uncertainty_histogram_plots(
                                 exp_name,
@@ -615,17 +620,97 @@ def _execute_parallel(param_grid, dataset: str):
 
 
 def tables_plots(param_grid):
-    #  for dataset in param_grid["dataset"]:
-    #  _execute_parallel(param_grid, dataset)
-    with parallel_backend("loky", n_jobs=20):
-        Parallel()(
-            delayed(_execute_parallel)(param_grid, dataset)
-            for dataset in param_grid["dataset"]
-        )
+    for dataset in param_grid["dataset"]:
+        _execute_parallel(param_grid, dataset)
+    # with parallel_backend("loky", n_jobs=20):
+    #    Parallel()(
+    #        delayed(_execute_parallel)(param_grid, dataset)
+    #        for dataset in param_grid["dataset"]
+    #    )
 
 
+def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
+    if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "", [])
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+                        table_file = Path(
+                            f"tables/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                        )
+                        print(table_file)
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+
+                        table_data = {}
+
+                        for (dataset, group) in groups:
+                            for k, v in group.items():
+                                v = [x[-consider_last_n:] for x in v]
+
+                                formatted_value = "{:.2f} +-({:.2f})".format(
+                                    np.mean(v) * 100, np.std(v) * 0.100
+                                )
+                                if k not in table_data.keys():
+                                    table_data[k] = {dataset: formatted_value}
+                                else:
+                                    table_data[k][dataset] = formatted_value
+
+                        for k, v in table_data.items():
+                            table_data[k]["Mean"] = np.mean(
+                                [float(x[:5]) for x in v.values()]
+                            )
+
+                        df = pd.DataFrame(table_data)  #
+                        df = df.T
+                        df.reset_index(inplace=True)
+                        df = df.rename(columns={"index": "Method"})
+                        df["Method"] = df["Method"].replace(
+                            "trustscore (softmax) True/1.0", "LC (trustscore)"
+                        )
+                        df.sort_values(by="Mean", inplace=True)
+
+                        # rename strategies
+                        df["Method"] = df["Method"].apply(
+                            lambda x: str(x).replace("True/", "")
+                        )
+                        print(tabulate(df, headers="keys"))
+
+                        table_file.parent.mkdir(parents=True, exist_ok=True)
+                        table_file.write_text(
+                            tabulate(
+                                df,
+                                headers="keys",
+                                tablefmt="latex_booktabs",
+                                showindex=False,
+                            )
+                        )
+
+
+full_table_stat(full_param_grid)
+full_table_stat(full_param_grid, clipping=False)
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
 # tables_plots(full_param_grid)
 # tables_plots(dev_param_grid)
-tables_plots(finetuning_test_grid)
+# tables_plots(finetuning_test_grid)
