@@ -260,7 +260,14 @@ def uncertainty_histogram_plots(
     """
 
     for strat in df["Strategy"].unique():
-        counts, bins = np.histogram(df.loc[df["Strategy"] == strat][metric])
+        mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
+        if np.nanmax(mv) == np.inf:
+            max_value = np.iinfo(np.int16).max
+        else:
+            max_value = np.nanmax(mv)
+        if np.nanmin(mv) == 0 and max_value == 0:
+            continue
+        counts, bins = np.histogram(mv, bins=100, range=(np.nanmin(mv), max_value))
 
         fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
         plt.hist(
@@ -280,11 +287,16 @@ def uncertainty_histogram_plots(
         plt.close("all")
 
         for iteration in df["iteration"].unique():
-            counts, bins = np.histogram(
-                df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
-                    metric
-                ]
-            )
+            mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
+                metric
+            ].astype(np.float16)
+            if np.nanmax(mv) == np.inf:
+                max_value = np.iinfo(np.int16).max
+            else:
+                max_value = np.nanmax(mv)
+            if np.nanmin(mv) == 0 and max_value == 0:
+                continue
+            counts, bins = np.histogram(mv, bins=100, range=(np.nanmin(mv), max_value))
 
             fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
             plt.hist(
@@ -721,7 +733,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         df2 = df.groupby(["Method"]).mean().sort_values("Acc")
 
                         fig = plt.figure(
-                            figsize=set_matplotlib_size(width, fraction=1.0)
+                            figsize=set_matplotlib_size(width, fraction=0.5)
                         )
                         ax = sns.boxplot(data=df, x="Acc", y="Method", order=df2.index)
                         plt.xlabel("")
@@ -928,7 +940,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
 
 full_boxplot(full_param_grid, clipping=False)
-exit(-1)
+# exit(-1)
 full_boxplot(full_param_grid)
 exit(-1)
 full_runtime_stats(full_param_grid)
