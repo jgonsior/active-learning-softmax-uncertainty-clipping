@@ -798,7 +798,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                 elif k[-3:] == "0.9":
                                     clipping = "90%"
                                 elif k[-4:] == "0.95":
-                                    clipping = "95%"
+                                    clipping = "95\%"
                                 else:
                                     print("help" * 1000)
 
@@ -817,8 +817,8 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                 stick_data[dataset2].append(formatted_value)
 
                                 if k == "Rand":
-                                    table_data.append((k, formatted_value, "95%"))
-                                    table_data2.append((k, formatted_value, "95%"))
+                                    table_data.append((k, formatted_value, "95\%"))
+                                    table_data2.append((k, formatted_value, "95\%"))
 
                         df = pd.DataFrame(
                             table_data, columns=["Method", "Acc", "clipping"]
@@ -828,7 +828,12 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         df3 = pd.DataFrame(
                             table_data2, columns=["Method", "Acc", "clipping"]
                         )
-                        df4 = df3.groupby(["Method"]).mean().sort_values("Acc")
+                        df4 = (
+                            df3.loc[df3["clipping"] == "95\%"]
+                            .groupby(["Method"])
+                            .mean()
+                            .sort_values("Acc")
+                        )
 
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
                         fig_dim = (fig_dim[0], fig_dim[1])
