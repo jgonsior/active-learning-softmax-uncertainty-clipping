@@ -43,9 +43,9 @@ tex_fonts = {
     "figure.autolayout": True,
 }
 
-sns.set_style("white")
-sns.set_context("paper")
-plt.rcParams.update(tex_fonts)  # type: ignore
+# sns.set_style("white")
+# sns.set_context("paper")
+# plt.rcParams.update(tex_fonts)  # type: ignore
 
 
 # https://jwalton.info/Embed-Publication-Matplotlib-Latex/
@@ -658,6 +658,8 @@ def _rename_dataset_name(dataset):
 
 def _rename_strat(strategy, clipping=True):
     strategy = strategy.replace("trustscore (softmax) True/1.0", "LC (trustscore)")
+    strategy = strategy.replace("trustscore (softmax) True/0.95", "LC (trustscore)")
+    strategy = strategy.replace("trustscore (softmax) True/0.9", "LC (trustscore)")
     # rename strategies
     strategy = strategy.replace("True/", "")
     strategy = strategy.replace("MM (softmax)", "MM")
@@ -675,6 +677,8 @@ def _rename_strat(strategy, clipping=True):
 
     if clipping:
         strategy = strategy.replace(" 1.0", "")
+        strategy = strategy.replace(" 0.95", "")
+        strategy = strategy.replace(" 0.9", "")
     return strategy
 
 
@@ -733,7 +737,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         df2 = df.groupby(["Method"]).mean().sort_values("Acc")
 
                         fig = plt.figure(
-                            figsize=set_matplotlib_size(width, fraction=0.5)
+                            figsize=set_matplotlib_size(width, fraction=1.0)
                         )
                         ax = sns.boxplot(data=df, x="Acc", y="Method", order=df2.index)
                         plt.xlabel("")
@@ -747,6 +751,119 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         # plt.show()
                         plt.clf()
                         plt.close("all")
+
+
+def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=True):
+    param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+
+                        plot_file = Path(
+                            f"final/violinplots_grouped_datasets-{grouped_dataset}_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                        )
+                        print(plot_file)
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+
+                        table_data = []
+
+                        stick_data = {}
+
+                        for (dataset, group) in groups:
+                            dataset2 = _rename_dataset_name(dataset)
+                            stick_data[dataset2] = []
+
+                            for k, v in group.items():
+                                if k[-3:] == "1.0":
+                                    clipping = "Original"
+                                elif k[-3:] == "0.9":
+                                    clipping = "90%"
+                                elif k[-4:] == "0.95":
+                                    clipping = "95%"
+                                else:
+                                    print("help" * 1000)
+
+                                k = _rename_strat(k, clipping=True)
+                                if k == "Passive":
+                                    continue
+                                v = [x[-consider_last_n:] for x in v]
+                                v = np.mean(v, axis=1)
+                                if grouped_dataset:
+                                    v = [np.mean(v)]
+                                for formatted_value in v:
+                                    formatted_value *= 100
+                                    stick_data[dataset2].append(formatted_value)
+                                    table_data.append((k, formatted_value, clipping))
+
+                                if k == "Rand":
+                                    table_data.append((k, formatted_value, "95%"))
+
+                        df = pd.DataFrame(
+                            table_data, columns=["Method", "Acc", "clipping"]
+                        )
+                        df2 = df.groupby(["Method"]).mean().sort_values("Acc")
+
+                        fig_dim = set_matplotlib_size(width, fraction=1.0)
+                        fig_dim = (fig_dim[0] * 2, fig_dim[1])
+                        fig = plt.figure(figsize=fig_dim)
+                        ax = sns.violinplot(
+                            data=df,
+                            y="Acc",
+                            x="Method",
+                            order=df2.index,
+                            hue="clipping",
+                            split=True,
+                            inner="stick",
+                            bw=0.35,
+                            palette=[".75", ".14"],
+                        )
+
+                        dataset_colors = {
+                            dataset_name: sns.color_palette(
+                                palette="colorblind", n_colors=len(stick_data.keys())
+                            )[ix]
+                            for ix, dataset_name in enumerate(stick_data.keys())
+                        }
+                        for k, v in dataset_colors.items():
+                            dataset_colors[k] = (*v, 0.9)
+
+                        for l in ax.lines:
+                            for dataset_name in stick_data.keys():
+                                if l.get_data()[1][0] in stick_data[dataset_name]:
+                                    l.set_color(dataset_colors[dataset_name])
+                                    if grouped_dataset:
+                                        l.set_linewidth(3)
+                                    l.set_linestyle("-")
+
+                        plt.xlabel("")
+                        plt.ylabel("")
+
+                        plt.tight_layout()
+                        plt.savefig(
+                            plot_file,
+                            dpi=300,
+                        )
+                        # plt.show()
+                        plt.clf()
+                        plt.close("all")
+                        exit(-1)
 
 
 def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
@@ -939,8 +1056,11 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                         plt.close("all")
 
 
+full_violinplot(full_param_grid)
+full_violinplot(full_param_grid, grouped_dataset=False)
+exit(-1)
+
 full_boxplot(full_param_grid, clipping=False)
-# exit(-1)
 full_boxplot(full_param_grid)
 exit(-1)
 full_runtime_stats(full_param_grid)
