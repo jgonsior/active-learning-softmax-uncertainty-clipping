@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 from joblib import Parallel, delayed, parallel_backend
 from matplotlib import pyplot as plt
+from matplotlib.collections import PolyCollection
+from matplotlib.lines import Line2D
 import numpy as np
 from sklearn.metrics import jaccard_score
 
@@ -43,9 +45,9 @@ tex_fonts = {
     "figure.autolayout": True,
 }
 
-# sns.set_style("white")
-# sns.set_context("paper")
-# plt.rcParams.update(tex_fonts)  # type: ignore
+sns.set_style("white")
+sns.set_context("paper")
+plt.rcParams.update(tex_fonts)  # type: ignore
 
 
 # https://jwalton.info/Embed-Publication-Matplotlib-Latex/
@@ -753,7 +755,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         plt.close("all")
 
 
-def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=True):
+def full_violinplot(pg, metric="test_acc", consider_last_n=21):
     param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
 
     for exp_name in param_grid["exp_name"]:
@@ -764,7 +766,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=T
                         datasets = param_grid["dataset"]
 
                         plot_file = Path(
-                            f"final/violinplots_grouped_datasets-{grouped_dataset}_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                            f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
                         )
                         print(plot_file)
 
@@ -783,7 +785,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=T
                             groups.append((dataset, grouped_data))
 
                         table_data = []
-
+                        table_data2 = []
                         stick_data = {}
 
                         for (dataset, group) in groups:
@@ -805,35 +807,64 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=T
                                     continue
                                 v = [x[-consider_last_n:] for x in v]
                                 v = np.mean(v, axis=1)
-                                if grouped_dataset:
-                                    v = [np.mean(v)]
+
                                 for formatted_value in v:
                                     formatted_value *= 100
-                                    stick_data[dataset2].append(formatted_value)
                                     table_data.append((k, formatted_value, clipping))
+
+                                formatted_value = np.mean(v) * 100
+                                table_data2.append((k, formatted_value, clipping))
+                                stick_data[dataset2].append(formatted_value)
 
                                 if k == "Rand":
                                     table_data.append((k, formatted_value, "95%"))
+                                    table_data2.append((k, formatted_value, "95%"))
 
                         df = pd.DataFrame(
                             table_data, columns=["Method", "Acc", "clipping"]
                         )
                         df2 = df.groupby(["Method"]).mean().sort_values("Acc")
 
+                        df3 = pd.DataFrame(
+                            table_data2, columns=["Method", "Acc", "clipping"]
+                        )
+                        df4 = df3.groupby(["Method"]).mean().sort_values("Acc")
+
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
-                        fig_dim = (fig_dim[0] * 2, fig_dim[1])
+                        fig_dim = (fig_dim[0], fig_dim[1])
                         fig = plt.figure(figsize=fig_dim)
                         ax = sns.violinplot(
-                            data=df,
+                            data=df3,
                             y="Acc",
                             x="Method",
-                            order=df2.index,
+                            order=df4.index,
                             hue="clipping",
                             split=True,
                             inner="stick",
-                            bw=0.35,
-                            palette=[".75", ".14"],
                         )
+
+                        violins = [
+                            art
+                            for art in ax.get_children()
+                            if isinstance(art, PolyCollection)
+                        ]
+
+                        for violin in violins:
+                            violin.set_alpha(0)
+
+                        ax2 = sns.violinplot(
+                            data=df,
+                            y="Acc",
+                            x="Method",
+                            order=df4.index,
+                            hue="clipping",
+                            split=True,
+                            # bw=0.35,
+                            palette=[".85", ".4"],
+                            # ax=ax,
+                        )
+                        old_handles, old_labels = ax2.get_legend_handles_labels()
+                        old_handles = old_handles[2:]
 
                         dataset_colors = {
                             dataset_name: sns.color_palette(
@@ -848,12 +879,34 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=T
                             for dataset_name in stick_data.keys():
                                 if l.get_data()[1][0] in stick_data[dataset_name]:
                                     l.set_color(dataset_colors[dataset_name])
-                                    if grouped_dataset:
-                                        l.set_linewidth(3)
+                                    l.set_linewidth(3)
                                     l.set_linestyle("-")
+
+                        dataset_legend_handles = []
+                        for dataset, dataset_color in dataset_colors.items():
+                            dataset_legend_handles.append(
+                                Line2D(
+                                    [0], [0], color=dataset_color, lw=3, label=dataset
+                                ),
+                            )
+
+                        dataset_legend_handles = [*dataset_legend_handles, *old_handles]
+
+                        ax.legend(
+                            handles=dataset_legend_handles,
+                            loc="lower center",
+                            ncol=2 + len(dataset_colors.keys()),
+                        )
+
+                        ax.set_xticklabels(
+                            ax.get_xticklabels(),
+                            rotation=20,
+                            horizontalalignment="right",
+                        )
 
                         plt.xlabel("")
                         plt.ylabel("")
+                        plt.ylim(0, 115)
 
                         plt.tight_layout()
                         plt.savefig(
@@ -863,7 +916,6 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, grouped_dataset=T
                         # plt.show()
                         plt.clf()
                         plt.close("all")
-                        exit(-1)
 
 
 def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
@@ -1057,8 +1109,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
 
 full_violinplot(full_param_grid)
-full_violinplot(full_param_grid, grouped_dataset=False)
-exit(-1)
+# exit(-1)
 
 full_boxplot(full_param_grid, clipping=False)
 full_boxplot(full_param_grid)
