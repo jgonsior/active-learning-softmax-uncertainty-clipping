@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=alpha
-#SBATCH --time=100:59:59   # walltime
+#SBATCH --time=23:59:59   # walltime
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --ntasks=1      # limit to one node
 #SBATCH --cpus-per-task=8  # number of processor cores (i.e. threads)

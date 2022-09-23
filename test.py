@@ -315,7 +315,7 @@ if __name__ == "__main__":
     import argparse
 
     logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO)
+    # logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(
         description="An example that shows active learning "

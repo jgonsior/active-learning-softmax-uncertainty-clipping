@@ -20,8 +20,6 @@ from run_experiment import (
     baselines_param_grid,
     my_methods_param_grid,
     generate_workload,
-    large_test_grid,
-    finetuning_test_grid,
 )
 from tabulate import tabulate
 import pandas as pd
@@ -327,7 +325,10 @@ def uncertainty_histogram_plots(
 def _convert_config_to_path(config_dict) -> Path:
     params = OrderedDict(sorted(config_dict.items(), key=lambda t: t[0]))
 
-    exp_results_dir = Path("exp_results/" + "-".join([str(a) for a in params.values()]))
+    exp_results_dir = Path(
+        "exp_results_taurus_with_class_weights/"
+        + "-".join([str(a) for a in params.values()])
+    )
     return exp_results_dir
 
 
@@ -1195,7 +1196,6 @@ def full_passive_comparison(
 def full_class_distribution(
     pg, clipping=True, metric="times_elapsed", consider_last_n=21
 ):
-    # analyse, which dataset
     if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
@@ -1216,6 +1216,7 @@ def full_class_distribution(
 
                         groups = []
                         for dataset in datasets:
+                            #
                             grouped_data = _load_grouped_data(
                                 exp_name,
                                 transformer_model_name,
@@ -1268,7 +1269,7 @@ def full_class_distribution(
                         plt.close("all")
 
 
-full_passive_comparison(full_param_grid)
+full_class_distribution(full_param_grid)
 exit(-1)
 full_violinplot(full_param_grid)
 
