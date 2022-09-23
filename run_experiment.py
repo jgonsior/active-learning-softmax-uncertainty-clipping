@@ -61,14 +61,20 @@ dev_param_grid["transformer_model_name"] = ["bert-base-uncased"]
 
 baselines_param_grid = copy.deepcopy(full_param_grid)
 baselines_param_grid["uncertainty_method"] = ["softmax"]
+baselines_param_grid["query_strategy"] = [
+    "LC",
+    "MM",
+    "Ent",
+    "QBC_KLD",
+    "QBC_VE",
+]
 
 my_methods_param_grid = copy.deepcopy(full_param_grid)
 my_methods_param_grid["uncertainty_method"].remove("softmax")
 my_methods_param_grid["query_strategy"] = ["LC"]
 
 passive_param_grid = copy.deepcopy(full_param_grid)
-baselines_param_grid["uncertainty_method"] = ["softmax"]
-passive_param_grid["query_strategy"] = ["passive"]
+passive_param_grid["query_strategy"] = ["passive", "Rand"]
 passive_param_grid["uncertainty_clipping"] = [1.0]
 
 

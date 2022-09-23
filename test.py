@@ -77,9 +77,8 @@ def main(
         kwargs=dict(
             {
                 "device": cpu_cuda,
-                "mini_batch_size": 64,
-                "class_weight": "balanced",
-                # "fine_tuning_arguments": FineTuningArguments(0.2, 0.95),
+                "mini_batch_size": 32,
+                # "class_weight": "balanced",
             }
         ),
     )

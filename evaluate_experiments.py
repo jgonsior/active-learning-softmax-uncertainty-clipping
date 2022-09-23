@@ -1113,12 +1113,167 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                         plt.close("all")
 
 
-full_violinplot(full_param_grid)
-# exit(-1)
+def full_passive_comparison(
+    pg, clipping=True, metric="times_elapsed", consider_last_n=21
+):
+    # get list of outliers based on passive
+    # test, which strategy has queried the most outliers
+    # does it change when using uncertainty clipping?!
 
-full_boxplot(full_param_grid, clipping=False)
-full_boxplot(full_param_grid)
+    if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "", [])
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+                        table_file = Path(
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                        )
+                        print(table_file)
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+
+                        if len(grouped_data) == 0:
+                            return
+
+                        # sum up elapsed times
+                        df_data = defaultdict(lambda: 0)
+                        for (dataset, group) in groups:
+                            for k, v in group.items():
+                                for value in v:
+                                    df_data[k] += sum(value)
+
+                        df_data2 = []
+                        for k, v in df_data.items():
+                            df_data2.append(
+                                [_rename_strat(k, clipping=clipping), v / 60]
+                            )
+
+                        data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
+
+                        data_df.sort_values(by=metric, inplace=True)
+
+                        fig = plt.figure(
+                            figsize=set_matplotlib_size(width, fraction=0.5)
+                        )
+                        ax = sns.barplot(data=data_df, y="Strategy", x=metric)
+
+                        show_values_on_bars(ax, "h", xlim_additional=3)
+
+                        plt.xlabel("")
+                        plt.ylabel("")
+
+                        plt.tight_layout()
+                        plt.savefig(
+                            table_file,
+                            dpi=300,
+                        )
+                        # plt.show()
+                        plt.clf()
+                        plt.close("all")
+
+
+def full_class_distribution(
+    pg, clipping=True, metric="times_elapsed", consider_last_n=21
+):
+    # analyse, which dataset
+    if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "", [])
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+                        table_file = Path(
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                        )
+                        print(table_file)
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+
+                        if len(grouped_data) == 0:
+                            return
+
+                        # sum up elapsed times
+                        df_data = defaultdict(lambda: 0)
+                        for (dataset, group) in groups:
+                            for k, v in group.items():
+                                for value in v:
+                                    df_data[k] += sum(value)
+
+                        df_data2 = []
+                        for k, v in df_data.items():
+                            df_data2.append(
+                                [_rename_strat(k, clipping=clipping), v / 60]
+                            )
+
+                        data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
+
+                        data_df.sort_values(by=metric, inplace=True)
+
+                        fig = plt.figure(
+                            figsize=set_matplotlib_size(width, fraction=0.5)
+                        )
+                        ax = sns.barplot(data=data_df, y="Strategy", x=metric)
+
+                        show_values_on_bars(ax, "h", xlim_additional=3)
+
+                        plt.xlabel("")
+                        plt.ylabel("")
+
+                        plt.tight_layout()
+                        plt.savefig(
+                            table_file,
+                            dpi=300,
+                        )
+                        # plt.show()
+                        plt.clf()
+                        plt.close("all")
+
+
+full_passive_comparison(full_param_grid)
 exit(-1)
+full_violinplot(full_param_grid)
+
+# full_boxplot(full_param_grid, clipping=False)
+# full_boxplot(full_param_grid)
 full_runtime_stats(full_param_grid)
 full_table_stat(full_param_grid, clipping=False)
 

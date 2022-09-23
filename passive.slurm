@@ -10,7 +10,7 @@
 #SBATCH --mem=120GB
 #SBATCH --output /scratch/ws/1/s5968580-btw/out-%A_%a.txt
 #SBATCH --error /scratch/ws/1/s5968580-btw/error-%A_%a.txt
-#SBATCH --array 0-299
+#SBATCH --array 0-200
 
 
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
@@ -30,6 +30,6 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload passive --n_array_jobs 300 --array_job_id $SLURM_ARRAY_TASK_ID
+python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload passive --n_array_jobs 201 --array_job_id $SLURM_ARRAY_TASK_ID
 
 exit 0
