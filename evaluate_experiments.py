@@ -663,9 +663,11 @@ def _rename_dataset_name(dataset):
 
 
 def _rename_strat(strategy, clipping=True):
-    strategy = strategy.replace("trustscore (softmax) True/1.0", "LC (trustscore)")
-    strategy = strategy.replace("trustscore (softmax) True/0.95", "LC (trustscore)")
-    strategy = strategy.replace("trustscore (softmax) True/0.9", "LC (trustscore)")
+    strategy = strategy.replace("trustscore (softmax) True/1.0", "LC (trustscore) 1.0")
+    strategy = strategy.replace(
+        "trustscore (softmax) True/0.95", "LC (trustscore) 0.95"
+    )
+    strategy = strategy.replace("trustscore (softmax) True/0.9", "LC (trustscore) 0.9")
     # rename strategies
     strategy = strategy.replace("True/", "")
     strategy = strategy.replace("MM (softmax)", "MM")
@@ -680,8 +682,9 @@ def _rename_strat(strategy, clipping=True):
     strategy = strategy.replace("LC (evidential1)", "LC (evidential)")
 
     strategy = strategy.replace("LC (label_smoothing)", "LC (label smoothing)")
+    strategy = strategy.replace("temp_scaling", "Temperature Scaling")
 
-    if clipping:
+    if not clipping:
         strategy = strategy.replace(" 1.0", "")
         strategy = strategy.replace(" 0.95", "")
         strategy = strategy.replace(" 0.9", "")
@@ -806,7 +809,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                 else:
                                     print("help" * 1000)
 
-                                k = _rename_strat(k, clipping=True)
+                                k = _rename_strat(k, clipping=False)
                                 if k == "Passive":
                                     continue
                                 v = [x[-consider_last_n:] for x in v]
@@ -816,13 +819,14 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                     formatted_value *= 100
                                     table_data.append((k, formatted_value, clipping))
 
+                                    if k == "Rand":
+                                        table_data.append((k, formatted_value, "95\%"))
+
                                 formatted_value = np.mean(v) * 100
                                 table_data2.append((k, formatted_value, clipping))
-                                stick_data[dataset2].append(formatted_value)
-
                                 if k == "Rand":
-                                    table_data.append((k, formatted_value, "95\%"))
                                     table_data2.append((k, formatted_value, "95\%"))
+                                stick_data[dataset2].append(formatted_value)
 
                         df = pd.DataFrame(
                             table_data, columns=["Method", "Acc", "clipping"]
@@ -839,6 +843,8 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             .sort_values("Acc")
                         )
 
+                        ordering = df4.index.tolist()
+
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
                         fig_dim = (fig_dim[0], fig_dim[1])
                         fig = plt.figure(figsize=fig_dim)
@@ -846,7 +852,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             data=df3,
                             y="Acc",
                             x="Method",
-                            order=df4.index,
+                            order=ordering,
                             hue="clipping",
                             split=True,
                             inner="stick",
@@ -865,7 +871,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             data=df,
                             y="Acc",
                             x="Method",
-                            order=df4.index,
+                            order=ordering,
                             hue="clipping",
                             split=True,
                             # bw=0.35,
@@ -915,7 +921,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
 
                         plt.xlabel("")
                         plt.ylabel("")
-                        plt.ylim(0, 115)
+                        plt.ylim(25, 108)
 
                         plt.tight_layout()
                         plt.savefig(
@@ -930,10 +936,10 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
 def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
     if clipping:
         table_title_prefix = ""
-        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+        param_grid = _filter_out_param(pg, "", [])
     else:
         table_title_prefix = "clipped"
-        param_grid = _filter_out_param(pg, "", [])
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
 
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
@@ -982,10 +988,9 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                                     table_data[k][dataset2] = formatted_value
 
                         for k, v in table_data.items():
-                            table_data[k]["Mean"] = f"{0:.2f}".format(
-                                [float(x[:5]) for x in v.values()]
+                            table_data[k]["Mean"] = "{0:.2f}".format(
+                                np.mean([float(x[:5]) for x in v.values()])
                             )
-
                         df = pd.DataFrame(table_data)
                         df = df.T
                         df.reset_index(inplace=True)
@@ -1089,9 +1094,12 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
                         df_data2 = []
                         for k, v in df_data.items():
-                            df_data2.append(
-                                [_rename_strat(k, clipping=clipping), v / 60]
-                            )
+                            if k in [
+                                "Rand (softmax) True/1.0",
+                                "passive (softmax) True/1.0",
+                            ]:
+                                continue
+                            df_data2.append([_rename_strat(k, clipping=False), v / 60])
 
                         data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
 
@@ -1102,7 +1110,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                         )
                         ax = sns.barplot(data=data_df, y="Strategy", x=metric)
 
-                        show_values_on_bars(ax, "h", xlim_additional=3)
+                        show_values_on_bars(ax, "h", xlim_additional=30)
 
                         plt.xlabel("")
                         plt.ylabel("")
@@ -1347,13 +1355,13 @@ def full_class_distribution(
 
 # full_class_distribution(full_param_grid)
 # exit(-1)
-# full_violinplot(full_param_grid)
+full_violinplot(full_param_grid)
+exit(-1)
+full_runtime_stats(full_param_grid)
+full_table_stat(full_param_grid, clipping=False)
 
-# full_boxplot(full_param_grid, clipping=False)
-# full_boxplot(full_param_grid)
-# full_runtime_stats(full_param_grid)
-# full_table_stat(full_param_grid, clipping=False)
-full_table_stat(full_param_grid, clipping=True)
+
+# full_table_stat(full_param_grid, clipping=True)
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
