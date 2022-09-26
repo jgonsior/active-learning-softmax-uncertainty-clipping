@@ -25,6 +25,8 @@ from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
 
+from dataset_loader import load_my_dataset
+
 font_size = 6
 
 tex_fonts = {
@@ -326,7 +328,8 @@ def _convert_config_to_path(config_dict) -> Path:
     params = OrderedDict(sorted(config_dict.items(), key=lambda t: t[0]))
 
     exp_results_dir = Path(
-        "exp_results_taurus_with_class_weights/"
+        # "exp_results_taurus_with_class_weights/"
+        "exp_results/"
         + "-".join([str(a) for a in params.values()])
     )
     return exp_results_dir
@@ -1193,9 +1196,41 @@ def full_passive_comparison(
                         plt.close("all")
 
 
+"""
+singularity
+
+singularity exec --nv pytorch:21.08-py3.sif python test.py --num_iterations 20 --batch_size 25 --exp_name baseline --dataset ag_news --random_seed 46 --query_strategy Rand --uncertainty_method softmax --initially_labeled_samples 25 --transformer_model_name roberta-base --gpu_device 0 --uncertainty_clipping 1.0 --lower_is_better True
+
+
+
+# Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
+export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
+OUTFILE=""
+
+module load modenv/hiera  GCC/10.2.0  CUDA/11.1.1  OpenMPI/4.0.5
+module load PyTorch/1.10.0
+source /scratch/ws/1/s5968580-btw/venv/bin/activate
+
+export HF_MODULE_CACHE='./hf-cache'
+export TRANSFORMERS_CACHE="./hf-cache"
+export HF_DATASETS_CACHE="./hf-cache"
+mkdir -p $TRANSFORMERS_CACHE
+
+#module load PyTorch/1.10.0
+
+#pip install dill scikit-learn tqdm matplotlib seaborn
+#pip install torchtext transformers datasets
+python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload passive --n_array_jobs 201 --array_job_id $SLURM_ARRAY_TASK_ID
+
+"""
+
+
 def full_class_distribution(
     pg, clipping=True, metric="times_elapsed", consider_last_n=21
 ):
+    # train/test class distribution
+    # class distribution per strategy
+
     if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
@@ -1203,18 +1238,49 @@ def full_class_distribution(
         table_title_prefix = "clipped"
         param_grid = _filter_out_param(pg, "", [])
 
+    def _count_unique_percentages(Ys):
+        uniques = np.unique(Ys, return_counts=True)[1]
+        return [counts / np.sum(uniques) for counts in uniques]
+
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
+
                         table_file = Path(
-                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                            f"final/class_distributions_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
                         )
                         print(table_file)
 
-                        groups = []
+                        dataset_counts_test = {}
+                        dataset_counts_train = {}
+                        Y_trains = {}
+                        Y_tests = {}
+
+                        for dataset in datasets[0:1]:
+                            print(dataset)
+                            train, test, _ = load_my_dataset(
+                                dataset, "bert-base-uncased", tokenization=False
+                            )
+                            train_Y = train["label"]
+                            test_Y = test["label"]
+
+                            train_Y_uniques = _count_unique_percentages(train_Y)
+                            test_Y_uniques = _count_unique_percentages(test_Y)
+
+                            dataset_counts_test[dataset] = test_Y_uniques
+                            dataset_counts_train[dataset] = train_Y_uniques
+
+                            Y_trains[dataset] = train_Y
+                            Y_tests[dataset] = test_Y
+
+                        print(dataset_counts_test)
+                        print(dataset_counts_train)
+                        # print(Y_trains)
+
+                        groups = {}
                         for dataset in datasets:
                             #
                             grouped_data = _load_grouped_data(
@@ -1225,13 +1291,23 @@ def full_class_distribution(
                                 batch_size,
                                 param_grid,
                                 num_iteration,
-                                metric,
+                                metric="queried_indices",
                             )
-                            groups.append((dataset, grouped_data))
+                            groups[dataset] = grouped_data
 
                         if len(grouped_data) == 0:
                             return
 
+                        for dataset in datasets:
+                            for strategy in groups[dataset].keys():
+                                for random_seed in range(
+                                    0, np.shape(groups[dataset][strategy])[0]
+                                ):
+                                    print(
+                                        np.shape(groups[dataset][strategy][random_seed])
+                                    )
+
+                        exit(-1)
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
                         for (dataset, group) in groups:
@@ -1269,14 +1345,15 @@ def full_class_distribution(
                         plt.close("all")
 
 
-full_class_distribution(full_param_grid)
-exit(-1)
-full_violinplot(full_param_grid)
+# full_class_distribution(full_param_grid)
+# exit(-1)
+# full_violinplot(full_param_grid)
 
 # full_boxplot(full_param_grid, clipping=False)
 # full_boxplot(full_param_grid)
-full_runtime_stats(full_param_grid)
-full_table_stat(full_param_grid, clipping=False)
+# full_runtime_stats(full_param_grid)
+# full_table_stat(full_param_grid, clipping=False)
+full_table_stat(full_param_grid, clipping=True)
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)

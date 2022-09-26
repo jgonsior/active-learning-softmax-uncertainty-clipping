@@ -78,6 +78,10 @@ passive_param_grid["query_strategy"] = ["passive", "Rand"]
 passive_param_grid["uncertainty_clipping"] = [1.0]
 
 
+trustscore_param_grid = copy.deepcopy(full_param_grid)
+trustscore_param_grid["query_strategy"] = ["trustscore"]
+trustscore_param_grid["uncertainty_method"] = ["softmax"]
+
 # source: https://stackoverflow.com/a/54802737
 def _chunks(l, n):
     """Yield n number of striped chunks from l."""
@@ -207,7 +211,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--workload",
         type=str,
-        choices=["dev", "baselines", "my", "passive"],
+        choices=["dev", "baselines", "my", "passive", "trustscore"],
     )
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--array_job_id", type=int, default=0)
@@ -243,6 +247,12 @@ if __name__ == "__main__":
     elif args.workload == "passive":
         _, open_param_list, full_param_list = generate_workload(
             passive_param_grid,
+            args.array_job_id,
+            args.n_array_jobs,
+        )
+    elif args.workload == "trustscore":
+        _, open_param_list, full_param_list = generate_workload(
+            trustscore_param_grid,
             args.array_job_id,
             args.n_array_jobs,
         )
