@@ -2,7 +2,9 @@ from ast import FormattedValue
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
 import copy
+from dis import findlinestarts
 import enum
+from heapq import nlargest
 import itertools
 import json
 from pathlib import Path
@@ -11,7 +13,9 @@ from joblib import Parallel, delayed, parallel_backend
 from matplotlib import pyplot as plt
 from matplotlib.collections import PolyCollection
 from matplotlib.lines import Line2D
+from matplotlib.ticker import PercentFormatter
 import numpy as np
+from regex import D
 from sklearn.metrics import jaccard_score
 
 from run_experiment import (
@@ -26,6 +30,7 @@ import pandas as pd
 import seaborn as sns
 
 from dataset_loader import load_my_dataset
+from small_text import data
 
 font_size = 6
 
@@ -1204,40 +1209,16 @@ def full_passive_comparison(
                         plt.close("all")
 
 
-"""
-singularity
-
-singularity exec --nv pytorch:21.08-py3.sif python test.py --num_iterations 20 --batch_size 25 --exp_name baseline --dataset ag_news --random_seed 46 --query_strategy Rand --uncertainty_method softmax --initially_labeled_samples 25 --transformer_model_name roberta-base --gpu_device 0 --uncertainty_clipping 1.0 --lower_is_better True
-
-
-
-# Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
-export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
-OUTFILE=""
-
-module load modenv/hiera  GCC/10.2.0  CUDA/11.1.1  OpenMPI/4.0.5
-module load PyTorch/1.10.0
-source /scratch/ws/1/s5968580-btw/venv/bin/activate
-
-export HF_MODULE_CACHE='./hf-cache'
-export TRANSFORMERS_CACHE="./hf-cache"
-export HF_DATASETS_CACHE="./hf-cache"
-mkdir -p $TRANSFORMERS_CACHE
-
-#module load PyTorch/1.10.0
-
-#pip install dill scikit-learn tqdm matplotlib seaborn
-#pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload passive --n_array_jobs 201 --array_job_id $SLURM_ARRAY_TASK_ID
-
-"""
-
-
 def full_class_distribution(
-    pg, clipping=True, metric="times_elapsed", consider_last_n=21
+    pg,
+    clipping=True,
+    metric="times_elapsed",
+    consider_last_n=21,
+    datasets_to_consider=["trec6", "ag_news"],
 ):
     # train/test class distribution
     # class distribution per strategy
+    pg["dataset"] = datasets_to_consider
 
     if clipping:
         table_title_prefix = ""
@@ -1257,17 +1238,12 @@ def full_class_distribution(
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
 
-                        table_file = Path(
-                            f"final/class_distributions_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
-                        )
-                        print(table_file)
-
                         dataset_counts_test = {}
                         dataset_counts_train = {}
                         Y_trains = {}
                         Y_tests = {}
 
-                        for dataset in datasets[0:1]:
+                        for dataset in datasets:
                             print(dataset)
                             train, test, _ = load_my_dataset(
                                 dataset, "bert-base-uncased", tokenization=False
@@ -1284,13 +1260,8 @@ def full_class_distribution(
                             Y_trains[dataset] = train_Y
                             Y_tests[dataset] = test_Y
 
-                        print(dataset_counts_test)
-                        print(dataset_counts_train)
-                        # print(Y_trains)
-
                         groups = {}
                         for dataset in datasets:
-                            #
                             grouped_data = _load_grouped_data(
                                 exp_name,
                                 transformer_model_name,
@@ -1301,62 +1272,267 @@ def full_class_distribution(
                                 num_iteration,
                                 metric="queried_indices",
                             )
+                            grouped_data = {
+                                _rename_strat(k, clipping=False): v
+                                for k, v in grouped_data.items()
+                            }
                             groups[dataset] = grouped_data
 
                         if len(grouped_data) == 0:
                             return
 
                         for dataset in datasets:
+                            queried_percentages = {}
                             for strategy in groups[dataset].keys():
+                                queried_percentages[strategy] = []
                                 for random_seed in range(
                                     0, np.shape(groups[dataset][strategy])[0]
                                 ):
-                                    print(
-                                        np.shape(groups[dataset][strategy][random_seed])
-                                    )
+                                    queriend_indices = np.array(
+                                        groups[dataset][strategy][random_seed]
+                                    ).flatten()
 
-                        exit(-1)
-                        # sum up elapsed times
-                        df_data = defaultdict(lambda: 0)
-                        for (dataset, group) in groups:
-                            for k, v in group.items():
-                                for value in v:
-                                    df_data[k] += sum(value)
+                                    queried_Ys = np.array(Y_trains[dataset])[
+                                        queriend_indices
+                                    ]
 
-                        df_data2 = []
-                        for k, v in df_data.items():
-                            df_data2.append(
-                                [_rename_strat(k, clipping=clipping), v / 60]
+                                    queried_percentages[strategy] = [
+                                        *queried_percentages[strategy],
+                                        *queried_Ys,
+                                    ]
+
+                                queried_percentages[
+                                    strategy
+                                ] = _count_unique_percentages(
+                                    queried_percentages[strategy]
+                                )
+
+                            df = pd.DataFrame(queried_percentages)
+                            df["Test Dataset"] = dataset_counts_test[dataset]
+                            df["Train"] = dataset_counts_train[dataset]
+
+                            # normalize data using true distribution in train test
+                            df = df.apply(lambda col: col - df["Train"])
+                            df = df.apply(lambda x: x * 100)
+                            del df["Train"]
+                            del df["Passive"]
+
+                            fig = plt.figure(
+                                figsize=set_matplotlib_size(width, fraction=1)
                             )
 
-                        data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
+                            ax = sns.heatmap(
+                                df,
+                                annot=True,
+                                center=0,
+                                fmt=".1f",
+                            )
 
-                        data_df.sort_values(by=metric, inplace=True)
+                            cbar = ax.collections[0].colorbar
+                            cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
 
-                        fig = plt.figure(
-                            figsize=set_matplotlib_size(width, fraction=0.5)
+                            ax.set_xticklabels(
+                                ax.get_xticklabels(),
+                                rotation=20,
+                                horizontalalignment="right",
+                            )
+                            plt.tight_layout()
+
+                            table_file = Path(
+                                f"final/class_distributions_{dataset}_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                            )
+                            print(table_file)
+                            plt.savefig(
+                                table_file,
+                                dpi=300,
+                            )
+                            # plt.show()
+                            plt.clf()
+                            plt.close("all")
+                            # exit(-1)
+
+
+def _flatten(list_to_flatten):
+    return [num for elem in list_to_flatten for num in elem]
+
+
+def _vector_indice_heatmap(data, title):
+    results = []
+    for (a, b) in itertools.product(data.keys(), repeat=2):
+        outliers_per_random_seed_a = set(_flatten(data[a]))
+        outliers_per_random_seed_b = set(_flatten(data[b]))
+
+        results.append(
+            (
+                a,
+                b,
+                len(outliers_per_random_seed_a.intersection(outliers_per_random_seed_b))
+                / len(outliers_per_random_seed_a.union(outliers_per_random_seed_b))
+                * 100,
+            )
+        )
+    result_df = pd.DataFrame(results, columns=["a", "b", "agreement"])
+    result_df = result_df.pivot("a", "b", "agreement")
+    print(result_df)
+    mask = np.zeros_like(result_df.to_numpy())
+    mask[np.diag_indices_from(mask)] = True
+    ax = sns.heatmap(
+        result_df,
+        annot=True,
+        mask=mask,
+        square=True,
+        fmt=".1f",
+    )
+
+    cbar = ax.collections[0].colorbar
+    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
+
+    ax.set_xticklabels(
+        ax.get_xticklabels(),
+        rotation=20,
+        horizontalalignment="right",
+    )
+
+    ax.set_ylabel("")
+    ax.set_xlabel("")
+    plt.tight_layout()
+
+    table_file = Path(title)
+    print(table_file)
+    plt.savefig(
+        table_file,
+        dpi=300,
+    )
+    # plt.show()
+    plt.clf()
+    plt.close("all")
+
+
+def full_outlier_comparison(
+    pg,
+    clipping=True,
+    metric="times_elapsed",
+    consider_last_n=21,
+    outliers_outliers=False,
+):
+    # ich möchte heatmap: x-achse: strategien, y-achse: datensätze, und dann jeweil die prozentuale anzahl der outlier die gesampled wurden?
+    if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "", [])
+
+    def _count_unique_percentages(Ys):
+        uniques = np.unique(Ys, return_counts=True)[1]
+        return [counts / np.sum(uniques) for counts in uniques]
+
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+
+                        groups = {}
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric="queried_indices",
+                            )
+                            grouped_data = {
+                                _rename_strat(k, clipping=False): v
+                                for k, v in grouped_data.items()
+                            }
+                            groups[dataset] = grouped_data
+
+                        if len(grouped_data) == 0:
+                            return
+
+                        outliers = {}
+                        queried_indices = {}
+
+                        for dataset in datasets:
+                            outliers[dataset] = []
+                            queried_indices[dataset] = {}
+
+                            for strategy in groups[dataset].keys():
+                                if strategy == "Passive":
+                                    queried_indices[dataset]["Outlier"] = []
+                                    for random_seed in param_grid["random_seed"]:
+                                        passive_path = _convert_config_to_path(
+                                            {
+                                                "uncertainty_method": "softmax",
+                                                "query_strategy": "passive",
+                                                "exp_name": exp_name,
+                                                "transformer_model_name": transformer_model_name,
+                                                "dataset": dataset,
+                                                "initially_labeled_samples": initially_labeled_samples,
+                                                "random_seed": random_seed,
+                                                "batch_size": batch_size,
+                                                "num_iterations": num_iteration,
+                                                "uncertainty_clipping": "1.0",
+                                                "lower_is_better": True,
+                                            }
+                                        )
+                                        if passive_path.exists():
+                                            metrics = np.load(
+                                                passive_path / "metrics.npz",
+                                                allow_pickle=True,
+                                            )
+                                            outliers[dataset].append(
+                                                metrics["passive_outlier"].tolist()[0][
+                                                    0
+                                                ]
+                                            )
+
+                                            queried_indices[dataset]["Outlier"].append(
+                                                [
+                                                    int(q)
+                                                    for q in metrics["passive_outlier"][
+                                                        0
+                                                    ][0].tolist()
+                                                ]
+                                            )
+                                else:
+                                    queried_indices[dataset][strategy] = []
+                                    for random_seed in range(
+                                        0, np.shape(groups[dataset][strategy])[0]
+                                    ):
+                                        queried_indices[dataset][strategy].append(
+                                            np.array(
+                                                groups[dataset][strategy][random_seed]
+                                            )
+                                            .flatten()
+                                            .tolist()
+                                        )
+
+                        merged_strats = {}
+
+                        for dataset in queried_indices.keys():
+                            for strat in queried_indices[dataset].keys():
+                                if not strat in merged_strats.keys():
+                                    merged_strats[strat] = []
+                                merged_strats[strat].append(
+                                    _flatten(queried_indices[dataset][strat])
+                                )
+                        _vector_indice_heatmap(
+                            merged_strats,
+                            f"final/vector_indices_all_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf",
                         )
-                        ax = sns.barplot(data=data_df, y="Strategy", x=metric)
-
-                        show_values_on_bars(ax, "h", xlim_additional=3)
-
-                        plt.xlabel("")
-                        plt.ylabel("")
-
-                        plt.tight_layout()
-                        plt.savefig(
-                            table_file,
-                            dpi=300,
-                        )
-                        # plt.show()
-                        plt.clf()
-                        plt.close("all")
 
 
+full_outlier_comparison(full_param_grid)
+
+# error wegen Passive not found
 # full_class_distribution(full_param_grid)
-# exit(-1)
 full_violinplot(full_param_grid)
-exit(-1)
 full_runtime_stats(full_param_grid)
 full_table_stat(full_param_grid, clipping=False)
 
