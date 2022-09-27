@@ -124,6 +124,12 @@ def generate_workload(
         ):
             continue
 
+        if params["query_strategy"] != "trustscore" and params["dataset"] not in [
+            "sst2",
+            "cola",
+        ]:
+            continue
+
         params = OrderedDict(sorted(params.items(), key=lambda t: t[0]))
 
         # check if has already been run
