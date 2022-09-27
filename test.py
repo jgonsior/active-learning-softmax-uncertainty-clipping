@@ -345,7 +345,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        choices=["ag_news", "trec6", "subj", "rotten", "imdb"],
+        choices=["ag_news", "trec6", "subj", "rotten", "imdb", "sst2", "cola"],
         default="20newsgroups",
     )
     parser.add_argument(

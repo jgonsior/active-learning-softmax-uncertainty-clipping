@@ -848,6 +848,9 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             .sort_values("Acc")
                         )
 
+                        print(df)
+                        exit(-1)
+
                         ordering = df4.index.tolist()
 
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
@@ -1528,11 +1531,11 @@ def full_outlier_comparison(
                         )
 
 
-full_outlier_comparison(full_param_grid)
+full_violinplot(full_param_grid)
 
+full_outlier_comparison(full_param_grid)
 # error wegen Passive not found
 # full_class_distribution(full_param_grid)
-full_violinplot(full_param_grid)
 full_runtime_stats(full_param_grid)
 full_table_stat(full_param_grid, clipping=False)
 

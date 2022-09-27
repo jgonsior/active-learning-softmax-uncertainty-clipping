@@ -43,7 +43,7 @@ full_param_grid = {
         "bert-base-uncased",
         "roberta-base",
     ],  # ["bert-base-uncased", "roberta-large"],
-    "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb"],
+    "dataset": ["trec6", "ag_news", "subj", "rotten", "imdb", "cola", "sst2"],
     "initially_labeled_samples": [25],
     "random_seed": [42, 43, 44, 45, 46, 47, 48, 49, 50, 51],
     "batch_size": [25],
