@@ -33,7 +33,7 @@ import seaborn as sns
 from dataset_loader import load_my_dataset
 from small_text import data
 
-font_size = 6
+font_size = 5.8
 
 tex_fonts = {
     # Use LaTeX to write all text
@@ -1246,142 +1246,230 @@ def full_passive_comparison(
                         plt.close("all")
 
 
+def _plot_class_heatmap(data, ax, title, v_min, v_max):
+    print(np.min(data.to_numpy()))
+    print(np.max(data.to_numpy()))
+
+    ax = sns.heatmap(
+        data,
+        annot=True,
+        # cmap=sns.color_palette("husl", as_cmap=True),
+        center=0,
+        # square=True,
+        fmt=".1f",
+        ax=ax,
+        vmin=v_min,
+        vmax=v_max,
+    )
+    cbar = ax.collections[0].colorbar
+    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
+
+    # ax.set_title(f"{title[0]}-{title[1]}")
+
+    return ax
+
+
 def full_class_distribution(
     pg,
-    clipping=True,
-    metric="times_elapsed",
-    consider_last_n=21,
     datasets_to_consider=["trec6", "ag_news"],
+    clippings=[1.0, 0.95],
+    transformer_model_name="bert-base-uncased",
 ):
     # train/test class distribution
     # class distribution per strategy
     pg["dataset"] = datasets_to_consider
 
-    if clipping:
-        table_title_prefix = ""
-        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
-    else:
-        table_title_prefix = "clipped"
-        param_grid = _filter_out_param(pg, "", [])
-
     def _count_unique_percentages(Ys):
         uniques = np.unique(Ys, return_counts=True)[1]
         return [counts / np.sum(uniques) for counts in uniques]
 
-    for exp_name in param_grid["exp_name"]:
-        for transformer_model_name in param_grid["transformer_model_name"]:
-            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
-                for batch_size in param_grid["batch_size"]:
-                    for num_iteration in param_grid["num_iterations"]:
-                        datasets = param_grid["dataset"]
+    results = []
+    datasets = datasets_to_consider
+    for clipping in clippings:
+        param_grid = copy.deepcopy(pg)
+        param_grid["uncertainty_clipping"] = [clipping]
+        param_grid["transformer_model_name"] = [transformer_model_name]
 
-                        dataset_counts_test = {}
-                        dataset_counts_train = {}
-                        Y_trains = {}
-                        Y_tests = {}
+        for exp_name in param_grid["exp_name"]:
+            for transformer_model_name in param_grid["transformer_model_name"]:
+                for initially_labeled_samples in param_grid[
+                    "initially_labeled_samples"
+                ]:
+                    for batch_size in param_grid["batch_size"]:
+                        for num_iteration in param_grid["num_iterations"]:
+                            dataset_counts_test = {}
+                            dataset_counts_train = {}
+                            Y_trains = {}
+                            Y_tests = {}
 
-                        for dataset in datasets:
-                            print(dataset)
-                            train, test, _ = load_my_dataset(
-                                dataset, "bert-base-uncased", tokenization=False
-                            )
-                            train_Y = train["label"]
-                            test_Y = test["label"]
-
-                            train_Y_uniques = _count_unique_percentages(train_Y)
-                            test_Y_uniques = _count_unique_percentages(test_Y)
-
-                            dataset_counts_test[dataset] = test_Y_uniques
-                            dataset_counts_train[dataset] = train_Y_uniques
-
-                            Y_trains[dataset] = train_Y
-                            Y_tests[dataset] = test_Y
-
-                        groups = {}
-                        for dataset in datasets:
-                            grouped_data = _load_grouped_data(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="queried_indices",
-                            )
-                            grouped_data = {
-                                _rename_strat(k, clipping=False): v
-                                for k, v in grouped_data.items()
-                            }
-                            groups[dataset] = grouped_data
-
-                        if len(grouped_data) == 0:
-                            return
-
-                        for dataset in datasets:
-                            queried_percentages = {}
-                            for strategy in groups[dataset].keys():
-                                queried_percentages[strategy] = []
-                                for random_seed in range(
-                                    0, np.shape(groups[dataset][strategy])[0]
-                                ):
-                                    queriend_indices = np.array(
-                                        groups[dataset][strategy][random_seed]
-                                    ).flatten()
-
-                                    queried_Ys = np.array(Y_trains[dataset])[
-                                        queriend_indices
-                                    ]
-
-                                    queried_percentages[strategy] = [
-                                        *queried_percentages[strategy],
-                                        *queried_Ys,
-                                    ]
-
-                                queried_percentages[
-                                    strategy
-                                ] = _count_unique_percentages(
-                                    queried_percentages[strategy]
+                            for dataset in datasets:
+                                # print(dataset)
+                                train, test, _ = load_my_dataset(
+                                    dataset, "bert-base-uncased", tokenization=False
                                 )
+                                train_Y = train["label"]
+                                test_Y = test["label"]
 
-                            df = pd.DataFrame(queried_percentages)
-                            df["Test Dataset"] = dataset_counts_test[dataset]
-                            df["Train"] = dataset_counts_train[dataset]
+                                train_Y_uniques = _count_unique_percentages(train_Y)
+                                test_Y_uniques = _count_unique_percentages(test_Y)
 
-                            # normalize data using true distribution in train test
-                            df = df.apply(lambda col: col - df["Train"])
-                            df = df.apply(lambda x: x * 100)
-                            del df["Train"]
-                            del df["Passive"]
+                                dataset_counts_test[dataset] = test_Y_uniques
+                                dataset_counts_train[dataset] = train_Y_uniques
 
-                            fig = plt.figure(
-                                figsize=set_matplotlib_size(width, fraction=0.5)
-                            )
+                                Y_trains[dataset] = train_Y
+                                Y_tests[dataset] = test_Y
 
-                            ax = sns.heatmap(
-                                df.T,
-                                annot=True,
-                                # square=True,
-                                center=0,
-                                fmt=".1f",
-                            )
+                            groups = {}
+                            for dataset in datasets:
+                                grouped_data = _load_grouped_data(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid,
+                                    num_iteration,
+                                    metric="queried_indices",
+                                )
+                                grouped_data = {
+                                    _rename_strat(k, clipping=False): v
+                                    for k, v in grouped_data.items()
+                                }
+                                groups[dataset] = grouped_data
 
-                            cbar = ax.collections[0].colorbar
-                            cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
+                            if len(grouped_data) == 0:
+                                return
 
-                            plt.tight_layout(pad=0, h_pad=0, w_pad=0)
+                            for dataset in datasets:
+                                queried_percentages = {}
+                                for strategy in groups[dataset].keys():
+                                    queried_percentages[strategy] = []
+                                    for random_seed in range(
+                                        0, np.shape(groups[dataset][strategy])[0]
+                                    ):
+                                        queriend_indices = np.array(
+                                            groups[dataset][strategy][random_seed]
+                                        ).flatten()
 
-                            table_file = Path(
-                                f"final/class_distributions_{dataset}_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
-                            )
-                            print(table_file)
-                            plt.savefig(
-                                table_file, dpi=300, bbox_inches="tight", pad_inches=0
-                            )
-                            # plt.show()
-                            plt.clf()
-                            plt.close("all")
-                            # exit(-1)
+                                        queried_Ys = np.array(Y_trains[dataset])[
+                                            queriend_indices
+                                        ]
+
+                                        queried_percentages[strategy] = [
+                                            *queried_percentages[strategy],
+                                            *queried_Ys,
+                                        ]
+
+                                    queried_percentages[
+                                        strategy
+                                    ] = _count_unique_percentages(
+                                        queried_percentages[strategy]
+                                    )
+
+                                df = pd.DataFrame(queried_percentages)
+                                df["Test"] = dataset_counts_test[dataset]
+                                df["Train"] = dataset_counts_train[dataset]
+
+                                # normalize data using true distribution in train test
+                                df = df.apply(lambda col: col - df["Train"])
+                                df = df.apply(lambda x: x * 100)
+
+                                del df["Train"]
+                                if "Pass" in df.columns:
+                                    del df["Pass"]
+
+                                df = df.T
+                                df = df.rename(columns=lambda c: chr(ord("A") + c))
+
+                                results.append((dataset, clipping, df))
+
+    # create 4 supblots
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=set_matplotlib_size(width, fraction=1.0),
+    )
+
+    min_ag_news = -20
+    max_ag_news = 20
+
+    min_trec = -15
+    max_trec = 15
+
+    ax00 = _plot_class_heatmap(
+        results[0][2],
+        ax=axs[0, 0],
+        title=results[0],
+        v_min=min_trec,
+        v_max=max_trec,
+    )
+
+    ax01 = _plot_class_heatmap(
+        results[1][2],
+        ax=axs[0, 1],
+        title=results[1],
+        v_min=min_ag_news,
+        v_max=max_ag_news,
+    )
+    ax10 = _plot_class_heatmap(
+        results[2][2],
+        ax=axs[1, 0],
+        title=results[2],
+        v_min=min_trec,
+        v_max=max_trec,
+    )
+    ax11 = _plot_class_heatmap(
+        results[3][2],
+        ax=axs[1, 1],
+        title=results[3],
+        v_min=min_ag_news,
+        v_max=max_ag_news,
+    )
+
+    for axa in [ax00, ax01, ax10, ax11]:
+        axa.set_xlabel("")
+        axa.set_ylabel("")
+        axa.tick_params(axis="x", bottom=False)
+
+    ax00.set_ylabel("Clipping 100\%")
+    ax10.set_ylabel("Clipping 95\%")
+
+    # remove unecessary yaxis
+    ax01.yaxis.set_visible(False)
+    ax11.yaxis.set_visible(False)
+    ax00.xaxis.set_ticks([])
+    ax01.xaxis.set_ticks([])
+
+    ax00.set_xlabel("TREC6")
+    ax00.xaxis.set_label_position("top")
+    ax01.set_xlabel("AG_NEWS")
+    ax01.xaxis.set_label_position("top")
+    plt.tight_layout()
+
+    # remove colorbars
+    """for axa in [ax00, ax01, ax10]:
+        cbar = axa.collections[0].colorbar
+        cbar.remove()
+
+    cbar11 = ax11.collections[0].colorbar
+
+    plt.tight_layout()
+
+    plt.subplots_adjust(bottom=0.11, right=0.94, top=0.95)
+    cax = plt.axes([0.95, 0, 0.02, 1.0])
+    cbar = fig.colorbar(
+        ax11.collections[0],
+        cax=cax,
+    )
+    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
+
+    cbar11.remove()
+    """
+    table_file = Path(f"final/class_distributions.pdf")
+    print(table_file)
+    plt.savefig(table_file, dpi=300, bbox_inches="tight", pad_inches=0)
+    plt.clf()
+    plt.close("all")
 
 
 def _flatten(list_to_flatten):
@@ -1452,8 +1540,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         fmt=".1f",
         ax=ax,
         vmin=vmin,
-        vmax=vmax
-        # cbar_ax=ax0,
+        vmax=vmax,
     )
     # ax.set_title(f"{title[0]}-{title[1]}")
 
@@ -1616,14 +1703,11 @@ def full_outlier_comparison(
     for axa in [ax00, ax01, ax10, ax11]:
         axa.set_xlabel("")
         axa.set_ylabel("")
-        # axa.xaxis.set_ticks_position("none")
         axa.tick_params(axis="x", bottom=False)
 
-    from matplotlib.ticker import MultipleLocator, IndexLocator
+    from matplotlib.ticker import LogFormatter
 
     ax00.set_ylabel("BERT")
-    # print(ax00.get_xticklabels())
-    # ax00.yaxis.set_major_locator(IndexLocator(0, len(ax00.get_xticklabels())))
     ax10.set_ylabel("RoBERTa")
 
     ax00.set_xlabel("Clipping: 100\%")
@@ -1660,11 +1744,8 @@ def full_outlier_comparison(
 full_param_grid["dataset"].remove("cola")
 full_param_grid["dataset"].remove("sst2")
 
-full_outlier_comparison(copy.deepcopy(full_param_grid))
-exit(-1)
-
 full_class_distribution(copy.deepcopy(full_param_grid))
-
+full_outlier_comparison(copy.deepcopy(full_param_grid))
 full_violinplot(copy.deepcopy(full_param_grid))
 
 full_runtime_stats(copy.deepcopy(full_param_grid))
