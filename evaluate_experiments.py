@@ -8,6 +8,7 @@ from heapq import nlargest
 import itertools
 import json
 from pathlib import Path
+from turtle import title
 from typing import Any, Dict, Tuple
 from joblib import Parallel, delayed, parallel_backend
 from matplotlib import pyplot as plt
@@ -47,7 +48,7 @@ tex_fonts = {
     "xtick.labelsize": font_size,
     "ytick.labelsize": font_size,
     "xtick.bottom": True,
-    "figure.autolayout": True,
+    # "figure.autolayout": True,
 }
 
 sns.set_style("white")
@@ -186,11 +187,15 @@ def runtime_plots(
     plots_path.mkdir(exist_ok=True)
 
     plt.savefig(
-        f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.jpg"
+        f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.jpg",
+        bbox_inches="tight",
+        pad_inches=0,
     )
     plt.savefig(
         f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.pdf",
         dpi=300,
+        bbox_inches="tight",
+        pad_inches=0,
     )
     plt.clf()
     plt.close("all")
@@ -288,8 +293,17 @@ def uncertainty_histogram_plots(
         )
         plot_path.mkdir(exist_ok=True, parents=True)
 
-        plt.savefig(plot_path / f"{strat.replace('/', '-')}.jpg")
-        plt.savefig(plot_path / f"{strat.replace('/', '-')}.pdf", dpi=300)
+        plt.savefig(
+            plot_path / f"{strat.replace('/', '-')}.jpg",
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.savefig(
+            plot_path / f"{strat.replace('/', '-')}.pdf",
+            dpi=300,
+            bbox_inches="tight",
+            pad_inches=0,
+        )
         plt.clf()
         plt.close("all")
 
@@ -323,8 +337,15 @@ def uncertainty_histogram_plots(
             )
             plot_path.mkdir(exist_ok=True, parents=True)
 
-            plt.savefig(plot_path / f"{iteration}.jpg")
-            plt.savefig(plot_path / f"{iteration}.pdf", dpi=300)
+            plt.savefig(
+                plot_path / f"{iteration}.jpg", bbox_inches="tight", pad_inches=0
+            )
+            plt.savefig(
+                plot_path / f"{iteration}.pdf",
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0,
+            )
             plt.clf()
             plt.close("all")
 
@@ -349,6 +370,7 @@ def _load_grouped_data(
     param_grid: Dict[str, Any],
     num_iterations: int,
     metric="test_acc",
+    ignore_clipping_for_random_and_passive=True,
 ):
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
@@ -358,8 +380,15 @@ def _load_grouped_data(
                     if (
                         query_strategy in ["passive", "Rand"]
                         and uncertainty_clipping != 1.0
+                        and ignore_clipping_for_random_and_passive
                     ):
                         continue
+                    elif (
+                        query_strategy in ["passive", "Rand"]
+                        and uncertainty_clipping != 1.0
+                        and not ignore_clipping_for_random_and_passive
+                    ):
+                        uncertainty_clipping = 1.0
                     key = f"{query_strategy} ({uncertainty_method}) {lower_is_better}/{uncertainty_clipping}"
                     grouped_data[key] = []
                     for random_seed in param_grid["random_seed"]:
@@ -437,11 +466,15 @@ def table_stats(
         plots_path.mkdir(exist_ok=True)
 
         plt.savefig(
-            f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.jpg"
+            f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.jpg",
+            bbox_inches="tight",
+            pad_inches=0,
         )
         plt.savefig(
             f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}.pdf",
             dpi=300,
+            bbox_inches="tight",
+            pad_inches=0,
         )
         plt.clf()
         plt.close("all")
@@ -655,48 +688,51 @@ def tables_plots(param_grid):
 
 def _rename_dataset_name(dataset):
     if dataset == "trec6":
-        dataset2 = "TREC6"
+        dataset2 = "TR"
     elif dataset == "ag_news":
-        dataset2 = "AGN"
+        dataset2 = "AG"
     elif dataset == "subj":
-        dataset2 = "SUBJ"
+        dataset2 = "SU"
     elif dataset == "rotten":
         dataset2 = "RT"
     elif dataset == "imdb":
-        dataset2 = "IMDB"
+        dataset2 = "IM"
     elif dataset == "sst2":
-        dataset2 = "SST-2"
+        dataset2 = "S2"
     elif dataset == "cola":
-        dataset2 = "CoLA"
+        dataset2 = "CL"
     return dataset2
 
 
 def _rename_strat(strategy, clipping=True):
-    strategy = strategy.replace("trustscore (softmax) True/1.0", "LC (trustscore) 1.0")
-    strategy = strategy.replace(
-        "trustscore (softmax) True/0.95", "LC (trustscore) 0.95"
-    )
-    strategy = strategy.replace("trustscore (softmax) True/0.9", "LC (trustscore) 0.9")
+    strategy = strategy.replace("1.0", "100")
+    strategy = strategy.replace("0.95", "95")
+    strategy = strategy.replace("0.9", "90")
+    strategy = strategy.replace("trustscore (softmax)", "TrSc")
     # rename strategies
     strategy = strategy.replace("True/", "")
     strategy = strategy.replace("MM (softmax)", "MM")
     strategy = strategy.replace("LC (softmax)", "LC")
+    strategy = strategy.replace("LC (MonteCarlo)", "MoCa")
     strategy = strategy.replace("Ent (softmax)", "Ent")
     strategy = strategy.replace("Rand (softmax)", "Rand")
-    strategy = strategy.replace("passive (softmax)", "Passive")
+    strategy = strategy.replace("passive (softmax)", "Pass")
 
-    strategy = strategy.replace("QBC_VE (softmax)", "LC (ensemble, VE)")
-    strategy = strategy.replace("QBC_KLD (softmax)", "LC (ensemble, KLD)")
+    strategy = strategy.replace("QBC_VE (softmax)", "VE")
+    strategy = strategy.replace("QBC_KLD (softmax)", "KLD")
 
-    strategy = strategy.replace("LC (evidential1)", "LC (evidential)")
+    strategy = strategy.replace("LC (evidential1)", "Evi")
 
-    strategy = strategy.replace("LC (label_smoothing)", "LC (label smoothing)")
-    strategy = strategy.replace("temp_scaling", "Temperature Scaling")
+    strategy = strategy.replace("LC (label_smoothing)", "LS")
+    strategy = strategy.replace("LC (temp_scaling)", "TeSc")
 
     if not clipping:
-        strategy = strategy.replace(" 1.0", "")
-        strategy = strategy.replace(" 0.95", "")
-        strategy = strategy.replace(" 0.9", "")
+        strategy = strategy.replace(" 100", "")
+        strategy = strategy.replace(" 95", "")
+        strategy = strategy.replace(" 90", "")
+    else:
+        strategy = strategy.replace(" 100", "")
+
     return strategy
 
 
@@ -763,8 +799,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         plt.tight_layout()
                         plt.savefig(
-                            plot_file,
-                            dpi=300,
+                            plot_file, dpi=300, bbox_inches="tight", pad_inches=0
                         )
                         # plt.show()
                         plt.clf()
@@ -935,8 +970,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
 
                         plt.tight_layout()
                         plt.savefig(
-                            plot_file,
-                            dpi=300,
+                            plot_file, dpi=300, bbox_inches="tight", pad_inches=0
                         )
                         # plt.show()
                         plt.clf()
@@ -1127,8 +1161,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
                         plt.tight_layout()
                         plt.savefig(
-                            table_file,
-                            dpi=300,
+                            table_file, dpi=300, bbox_inches="tight", pad_inches=0
                         )
                         # plt.show()
                         plt.clf()
@@ -1206,8 +1239,7 @@ def full_passive_comparison(
 
                         plt.tight_layout()
                         plt.savefig(
-                            table_file,
-                            dpi=300,
+                            table_file, dpi=300, bbox_inches="tight", pad_inches=0
                         )
                         # plt.show()
                         plt.clf()
@@ -1323,12 +1355,13 @@ def full_class_distribution(
                             del df["Passive"]
 
                             fig = plt.figure(
-                                figsize=set_matplotlib_size(width, fraction=1)
+                                figsize=set_matplotlib_size(width, fraction=0.5)
                             )
 
                             ax = sns.heatmap(
-                                df,
+                                df.T,
                                 annot=True,
+                                # square=True,
                                 center=0,
                                 fmt=".1f",
                             )
@@ -1336,20 +1369,14 @@ def full_class_distribution(
                             cbar = ax.collections[0].colorbar
                             cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
 
-                            ax.set_xticklabels(
-                                ax.get_xticklabels(),
-                                rotation=20,
-                                horizontalalignment="right",
-                            )
-                            plt.tight_layout()
+                            plt.tight_layout(pad=0, h_pad=0, w_pad=0)
 
                             table_file = Path(
                                 f"final/class_distributions_{dataset}_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
                             )
                             print(table_file)
                             plt.savefig(
-                                table_file,
-                                dpi=300,
+                                table_file, dpi=300, bbox_inches="tight", pad_inches=0
                             )
                             # plt.show()
                             plt.clf()
@@ -1361,7 +1388,7 @@ def _flatten(list_to_flatten):
     return [num for elem in list_to_flatten for num in elem]
 
 
-def _vector_indice_heatmap(data, title):
+def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     results = []
     for (a, b) in itertools.product(data.keys(), repeat=2):
         outliers_per_random_seed_a = set(_flatten(data[a]))
@@ -1376,172 +1403,272 @@ def _vector_indice_heatmap(data, title):
                 * 100,
             )
         )
+
+    if other_data:
+        other_results = []
+        for (a, b) in itertools.product(other_data.keys(), repeat=2):
+            outliers_per_random_seed_a = set(_flatten(other_data[a]))
+            outliers_per_random_seed_b = set(_flatten(other_data[b]))
+
+            other_results.append(
+                (
+                    a,
+                    b,
+                    len(
+                        outliers_per_random_seed_a.intersection(
+                            outliers_per_random_seed_b
+                        )
+                    )
+                    / len(outliers_per_random_seed_a.union(outliers_per_random_seed_b))
+                    * 100,
+                )
+            )
+        new_df = pd.DataFrame(results, columns=["a", "b", "agreement"])
+        new_df = new_df.pivot("a", "b", "agreement")
+        original_df = pd.DataFrame(other_results, columns=["a", "b", "agreement"])
+        original_df = original_df.pivot("a", "b", "agreement")
+
+        annotation_dataframe = original_df - new_df
+
+        annotation = annotation_dataframe
+    else:
+        annotation = True
+
     result_df = pd.DataFrame(results, columns=["a", "b", "agreement"])
+
+    print("smallest: ", result_df["agreement"].min())
+    print("second largest: ", np.unique(result_df["agreement"].to_numpy())[-2])
+
     result_df = result_df.pivot("a", "b", "agreement")
-    print(result_df)
     mask = np.zeros_like(result_df.to_numpy())
     mask[np.diag_indices_from(mask)] = True
+
     ax = sns.heatmap(
         result_df,
-        annot=True,
+        annot=annotation,
         mask=mask,
-        square=True,
+        cmap=sns.color_palette("husl", as_cmap=True),
+        # square=True,
         fmt=".1f",
+        ax=ax,
+        vmin=vmin,
+        vmax=vmax
+        # cbar_ax=ax0,
     )
+    # ax.set_title(f"{title[0]}-{title[1]}")
 
-    cbar = ax.collections[0].colorbar
-    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
-
-    ax.set_xticklabels(
-        ax.get_xticklabels(),
-        rotation=20,
-        horizontalalignment="right",
-    )
-
-    ax.set_ylabel("")
-    ax.set_xlabel("")
-    plt.tight_layout()
-
-    table_file = Path(title)
-    print(table_file)
-    plt.savefig(
-        table_file,
-        dpi=300,
-    )
-    # plt.show()
-    plt.clf()
-    plt.close("all")
+    return ax
 
 
 def full_outlier_comparison(
     pg,
-    clipping=True,
-    metric="times_elapsed",
-    consider_last_n=21,
-    outliers_outliers=False,
 ):
-    # ich möchte heatmap: x-achse: strategien, y-achse: datensätze, und dann jeweil die prozentuale anzahl der outlier die gesampled wurden?
-    if clipping:
-        table_title_prefix = ""
-        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
-    else:
-        table_title_prefix = "clipped"
-        param_grid = _filter_out_param(pg, "", [])
 
-    def _count_unique_percentages(Ys):
-        uniques = np.unique(Ys, return_counts=True)[1]
-        return [counts / np.sum(uniques) for counts in uniques]
+    results = []
 
-    for exp_name in param_grid["exp_name"]:
+    for clipping in [1.0, 0.95]:
+        param_grid = copy.deepcopy(pg)
+        param_grid["uncertainty_clipping"] = [clipping]
         for transformer_model_name in param_grid["transformer_model_name"]:
-            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
-                for batch_size in param_grid["batch_size"]:
-                    for num_iteration in param_grid["num_iterations"]:
-                        datasets = param_grid["dataset"]
+            for exp_name in param_grid["exp_name"]:
+                for initially_labeled_samples in param_grid[
+                    "initially_labeled_samples"
+                ]:
+                    for batch_size in param_grid["batch_size"]:
+                        for num_iteration in param_grid["num_iterations"]:
+                            datasets = param_grid["dataset"]
 
-                        groups = {}
-                        for dataset in datasets:
-                            grouped_data = _load_grouped_data(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric="queried_indices",
-                            )
-                            grouped_data = {
-                                _rename_strat(k, clipping=False): v
-                                for k, v in grouped_data.items()
-                            }
-                            groups[dataset] = grouped_data
-
-                        if len(grouped_data) == 0:
-                            return
-
-                        outliers = {}
-                        queried_indices = {}
-
-                        for dataset in datasets:
-                            outliers[dataset] = []
-                            queried_indices[dataset] = {}
-
-                            for strategy in groups[dataset].keys():
-                                if strategy == "Passive":
-                                    queried_indices[dataset]["Outlier"] = []
-                                    for random_seed in param_grid["random_seed"]:
-                                        passive_path = _convert_config_to_path(
-                                            {
-                                                "uncertainty_method": "softmax",
-                                                "query_strategy": "passive",
-                                                "exp_name": exp_name,
-                                                "transformer_model_name": transformer_model_name,
-                                                "dataset": dataset,
-                                                "initially_labeled_samples": initially_labeled_samples,
-                                                "random_seed": random_seed,
-                                                "batch_size": batch_size,
-                                                "num_iterations": num_iteration,
-                                                "uncertainty_clipping": "1.0",
-                                                "lower_is_better": True,
-                                            }
-                                        )
-                                        if passive_path.exists():
-                                            metrics = np.load(
-                                                passive_path / "metrics.npz",
-                                                allow_pickle=True,
-                                            )
-                                            outliers[dataset].append(
-                                                metrics["passive_outlier"].tolist()[0][
-                                                    0
-                                                ]
-                                            )
-
-                                            queried_indices[dataset]["Outlier"].append(
-                                                [
-                                                    int(q)
-                                                    for q in metrics["passive_outlier"][
-                                                        0
-                                                    ][0].tolist()
-                                                ]
-                                            )
-                                else:
-                                    queried_indices[dataset][strategy] = []
-                                    for random_seed in range(
-                                        0, np.shape(groups[dataset][strategy])[0]
-                                    ):
-                                        queried_indices[dataset][strategy].append(
-                                            np.array(
-                                                groups[dataset][strategy][random_seed]
-                                            )
-                                            .flatten()
-                                            .tolist()
-                                        )
-
-                        merged_strats = {}
-
-                        for dataset in queried_indices.keys():
-                            for strat in queried_indices[dataset].keys():
-                                if not strat in merged_strats.keys():
-                                    merged_strats[strat] = []
-                                merged_strats[strat].append(
-                                    _flatten(queried_indices[dataset][strat])
+                            groups = {}
+                            for dataset in datasets:
+                                grouped_data = _load_grouped_data(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid,
+                                    num_iteration,
+                                    metric="queried_indices",
+                                    ignore_clipping_for_random_and_passive=False,
                                 )
-                        _vector_indice_heatmap(
-                            merged_strats,
-                            f"final/vector_indices_all_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf",
-                        )
+                                grouped_data = {
+                                    _rename_strat(k, clipping=False): v
+                                    for k, v in grouped_data.items()
+                                }
+                                groups[dataset] = grouped_data
+
+                            if len(grouped_data) == 0:
+                                return
+
+                            outliers = {}
+                            queried_indices = {}
+
+                            for dataset in datasets:
+                                outliers[dataset] = []
+                                queried_indices[dataset] = {}
+
+                                for strategy in groups[dataset].keys():
+                                    if strategy == "Passive":
+                                        queried_indices[dataset]["Outlier"] = []
+                                        for random_seed in param_grid["random_seed"]:
+                                            passive_path = _convert_config_to_path(
+                                                {
+                                                    "uncertainty_method": "softmax",
+                                                    "query_strategy": "passive",
+                                                    "exp_name": exp_name,
+                                                    "transformer_model_name": transformer_model_name,
+                                                    "dataset": dataset,
+                                                    "initially_labeled_samples": initially_labeled_samples,
+                                                    "random_seed": random_seed,
+                                                    "batch_size": batch_size,
+                                                    "num_iterations": num_iteration,
+                                                    "uncertainty_clipping": "1.0",
+                                                    "lower_is_better": True,
+                                                }
+                                            )
+                                            if passive_path.exists():
+                                                metrics = np.load(
+                                                    passive_path / "metrics.npz",
+                                                    allow_pickle=True,
+                                                )
+                                                outliers[dataset].append(
+                                                    metrics["passive_outlier"].tolist()[
+                                                        0
+                                                    ][0]
+                                                )
+
+                                                queried_indices[dataset][
+                                                    "Outlier"
+                                                ].append(
+                                                    [
+                                                        int(q)
+                                                        for q in metrics[
+                                                            "passive_outlier"
+                                                        ][0][0].tolist()
+                                                    ]
+                                                )
+                                    else:
+                                        queried_indices[dataset][strategy] = []
+                                        for random_seed in range(
+                                            0, np.shape(groups[dataset][strategy])[0]
+                                        ):
+                                            queried_indices[dataset][strategy].append(
+                                                np.array(
+                                                    groups[dataset][strategy][
+                                                        random_seed
+                                                    ]
+                                                )
+                                                .flatten()
+                                                .tolist()
+                                            )
+
+                            merged_strats = {}
+
+                            for dataset in queried_indices.keys():
+                                for strat in queried_indices[dataset].keys():
+                                    if not strat in merged_strats.keys():
+                                        merged_strats[strat] = []
+                                    merged_strats[strat].append(
+                                        _flatten(queried_indices[dataset][strat])
+                                    )
+                            results.append(
+                                (clipping, transformer_model_name, merged_strats)
+                            )
+
+    # create 4 supblots
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=set_matplotlib_size(width, fraction=1.0),
+        sharex=True,
+        sharey=True,
+    )
+
+    v_min = 8
+    v_max = 62
+
+    ax00 = _vector_indice_heatmap(
+        results[0][2], ax=axs[0, 0], title=results[0], vmin=v_min, vmax=v_max
+    )
+    ax01 = _vector_indice_heatmap(
+        results[2][2],
+        ax=axs[0, 1],
+        title=results[2],
+        vmin=v_min,
+        vmax=v_max,
+        other_data=results[0][2],
+    )
+    ax10 = _vector_indice_heatmap(
+        results[1][2], ax=axs[1, 0], title=results[1], vmin=v_min, vmax=v_max
+    )
+    ax11 = _vector_indice_heatmap(
+        results[3][2],
+        ax=axs[1, 1],
+        title=results[3],
+        vmin=v_min,
+        vmax=v_max,
+        other_data=results[0][2],
+    )
+
+    """cbar = ax.collections[0].colorbar
+    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))                      
+    """
+    for axa in [ax00, ax01, ax10, ax11]:
+        axa.set_xlabel("")
+        axa.set_ylabel("")
+        # axa.xaxis.set_ticks_position("none")
+        axa.tick_params(axis="x", bottom=False)
+
+    from matplotlib.ticker import MultipleLocator, IndexLocator
+
+    ax00.set_ylabel("BERT")
+    # print(ax00.get_xticklabels())
+    # ax00.yaxis.set_major_locator(IndexLocator(0, len(ax00.get_xticklabels())))
+    ax10.set_ylabel("RoBERTa")
+
+    ax00.set_xlabel("Clipping: 100\%")
+    ax00.xaxis.set_label_position("top")
+    ax01.set_xlabel("Clipping: 95\%")
+    ax01.xaxis.set_label_position("top")
+
+    # remove colorbars
+    for axa in [ax00, ax01, ax10]:
+        cbar = axa.collections[0].colorbar
+        cbar.remove()
+
+    cbar11 = ax11.collections[0].colorbar
+
+    plt.tight_layout()
+
+    plt.subplots_adjust(bottom=0.11, right=0.94, top=0.95)
+    cax = plt.axes([0.95, 0, 0.02, 1.0])
+    cbar = fig.colorbar(
+        ax11.collections[0],
+        cax=cax,
+    )
+    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
+
+    cbar11.remove()
+
+    table_file = Path(f"final/vector_indices_all_datasets.pdf")
+    print(table_file)
+    plt.savefig(table_file, dpi=300, bbox_inches="tight", pad_inches=0)
+    plt.clf()
+    plt.close("all")
 
 
 full_param_grid["dataset"].remove("cola")
 full_param_grid["dataset"].remove("sst2")
-full_violinplot(full_param_grid)
 
-full_outlier_comparison(full_param_grid)
-# error wegen Passive not found
-# full_class_distribution(full_param_grid)
-full_runtime_stats(full_param_grid)
-full_table_stat(full_param_grid, clipping=False)
+full_outlier_comparison(copy.deepcopy(full_param_grid))
+exit(-1)
+
+full_class_distribution(copy.deepcopy(full_param_grid))
+
+full_violinplot(copy.deepcopy(full_param_grid))
+
+full_runtime_stats(copy.deepcopy(full_param_grid))
+full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
 
 
 # full_table_stat(full_param_grid, clipping=True)
