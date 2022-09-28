@@ -24,8 +24,11 @@ def load_my_dataset(dataset: str, transformer_model_name: str, tokenization=True
         raw_dataset = datasets.load_dataset("imdb")
     elif dataset == "sst2":
         raw_dataset = datasets.load_dataset("sst2")
+        raw_dataset = raw_dataset.rename_column("sentence", "text")
+
     elif dataset == "cola":
         raw_dataset = datasets.load_dataset("glue", "cola")
+        raw_dataset = raw_dataset.rename_column("sentence", "text")
     else:
         print("dataset not known")
         exit(-1)

@@ -664,6 +664,10 @@ def _rename_dataset_name(dataset):
         dataset2 = "RT"
     elif dataset == "imdb":
         dataset2 = "IMDB"
+    elif dataset == "sst2":
+        dataset2 = "SST-2"
+    elif dataset == "cola":
+        dataset2 = "CoLA"
     return dataset2
 
 
@@ -848,10 +852,8 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             .sort_values("Acc")
                         )
 
-                        print(df)
-                        exit(-1)
-
                         ordering = df4.index.tolist()
+                        print(ordering)
 
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
                         fig_dim = (fig_dim[0], fig_dim[1])
@@ -1531,6 +1533,8 @@ def full_outlier_comparison(
                         )
 
 
+full_param_grid["dataset"].remove("cola")
+full_param_grid["dataset"].remove("sst2")
 full_violinplot(full_param_grid)
 
 full_outlier_comparison(full_param_grid)
