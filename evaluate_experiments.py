@@ -958,11 +958,11 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             ncol=2 + len(dataset_colors.keys()),
                         )
 
-                        ax.set_xticklabels(
+                        """ax.set_xticklabels(
                             ax.get_xticklabels(),
                             rotation=20,
                             horizontalalignment="right",
-                        )
+                        )"""
 
                         plt.xlabel("")
                         plt.ylabel("")
