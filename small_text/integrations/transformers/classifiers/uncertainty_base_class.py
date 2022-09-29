@@ -1,5 +1,7 @@
 import abc
 import collections
+
+from torch import Tensor
 from small_text.integrations.pytorch.exceptions import PytorchNotFoundError
 from small_text.integrations.transformers.classifiers.classification import (
     TransformerBasedClassification,
@@ -432,8 +434,12 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
         loss = self.criterion(logits, target)
 
-        #  we take the last layer output
-        hiddenOutput = outputs.hidden_states[-1][1]
+        #  we take the output of the last layer
+
+        if len(outputs.hidden_states[-1] == 1):
+            hiddenOutput = outputs.hidden_states[-1][0]
+        else:
+            hiddenOutput = outputs.hidden_states[-1][1]
 
         minimization = torch.nn.Linear(
             in_features=768, out_features=6, bias=True, device=self.device

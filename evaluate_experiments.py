@@ -1741,9 +1741,141 @@ def full_outlier_comparison(
     plt.close("all")
 
 
+def full_uncertainty_plots(
+    param_grid,
+    metric="confidence_scores",
+    datasets=["ag_news", "trec"],
+    strategies=["trustscore"],
+    transformer_model_name="bert-base-uncased",
+):
+    for dataset in datasets:
+        grouped_data = _load_grouped_data(
+            exp_name=param_grid["exp_name"][0],
+            transformer_model_name=transformer_model_name,
+            dataset=dataset,
+            initially_labeled_samples=param_grid["initially_labeled_samples"][0],
+            batch_size=param_grid["batch_size"][0],
+            param_grid=param_grid,
+            num_iterations=param_grid["num_iterations"][0],
+            metric=metric,
+        )
+        if len(grouped_data) == 0:
+            return
+        df_data = []
+        for k, v in grouped_data.items():
+            for random_seed in v:
+                # print(random_seed)
+                for i, iteration in enumerate(random_seed):
+                    for v in iteration:
+                        if metric != "confidence_scores":
+                            v = np.max(v)
+                        if v < 0:
+                            v = v * (-1)
+                        df_data.append((k, v, i))
+        df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
+        print(df)
+        exit(-1)
+        """sns.displot(
+            data=df,
+            x=metric,
+            col="Strategy",
+            row="iteration",
+            # binwidth=3,
+            # height=3,
+            facet_kws=dict(margin_titles=True),
+        )
+        plt.savefig(
+            f"plots/{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}_grouped.jpg"
+        )
+        plt.clf()
+        plt.close('all')
+        """
+
+    for strat in df["Strategy"].unique():
+        mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
+        if np.nanmax(mv) == np.inf:
+            max_value = np.iinfo(np.int16).max
+        else:
+            max_value = np.nanmax(mv)
+        if np.nanmin(mv) == 0 and max_value == 0:
+            continue
+        counts, bins = np.histogram(mv, bins=100, range=(np.nanmin(mv), max_value))
+
+        fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
+        plt.hist(
+            bins[:-1],
+            weights=counts,
+            bins=bins,
+        )
+        plt.title(f"{strat}")
+        plot_path = Path(
+            f"./plots/{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}"
+        )
+        plot_path.mkdir(exist_ok=True, parents=True)
+
+        plt.savefig(
+            plot_path / f"{strat.replace('/', '-')}.jpg",
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.savefig(
+            plot_path / f"{strat.replace('/', '-')}.pdf",
+            dpi=300,
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.clf()
+        plt.close("all")
+
+        for iteration in df["iteration"].unique():
+            mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
+                metric
+            ].astype(np.float16)
+            if np.nanmax(mv) == np.inf:
+                max_value = np.iinfo(np.int16).max
+            else:
+                max_value = np.nanmax(mv)
+            if np.nanmin(mv) == 0 and max_value == 0:
+                continue
+            counts, bins = np.histogram(mv, bins=100, range=(np.nanmin(mv), max_value))
+
+            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
+            plt.hist(
+                bins[:-1],
+                weights=counts,
+                bins=bins,
+            )
+
+            #  fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
+            #  sns.histplot(
+            #  data=df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)],
+            #  x=metric,
+            #  )
+            plt.title(f"{strat}: {iteration}")
+            plot_path = Path(
+                f"./plots/{table_title_prefix}-{metric}_{exp_name}_{transformer_model_name}_{dataset}_{initially_labeled_samples}_{batch_size}_{num_iterations}/{strat.replace('/', '-')}/"
+            )
+            plot_path.mkdir(exist_ok=True, parents=True)
+
+            plt.savefig(
+                plot_path / f"{iteration}.jpg", bbox_inches="tight", pad_inches=0
+            )
+            plt.savefig(
+                plot_path / f"{iteration}.pdf",
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0,
+            )
+            plt.clf()
+            plt.close("all")
+
+
 full_param_grid["dataset"].remove("cola")
 full_param_grid["dataset"].remove("sst2")
+full_uncertainty_plots(full_param_grid)
 
+
+exit(-1)
 full_class_distribution(copy.deepcopy(full_param_grid))
 full_outlier_comparison(copy.deepcopy(full_param_grid))
 full_violinplot(copy.deepcopy(full_param_grid))
