@@ -1872,13 +1872,13 @@ def full_uncertainty_plots(
 
 full_param_grid["dataset"].remove("cola")
 full_param_grid["dataset"].remove("sst2")
-full_uncertainty_plots(full_param_grid)
+full_violinplot(copy.deepcopy(full_param_grid), metric="test_acc", consider_last_n=5)
+# full_uncertainty_plots(full_param_grid)
 
 
 exit(-1)
 full_class_distribution(copy.deepcopy(full_param_grid))
 full_outlier_comparison(copy.deepcopy(full_param_grid))
-full_violinplot(copy.deepcopy(full_param_grid))
 
 full_runtime_stats(copy.deepcopy(full_param_grid))
 full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
