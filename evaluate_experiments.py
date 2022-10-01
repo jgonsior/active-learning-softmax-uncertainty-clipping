@@ -1261,6 +1261,8 @@ def _plot_class_heatmap(data, ax, title, v_min, v_max):
         ax=ax,
         vmin=v_min,
         vmax=v_max,
+        xticklabels=True,
+        yticklabels=True,
     )
     cbar = ax.collections[0].colorbar
     cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
@@ -1542,6 +1544,8 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         ax=ax,
         vmin=vmin,
         vmax=vmax,
+        xticklabels=True,
+        yticklabels=True,
     )
     # ax.set_title(f"{title[0]}-{title[1]}")
 
@@ -1596,8 +1600,9 @@ def full_outlier_comparison(
                                 queried_indices[dataset] = {}
 
                                 for strategy in groups[dataset].keys():
-                                    if strategy == "Passive":
-                                        queried_indices[dataset]["Outlier"] = []
+                                    if strategy == "Pass":
+                                        strategy = "Outl"
+                                        queried_indices[dataset][strategy] = []
                                         for random_seed in param_grid["random_seed"]:
                                             passive_path = _convert_config_to_path(
                                                 {
@@ -1626,7 +1631,7 @@ def full_outlier_comparison(
                                                 )
 
                                                 queried_indices[dataset][
-                                                    "Outlier"
+                                                    strategy
                                                 ].append(
                                                     [
                                                         int(q)
@@ -1652,13 +1657,21 @@ def full_outlier_comparison(
 
                             merged_strats = {}
 
-                            for dataset in queried_indices.keys():
+                            for ix, dataset in enumerate(queried_indices.keys()):
+                                ix += 1
                                 for strat in queried_indices[dataset].keys():
                                     if not strat in merged_strats.keys():
                                         merged_strats[strat] = []
-                                    merged_strats[strat].append(
-                                        _flatten(queried_indices[dataset][strat])
+                                    indices_of_dataset = _flatten(
+                                        queried_indices[dataset][strat]
                                     )
+
+                                    # make indices of each dataset different
+                                    indices_of_dataset = [
+                                        iod + 100**ix for iod in indices_of_dataset
+                                    ]
+
+                                    merged_strats[strat].append(indices_of_dataset)
                             results.append(
                                 (clipping, transformer_model_name, merged_strats)
                             )
@@ -1672,8 +1685,8 @@ def full_outlier_comparison(
         sharey=True,
     )
 
-    v_min = 11
-    v_max = 70
+    v_min = 6
+    v_max = 60
 
     ax00 = _vector_indice_heatmap(
         results[0][2], ax=axs[0, 0], title=results[0], vmin=v_min, vmax=v_max
@@ -1890,11 +1903,11 @@ full_param_grid["dataset"].remove("sst2")
 
 # _generate_al_strat_abbreviations_table(full_param_grid)
 # full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
+full_outlier_comparison(copy.deepcopy(full_param_grid))
 # exit(-1)
+full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
 
 full_class_distribution(copy.deepcopy(full_param_grid))
-full_outlier_comparison(copy.deepcopy(full_param_grid))
 
 full_runtime_stats(copy.deepcopy(full_param_grid))
 full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
