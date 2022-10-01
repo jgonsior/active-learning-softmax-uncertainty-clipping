@@ -1,4 +1,7 @@
 #!/bin/sh
+echo "total"
+ls -l exp_results | wc -l
+
 echo "my"
 python run_experiment.py --taurus --workload my --n_array_jobs 1 --array_job_id 0 --dry_run  | wc -l
 echo "baselines"

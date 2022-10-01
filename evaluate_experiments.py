@@ -80,7 +80,7 @@ def set_matplotlib_size(width, fraction=1):
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
-    golden_ratio = (5**0.5 - 1) / 2
+    golden_ratio = (5 ** 0.5 - 1) / 2
 
     # Figure width in inches
     fig_width_in = fig_width_pt * inches_per_pt
@@ -283,9 +283,7 @@ def uncertainty_histogram_plots(
 
         fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.5))
         plt.hist(
-            bins[:-1],
-            weights=counts,
-            bins=bins,
+            bins[:-1], weights=counts, bins=bins,
         )
         plt.title(f"{strat}")
         plot_path = Path(
@@ -321,9 +319,7 @@ def uncertainty_histogram_plots(
 
             fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.5))
             plt.hist(
-                bins[:-1],
-                weights=counts,
-                bins=bins,
+                bins[:-1], weights=counts, bins=bins,
             )
 
             #  fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
@@ -714,7 +710,7 @@ def _rename_strat(strategy, clipping=True):
     strategy = strategy.replace("MM (softmax)", "MM")
     strategy = strategy.replace("LC (softmax)", "LC")
     strategy = strategy.replace("LC (inhibited)", "IS")
-    strategy = strategy.replace("LC (MonteCarlo)", "MoCa")
+    strategy = strategy.replace("LC (MonteCarlo)", "MC")
     strategy = strategy.replace("Ent (softmax)", "Ent")
     strategy = strategy.replace("Rand (softmax)", "Rand")
     strategy = strategy.replace("passive (softmax)", "Pass")
@@ -1049,13 +1045,7 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         # df = df.set_index("Method")
                         print(df)
 
-                        print(
-                            tabulate(
-                                df,
-                                headers="keys",
-                                floatfmt=("0.2f"),
-                            )
-                        )
+                        print(tabulate(df, headers="keys", floatfmt=("0.2f"),))
 
                         table_file.parent.mkdir(parents=True, exist_ok=True)
                         table_file.write_text(
@@ -1387,11 +1377,7 @@ def full_class_distribution(
                                 results.append((dataset, clipping, df))
 
     # create 4 supblots
-    fig, axs = plt.subplots(
-        2,
-        2,
-        figsize=set_matplotlib_size(width, fraction=1.0),
-    )
+    fig, axs = plt.subplots(2, 2, figsize=set_matplotlib_size(width, fraction=1.0),)
 
     min_ag_news = -20
     max_ag_news = 20
@@ -1400,11 +1386,7 @@ def full_class_distribution(
     max_trec = 15
 
     ax00 = _plot_class_heatmap(
-        results[0][2],
-        ax=axs[0, 0],
-        title=results[0],
-        v_min=min_trec,
-        v_max=max_trec,
+        results[0][2], ax=axs[0, 0], title=results[0], v_min=min_trec, v_max=max_trec,
     )
 
     ax01 = _plot_class_heatmap(
@@ -1415,11 +1397,7 @@ def full_class_distribution(
         v_max=max_ag_news,
     )
     ax10 = _plot_class_heatmap(
-        results[2][2],
-        ax=axs[1, 0],
-        title=results[2],
-        v_min=min_trec,
-        v_max=max_trec,
+        results[2][2], ax=axs[1, 0], title=results[2], v_min=min_trec, v_max=max_trec,
     )
     ax11 = _plot_class_heatmap(
         results[3][2],
@@ -1519,7 +1497,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         original_df = pd.DataFrame(other_results, columns=["a", "b", "agreement"])
         original_df = original_df.pivot("a", "b", "agreement")
 
-        annotation_dataframe = original_df - new_df
+        annotation_dataframe = new_df - original_df  # - new_df
 
         annotation = annotation_dataframe
     else:
@@ -1542,6 +1520,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         # square=True,
         fmt=".1f",
         ax=ax,
+        # linewidths=0.5,
         vmin=vmin,
         vmax=vmax,
         xticklabels=True,
@@ -1552,9 +1531,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     return ax
 
 
-def full_outlier_comparison(
-    pg,
-):
+def full_outlier_comparison(pg,):
 
     results = []
 
@@ -1668,7 +1645,7 @@ def full_outlier_comparison(
 
                                     # make indices of each dataset different
                                     indices_of_dataset = [
-                                        iod + 100**ix for iod in indices_of_dataset
+                                        iod + 100 ** ix for iod in indices_of_dataset
                                     ]
 
                                     merged_strats[strat].append(indices_of_dataset)
@@ -1740,10 +1717,7 @@ def full_outlier_comparison(
 
     plt.subplots_adjust(bottom=0.11, right=0.94, top=0.95)
     cax = plt.axes([0.95, 0, 0.02, 1.0])
-    cbar = fig.colorbar(
-        ax11.collections[0],
-        cax=cax,
-    )
+    cbar = fig.colorbar(ax11.collections[0], cax=cax,)
     cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
 
     cbar11.remove()
@@ -1810,9 +1784,7 @@ def full_uncertainty_plots(
 
             fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
             plt.hist(
-                bins[:-1],
-                weights=counts,
-                bins=bins,
+                bins[:-1], weights=counts, bins=bins,
             )
             # plt.title(f"{strat}")
             plt.title("")
@@ -1849,9 +1821,7 @@ def full_uncertainty_plots(
 
                 fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
                 plt.hist(
-                    bins[:-1],
-                    weights=counts,
-                    bins=bins,
+                    bins[:-1], weights=counts, bins=bins,
                 )
 
                 #  plt.title(f"{strat}: {iteration}")
@@ -1897,16 +1867,16 @@ def _generate_al_strat_abbreviations_table(pg):
     print(tabulate(df, headers="keys", showindex=False, tablefmt="latex_booktabs"))
 
 
-full_param_grid["dataset"].remove("cola")
-full_param_grid["dataset"].remove("sst2")
+# full_param_grid["dataset"].remove("cola")
+# full_param_grid["dataset"].remove("sst2")
 
 
 # _generate_al_strat_abbreviations_table(full_param_grid)
 # full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-full_outlier_comparison(copy.deepcopy(full_param_grid))
 # exit(-1)
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
 
+full_outlier_comparison(copy.deepcopy(full_param_grid))
 full_class_distribution(copy.deepcopy(full_param_grid))
 
 full_runtime_stats(copy.deepcopy(full_param_grid))
