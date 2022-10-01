@@ -28,7 +28,7 @@ def load_my_dataset(dataset: str, transformer_model_name: str, tokenization=True
 
     elif dataset == "cola":
         raw_dataset = datasets.load_dataset("linxinyuan/cola")
-        raw_dataset = raw_dataset.rename_column("sentence", "text")
+        # raw_dataset = raw_dataset.rename_column("sentence", "text")
     else:
         print("dataset not known")
         exit(-1)
