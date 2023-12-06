@@ -8,18 +8,21 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-user=julius.gonsior@tu-dresden.de
 #SBATCH --mem=120GB
-#SBATCH --output /scratch/ws/1/s5968580-btw/out-%A_%a.txt
-#SBATCH --error /scratch/ws/1/s5968580-btw/error-%A_%a.txt
+#SBATCH --output/beegfs/ws/1/s5968580-btw/logs/out-%A_%a.txt
+#SBATCH --error /beegfs/ws/1/s5968580-btw/logs/error-%A_%a.txt
 #SBATCH --array 0-600
 
 
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
 export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 OUTFILE=""
+module load GCC/11.3.0  CUDA/11.1.1  OpenMPI/4.1.4 release/23.04
+#module load modenv/hiera  GCC/10.2.0  CUDA/11.1.1  OpenMPI/4.0.5
+module load PyTorch/1.12.0
+#module load PyTorch/1.10.0
 
-module load modenv/hiera  GCC/10.2.0  CUDA/11.1.1  OpenMPI/4.0.5
-module load PyTorch/1.10.0
-source /scratch/ws/1/s5968580-btw/venv/bin/activate
+#source /scratch/ws/1/s5968580-btw/venv/bin/activate
+source /beegfs/ws/1/s5968580-btw/python-environments/btw/bin/activate
 
 export HF_MODULE_CACHE='./hf-cache'
 export TRANSFORMERS_CACHE="./hf-cache"
@@ -30,6 +33,6 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /scratch/ws/1/s5968580-btw/code/run_experiment.py --taurus --workload baselines --n_array_jobs 601 --array_job_id $SLURM_ARRAY_TASK_ID
+python /beegfs/ws/1/s5968580-btw/active-learning-softmax-uncertainty-clipping/run_experiment.py --taurus --workload baselines --n_array_jobs 601 --array_job_id $SLURM_ARRAY_TASK_ID
 
 exit 0
