@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-user=julius.gonsior@tu-dresden.de
 #SBATCH --mem=120GB
-#SBATCH --output/beegfs/ws/1/s5968580-btw/logs/out-%A_%a.txt
-#SBATCH --error /beegfs/ws/1/s5968580-btw/logs/error-%A_%a.txt
+#SBATCH --output=/beegfs/ws/1/s5968580-btw/logs/out-%A_%a.txt
+#SBATCH --error=/beegfs/ws/1/s5968580-btw/logs/error-%A_%a.txt
 #SBATCH --array 0-703
 
 
