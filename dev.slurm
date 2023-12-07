@@ -15,13 +15,13 @@
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
 export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 OUTFILE=""
-module load GCC/11.3.0  CUDA/11.1.1  OpenMPI/4.1.4 release/23.04
+module load release/23.04  GCC/11.3.0  OpenMPI/4.1.4
 #module load modenv/hiera  GCC/10.2.0  CUDA/11.1.1  OpenMPI/4.0.5
-module load PyTorch/1.12.0
+module load PyTorch/1.12.1-CUDA-11.7.0
 #module load PyTorch/1.10.0
 
 #source /scratch/ws/1/s5968580-btw/venv/bin/activate
-source /beegfs/ws/1/s5968580-btw/python-environments/btw/bin/activate
+source /beegfs/ws/1/s5968580-btw/python-environments/btw-v3/bin/activate
 
 export HF_MODULE_CACHE='./hf-cache'
 export TRANSFORMERS_CACHE="./hf-cache"
