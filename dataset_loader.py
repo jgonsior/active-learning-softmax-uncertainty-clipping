@@ -12,7 +12,7 @@ def load_my_dataset(dataset: str, transformer_model_name: str, tokenization=True
     elif dataset == "trec6":
         # works
         raw_dataset = datasets.load_dataset("trec")
-        raw_dataset = raw_dataset.rename_column("label-coarse", "label")
+        raw_dataset = raw_dataset.rename_column("coarse_label", "label")
     elif dataset == "subj":
         # works
         raw_dataset = datasets.load_dataset("SetFit/subj")

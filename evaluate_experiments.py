@@ -80,7 +80,7 @@ def set_matplotlib_size(width, fraction=1):
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
-    golden_ratio = (5 ** 0.5 - 1) / 2
+    golden_ratio = (5**0.5 - 1) / 2
 
     # Figure width in inches
     fig_width_in = fig_width_pt * inches_per_pt
@@ -120,7 +120,7 @@ def queried_samples_table(
         metric,
     )
     table_data = []
-    for (strat_a, strat_b) in itertools.combinations(grouped_data.keys(), 2):
+    for strat_a, strat_b in itertools.combinations(grouped_data.keys(), 2):
         print(f"{strat_a} vs {strat_b}")
         jaccards = []
         for random_seed_data_a, random_seed_data_b in zip(
@@ -283,7 +283,9 @@ def uncertainty_histogram_plots(
 
         fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.5))
         plt.hist(
-            bins[:-1], weights=counts, bins=bins,
+            bins[:-1],
+            weights=counts,
+            bins=bins,
         )
         plt.title(f"{strat}")
         plot_path = Path(
@@ -319,7 +321,9 @@ def uncertainty_histogram_plots(
 
             fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.5))
             plt.hist(
-                bins[:-1], weights=counts, bins=bins,
+                bins[:-1],
+                weights=counts,
+                bins=bins,
             )
 
             #  fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1.0))
@@ -368,6 +372,15 @@ def _load_grouped_data(
     metric="test_acc",
     ignore_clipping_for_random_and_passive=True,
 ):
+    print(param_grid)
+    print(exp_name)
+    print(transformer_model_name)
+    print(dataset)
+    print(initially_labeled_samples)
+    print(batch_size)
+    print(num_iterations)
+    print(metric)
+    print(ignore_clipping_for_random_and_passive)
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
         for uncertainty_method in param_grid["uncertainty_method"]:
@@ -404,6 +417,7 @@ def _load_grouped_data(
                                 "lower_is_better": lower_is_better,
                             }
                         )
+                        print(exp_results_dir)
                         if exp_results_dir.exists():
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
@@ -771,7 +785,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         table_data = []
 
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             dataset2 = _rename_dataset_name(dataset)
 
                             for k, v in group.items():
@@ -836,7 +850,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         table_data2 = []
                         stick_data = {}
 
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             dataset2 = _rename_dataset_name(dataset)
                             stick_data[dataset2] = []
 
@@ -1012,7 +1026,7 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         table_data = {}
 
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             dataset2 = _rename_dataset_name(dataset)
 
                             for k, v in group.items():
@@ -1045,7 +1059,13 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         # df = df.set_index("Method")
                         print(df)
 
-                        print(tabulate(df, headers="keys", floatfmt=("0.2f"),))
+                        print(
+                            tabulate(
+                                df,
+                                headers="keys",
+                                floatfmt=("0.2f"),
+                            )
+                        )
 
                         table_file.parent.mkdir(parents=True, exist_ok=True)
                         table_file.write_text(
@@ -1122,7 +1142,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             for k, v in group.items():
                                 for value in v:
                                     df_data[k] += sum(value)
@@ -1203,7 +1223,7 @@ def full_passive_comparison(
 
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             for k, v in group.items():
                                 for value in v:
                                     df_data[k] += sum(value)
@@ -1377,7 +1397,11 @@ def full_class_distribution(
                                 results.append((dataset, clipping, df))
 
     # create 4 supblots
-    fig, axs = plt.subplots(2, 2, figsize=set_matplotlib_size(width, fraction=1.0),)
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=set_matplotlib_size(width, fraction=1.0),
+    )
 
     min_ag_news = -20
     max_ag_news = 20
@@ -1386,7 +1410,11 @@ def full_class_distribution(
     max_trec = 15
 
     ax00 = _plot_class_heatmap(
-        results[0][2], ax=axs[0, 0], title=results[0], v_min=min_trec, v_max=max_trec,
+        results[0][2],
+        ax=axs[0, 0],
+        title=results[0],
+        v_min=min_trec,
+        v_max=max_trec,
     )
 
     ax01 = _plot_class_heatmap(
@@ -1397,7 +1425,11 @@ def full_class_distribution(
         v_max=max_ag_news,
     )
     ax10 = _plot_class_heatmap(
-        results[2][2], ax=axs[1, 0], title=results[2], v_min=min_trec, v_max=max_trec,
+        results[2][2],
+        ax=axs[1, 0],
+        title=results[2],
+        v_min=min_trec,
+        v_max=max_trec,
     )
     ax11 = _plot_class_heatmap(
         results[3][2],
@@ -1459,7 +1491,7 @@ def _flatten(list_to_flatten):
 
 def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     results = []
-    for (a, b) in itertools.product(data.keys(), repeat=2):
+    for a, b in itertools.product(data.keys(), repeat=2):
         outliers_per_random_seed_a = set(_flatten(data[a]))
         outliers_per_random_seed_b = set(_flatten(data[b]))
 
@@ -1475,7 +1507,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
 
     if other_data:
         other_results = []
-        for (a, b) in itertools.product(other_data.keys(), repeat=2):
+        for a, b in itertools.product(other_data.keys(), repeat=2):
             outliers_per_random_seed_a = set(_flatten(other_data[a]))
             outliers_per_random_seed_b = set(_flatten(other_data[b]))
 
@@ -1531,8 +1563,9 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     return ax
 
 
-def full_outlier_comparison(pg,):
-
+def full_outlier_comparison(
+    pg,
+):
     results = []
 
     for clipping in [1.0, 0.95]:
@@ -1645,7 +1678,7 @@ def full_outlier_comparison(pg,):
 
                                     # make indices of each dataset different
                                     indices_of_dataset = [
-                                        iod + 100 ** ix for iod in indices_of_dataset
+                                        iod + 100**ix for iod in indices_of_dataset
                                     ]
 
                                     merged_strats[strat].append(indices_of_dataset)
@@ -1717,7 +1750,10 @@ def full_outlier_comparison(pg,):
 
     plt.subplots_adjust(bottom=0.11, right=0.94, top=0.95)
     cax = plt.axes([0.95, 0, 0.02, 1.0])
-    cbar = fig.colorbar(ax11.collections[0], cax=cax,)
+    cbar = fig.colorbar(
+        ax11.collections[0],
+        cax=cax,
+    )
     cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
 
     cbar11.remove()
@@ -1784,7 +1820,9 @@ def full_uncertainty_plots(
 
             fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
             plt.hist(
-                bins[:-1], weights=counts, bins=bins,
+                bins[:-1],
+                weights=counts,
+                bins=bins,
             )
             # plt.title(f"{strat}")
             plt.title("")
@@ -1821,7 +1859,9 @@ def full_uncertainty_plots(
 
                 fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
                 plt.hist(
-                    bins[:-1], weights=counts, bins=bins,
+                    bins[:-1],
+                    weights=counts,
+                    bins=bins,
                 )
 
                 #  plt.title(f"{strat}: {iteration}")
@@ -1872,8 +1912,8 @@ def _generate_al_strat_abbreviations_table(pg):
 
 
 # _generate_al_strat_abbreviations_table(full_param_grid)
-# full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-# exit(-1)
+full_uncertainty_plots(full_param_grid, metric="confidence_scores", datasets=["trec6", "ag_news", "subj", "rotten", "imdb", "cola", "sst2"])
+exit(-1)
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
 
 full_outlier_comparison(copy.deepcopy(full_param_grid))
