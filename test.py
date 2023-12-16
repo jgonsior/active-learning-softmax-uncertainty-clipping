@@ -151,11 +151,16 @@ def main(
         print("Error! No more samples left. (Unlabeled pool is empty)")
 
 
-def _evaluate(active_learner, train, test, query_strategy_name=None):
+def _evaluate(active_learner, train_labeled,train_unlabeled, test, query_strategy_name=None):
     y_pred_test = active_learner.classifier.predict(test)
-    y_pred_train = active_learner.classifier.predict(train)
+    y_pred_train = active_learner.classifier.predict(train_unlabeled)
     y_proba_test = active_learner.classifier.predict_proba(test)
     y_proba_test_active = active_learner.active_classifier.predict_proba(test)
+
+    y_proba_train = active_learner.classifier.predict_proba(train_unlabeled)
+    y_proba_train_amax = np.amax(active_learner.classifier.predict_proba(train_unlabeled),axis=1)
+    y_proba_train_active = active_learner.active_classifier.predict_proba(train_unlabeled)
+    y_proba_train_active_amax = np.amax(active_learner.active_classifier.predict_proba(train_unlabeled),axis=1)
 
     test_acc = accuracy_score(y_pred_test, test.y)
 
@@ -184,7 +189,14 @@ def _evaluate(active_learner, train, test, query_strategy_name=None):
         "y_proba_test_active": y_proba_test_active,
         "acc_bins_test_active": acc_bins_test_active,
         "proba_bins_test_active": proba_bins_test_active,
+        "y_proba_train": y_proba_train,
+        "y_proba_train_active": y_proba_train_active,
+        "y_proba_train_amax": y_proba_train_amax,
+        "y_proba_train_active_amax": y_proba_train_active_amax,
     }
+
+    print(metrics)
+
     if query_strategy_name == "passive":
         metrics["passive_outlier"] = np.logical_not(
             np.equal(train.y, y_pred_train)
@@ -242,6 +254,7 @@ def perform_active_learning(
     metrics = _evaluate(
         active_learner,
         train[indices_labeled],
+        train,
         test,
         query_strategy_name=query_strategy_name,
     )
@@ -289,6 +302,7 @@ def perform_active_learning(
         metrics = _evaluate(
             active_learner,
             train[indices_labeled],
+            train,
             test,
         )
 

@@ -162,9 +162,12 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             clf, dataset, indices_unlabeled, indices_labeled, y
         )
 
+
         clipping_threshold = np.percentile(
             confidence, (1 - self.uncertainty_clipping) * 100
         )
+
+        print(f"original confidence: {confidence}")
 
         confidence[
             confidence < clipping_threshold
@@ -176,6 +179,9 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
 
         if self.save_scores:
             self.last_scores = confidence
+        print(f"clipped confidence: {confidence}")
+        print(f"{clipping_threshold}")
+        print()
         return confidence
 
     @abstractmethod

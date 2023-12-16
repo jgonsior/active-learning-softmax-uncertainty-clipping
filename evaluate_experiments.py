@@ -2048,11 +2048,11 @@ def full_uncertainty_plots(
         )
         if len(grouped_data) == 0:
             return
-
+        
         df_data = []
         for k, v in grouped_data.items():
-            if k not in strategies:
-                continue
+            #if k not in strategies:
+            #    continue
 
             for random_seed in v:
                 # print(random_seed)
@@ -2069,6 +2069,11 @@ def full_uncertainty_plots(
         df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
 
         for strat in df["Strategy"].unique():
+            plot_path = Path(f"./plots/{metric}_{transformer_model_name}_{dataset}")
+
+            #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6"):
+            #    continue
+            
             mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
             if np.nanmax(mv) == np.inf:
                 max_value = np.iinfo(np.int16).max
@@ -2086,7 +2091,6 @@ def full_uncertainty_plots(
             )
             # plt.title(f"{strat}")
             plt.title("")
-            plot_path = Path(f"./plots/{metric}_{transformer_model_name}_{dataset}")
             plot_path.mkdir(exist_ok=True, parents=True)
 
             plt.savefig(
@@ -2102,13 +2106,26 @@ def full_uncertainty_plots(
             )
             plt.clf()
             plt.close("all")
-
             for iteration in df["iteration"].unique():
-                if iteration != 5:
+                #if iteration != 5:
+                #    continue
+                
+                plot_path = Path(
+                    f"./plots/{metric}_{transformer_model_name}_{dataset}/{strat.replace('/', '-')}/"
+                )
+
+                #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6/passive (softmax) True-1.0"):
+                #    continue
+                if Path(plot_path/ f"{iteration}.jpg").exists():
                     continue
+
                 mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
                     metric
                 ].astype(np.float16)
+
+                if len(mv) == 0:
+                    continue
+
                 if np.nanmax(mv) == np.inf:
                     max_value = np.iinfo(np.int16).max
                 else:
@@ -2128,9 +2145,138 @@ def full_uncertainty_plots(
                 #  plt.title(f"{strat}: {iteration}")
                 plt.title("")
                 plt.ylabel("Freq")
+                plot_path.mkdir(exist_ok=True, parents=True)
+
+                plt.savefig(
+                    plot_path / f"{iteration}.jpg", bbox_inches="tight", pad_inches=0
+                )
+                plt.savefig(
+                    plot_path / f"{iteration}.pdf",
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0,
+                )
+                print(plot_path / f"{iteration}.jpg")
+                plt.clf()
+                plt.close("all")
+
+def uncertainty_advanced_clipping_test_plots(
+    param_grid,
+    # metric="confidence_scores",
+    metric="y_proba_test_active",
+    datasets=["trec6", "ag_news", "subj", "rotten", "imdb", "cola", "sst2"],
+    transformer_model_name="bert-base-uncased",
+):
+      for dataset in datasets:
+        grouped_data = _load_grouped_data(
+            exp_name=param_grid["exp_name"][0],
+            transformer_model_name=transformer_model_name,
+            dataset=dataset,
+            initially_labeled_samples=param_grid["initially_labeled_samples"][0],
+            batch_size=param_grid["batch_size"][0],
+            param_grid=param_grid,
+            num_iterations=param_grid["num_iterations"][0],
+            metric=metric,
+        )
+        if len(grouped_data) == 0:
+            return
+        
+        df_data = []
+        for k, v in grouped_data.items():
+            #if k not in strategies:
+            #    continue
+
+            for random_seed in v:
+                # print(random_seed)
+                for i, iteration in enumerate(random_seed):
+                    for v in iteration:
+                        if metric != "confidence_scores":
+                            v = np.max(v)
+                        if v < 0:
+                            print(k)
+                            # passive classifier
+                            v = 1 + v
+                        # v = 1 - v
+                        df_data.append((k, v, i))
+        df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
+        
+        for strat in df["Strategy"].unique():
+            plot_path = Path(f"./plots/{metric}_{transformer_model_name}_{dataset}")
+
+            #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6"):
+            #    continue
+            
+            mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
+            if np.nanmax(mv) == np.inf:
+                max_value = np.iinfo(np.int16).max
+            else:
+                max_value = np.nanmax(mv)
+            if np.nanmin(mv) == 0 and max_value == 0:
+                continue
+            counts, bins = np.histogram(mv, bins=70, range=(np.nanmin(mv), max_value))
+
+            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
+            plt.hist(
+                bins[:-1],
+                weights=counts,
+                bins=bins,
+            )
+            # plt.title(f"{strat}")
+            plt.title("")
+            plot_path.mkdir(exist_ok=True, parents=True)
+
+            plt.savefig(
+                plot_path / f"{strat.replace('/', '-')}.jpg",
+                bbox_inches="tight",
+                pad_inches=0,
+            )
+            plt.savefig(
+                plot_path / f"{strat.replace('/', '-')}.pdf",
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0,
+            )
+            plt.clf()
+            plt.close("all")
+            for iteration in df["iteration"].unique():
+                #if iteration != 5:
+                #    continue
+                
                 plot_path = Path(
                     f"./plots/{metric}_{transformer_model_name}_{dataset}/{strat.replace('/', '-')}/"
                 )
+
+                #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6/passive (softmax) True-1.0"):
+                #    continue
+                if Path(plot_path/ f"{iteration}.jpg").exists():
+                    continue
+
+                mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
+                    metric
+                ].astype(np.float16)
+
+                if len(mv) == 0:
+                    continue
+
+                if np.nanmax(mv) == np.inf:
+                    max_value = np.iinfo(np.int16).max
+                else:
+                    max_value = np.nanmax(mv)
+                if np.nanmin(mv) == 0 and max_value == 0:
+                    continue
+                counts, bins = np.histogram(
+                    mv, bins=70, range=(np.nanmin(mv), max_value)
+                )
+
+                fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
+                plt.hist(
+                    bins[:-1],
+                    weights=counts,
+                    bins=bins,
+                )
+                #  plt.title(f"{strat}: {iteration}")
+                plt.title("")
+                plt.ylabel("Freq")
                 plot_path.mkdir(exist_ok=True, parents=True)
 
                 plt.savefig(
@@ -2173,14 +2319,15 @@ def _generate_al_strat_abbreviations_table(pg):
 # full_param_grid["dataset"].remove("sst2")
 
 
-# _generate_al_strat_abbreviations_table(full_param_grid)
-# full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-# full_uncertainty_plots(full_param_grid)
-full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
-exit(-5)
-# full_outlier_comparison(copy.deepcopy(full_param_grid))
-# full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
-# full_reproducability(copy.deepcopy(full_param_grid), clipping=False)
+#_generate_al_strat_abbreviations_table(full_param_grid)
+#full_uncertainty_plots(full_param_grid, metric="confidence_scores")
+full_uncertainty_plots(full_param_grid)
+#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
+#exit(-5)
+#full_outlier_comparison(copy.deepcopy(full_param_grid))
+#full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
+
+#full_reproducability(copy.deepcopy(full_param_grid), clipping=False)
 """full_significance_tests(copy.deepcopy(full_param_grid))
 full_significance_tests(
     copy.deepcopy(full_param_grid), transformer_model_name="roberta-base"
@@ -2188,8 +2335,8 @@ full_significance_tests(
 # full_significance_heatmaps("bert-base-uncased")
 # full_significance_heatmaps("roberta-base")
 
-full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed_model")
-full_runtime_stats(copy.deepcopy(full_param_grid))
+#full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed_model")
+#full_runtime_stats(copy.deepcopy(full_param_grid))
 exit(-1)
 
 
