@@ -1,0 +1,4 @@
+class PytorchNotFoundError(ImportError):
+    """"""
+
+    pass
