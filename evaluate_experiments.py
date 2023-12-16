@@ -37,9 +37,9 @@ font_size = 5.8
 
 tex_fonts = {
     # Use LaTeX to write all text
-    "text.usetex": True,
+    #"text.usetex": True,
     # "text.usetex": False,
-    "font.family": "times",
+    #"font.family": "times",
     # Use 10pt font in plots, to match 10pt font in document
     "axes.labelsize": font_size,
     "font.size": font_size,
@@ -120,7 +120,7 @@ def queried_samples_table(
         metric,
     )
     table_data = []
-    for strat_a, strat_b in itertools.combinations(grouped_data.keys(), 2):
+    for (strat_a, strat_b) in itertools.combinations(grouped_data.keys(), 2):
         print(f"{strat_a} vs {strat_b}")
         jaccards = []
         for random_seed_data_a, random_seed_data_b in zip(
@@ -372,15 +372,6 @@ def _load_grouped_data(
     metric="test_acc",
     ignore_clipping_for_random_and_passive=True,
 ):
-    print(param_grid)
-    print(exp_name)
-    print(transformer_model_name)
-    print(dataset)
-    print(initially_labeled_samples)
-    print(batch_size)
-    print(num_iterations)
-    print(metric)
-    print(ignore_clipping_for_random_and_passive)
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
         for uncertainty_method in param_grid["uncertainty_method"]:
@@ -417,7 +408,6 @@ def _load_grouped_data(
                                 "lower_is_better": lower_is_better,
                             }
                         )
-                        print(exp_results_dir)
                         if exp_results_dir.exists():
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
@@ -724,7 +714,7 @@ def _rename_strat(strategy, clipping=True):
     strategy = strategy.replace("MM (softmax)", "MM")
     strategy = strategy.replace("LC (softmax)", "LC")
     strategy = strategy.replace("LC (inhibited)", "IS")
-    strategy = strategy.replace("LC (MonteCarlo)", "MC")
+    strategy = strategy.replace("LC (MonteCarlo)", "MoCa")
     strategy = strategy.replace("Ent (softmax)", "Ent")
     strategy = strategy.replace("Rand (softmax)", "Rand")
     strategy = strategy.replace("passive (softmax)", "Pass")
@@ -785,7 +775,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         table_data = []
 
-                        for dataset, group in groups:
+                        for (dataset, group) in groups:
                             dataset2 = _rename_dataset_name(dataset)
 
                             for k, v in group.items():
@@ -850,7 +840,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         table_data2 = []
                         stick_data = {}
 
-                        for dataset, group in groups:
+                        for (dataset, group) in groups:
                             dataset2 = _rename_dataset_name(dataset)
                             stick_data[dataset2] = []
 
@@ -886,19 +876,20 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         df = pd.DataFrame(
                             table_data, columns=["Method", "Acc", "clipping"]
                         )
-                        df2 = df.groupby(["Method"]).mean().sort_values("Acc")
+                        df2 = df.groupby(["Method", "clipping"]).mean().sort_values("Acc")
 
                         df3 = pd.DataFrame(
                             table_data2, columns=["Method", "Acc", "clipping"]
                         )
                         df4 = (
                             df3.loc[df3["clipping"] == "95\%"]
-                            .groupby(["Method"])
+                            .groupby(["Method", "clipping"])
                             .mean()
                             .sort_values("Acc")
                         )
 
                         ordering = df4.index.tolist()
+                        ordering = [o[0] for o in ordering]
                         print(ordering)
 
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
@@ -1026,7 +1017,7 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         table_data = {}
 
-                        for dataset, group in groups:
+                        for (dataset, group) in groups:
                             dataset2 = _rename_dataset_name(dataset)
 
                             for k, v in group.items():
@@ -1142,7 +1133,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
-                        for dataset, group in groups:
+                        for (dataset, group) in groups:
                             for k, v in group.items():
                                 for value in v:
                                     df_data[k] += sum(value)
@@ -1223,7 +1214,7 @@ def full_passive_comparison(
 
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
-                        for dataset, group in groups:
+                        for (dataset, group) in groups:
                             for k, v in group.items():
                                 for value in v:
                                     df_data[k] += sum(value)
@@ -1271,8 +1262,6 @@ def _plot_class_heatmap(data, ax, title, v_min, v_max):
         ax=ax,
         vmin=v_min,
         vmax=v_max,
-        xticklabels=True,
-        yticklabels=True,
     )
     cbar = ax.collections[0].colorbar
     cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
@@ -1491,7 +1480,7 @@ def _flatten(list_to_flatten):
 
 def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     results = []
-    for a, b in itertools.product(data.keys(), repeat=2):
+    for (a, b) in itertools.product(data.keys(), repeat=2):
         outliers_per_random_seed_a = set(_flatten(data[a]))
         outliers_per_random_seed_b = set(_flatten(data[b]))
 
@@ -1507,7 +1496,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
 
     if other_data:
         other_results = []
-        for a, b in itertools.product(other_data.keys(), repeat=2):
+        for (a, b) in itertools.product(other_data.keys(), repeat=2):
             outliers_per_random_seed_a = set(_flatten(other_data[a]))
             outliers_per_random_seed_b = set(_flatten(other_data[b]))
 
@@ -1529,7 +1518,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         original_df = pd.DataFrame(other_results, columns=["a", "b", "agreement"])
         original_df = original_df.pivot("a", "b", "agreement")
 
-        annotation_dataframe = new_df - original_df  # - new_df
+        annotation_dataframe = original_df - new_df
 
         annotation = annotation_dataframe
     else:
@@ -1552,11 +1541,8 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         # square=True,
         fmt=".1f",
         ax=ax,
-        # linewidths=0.5,
         vmin=vmin,
         vmax=vmax,
-        xticklabels=True,
-        yticklabels=True,
     )
     # ax.set_title(f"{title[0]}-{title[1]}")
 
@@ -1566,6 +1552,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
 def full_outlier_comparison(
     pg,
 ):
+
     results = []
 
     for clipping in [1.0, 0.95]:
@@ -1610,9 +1597,8 @@ def full_outlier_comparison(
                                 queried_indices[dataset] = {}
 
                                 for strategy in groups[dataset].keys():
-                                    if strategy == "Pass":
-                                        strategy = "Outl"
-                                        queried_indices[dataset][strategy] = []
+                                    if strategy == "Passive":
+                                        queried_indices[dataset]["Outlier"] = []
                                         for random_seed in param_grid["random_seed"]:
                                             passive_path = _convert_config_to_path(
                                                 {
@@ -1641,7 +1627,7 @@ def full_outlier_comparison(
                                                 )
 
                                                 queried_indices[dataset][
-                                                    strategy
+                                                    "Outlier"
                                                 ].append(
                                                     [
                                                         int(q)
@@ -1667,21 +1653,13 @@ def full_outlier_comparison(
 
                             merged_strats = {}
 
-                            for ix, dataset in enumerate(queried_indices.keys()):
-                                ix += 1
+                            for dataset in queried_indices.keys():
                                 for strat in queried_indices[dataset].keys():
                                     if not strat in merged_strats.keys():
                                         merged_strats[strat] = []
-                                    indices_of_dataset = _flatten(
-                                        queried_indices[dataset][strat]
+                                    merged_strats[strat].append(
+                                        _flatten(queried_indices[dataset][strat])
                                     )
-
-                                    # make indices of each dataset different
-                                    indices_of_dataset = [
-                                        iod + 100**ix for iod in indices_of_dataset
-                                    ]
-
-                                    merged_strats[strat].append(indices_of_dataset)
                             results.append(
                                 (clipping, transformer_model_name, merged_strats)
                             )
@@ -1695,8 +1673,8 @@ def full_outlier_comparison(
         sharey=True,
     )
 
-    v_min = 6
-    v_max = 60
+    v_min = 11
+    v_max = 70
 
     ax00 = _vector_indice_heatmap(
         results[0][2], ax=axs[0, 0], title=results[0], vmin=v_min, vmax=v_max
@@ -1907,17 +1885,17 @@ def _generate_al_strat_abbreviations_table(pg):
     print(tabulate(df, headers="keys", showindex=False, tablefmt="latex_booktabs"))
 
 
-# full_param_grid["dataset"].remove("cola")
-# full_param_grid["dataset"].remove("sst2")
+full_param_grid["dataset"].remove("cola")
+full_param_grid["dataset"].remove("sst2")
 
 
 # _generate_al_strat_abbreviations_table(full_param_grid)
-full_uncertainty_plots(full_param_grid, metric="confidence_scores", datasets=["trec6", "ag_news", "subj", "rotten", "imdb", "cola", "sst2"])
-exit(-1)
+# full_uncertainty_plots(full_param_grid, metric="confidence_scores")
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
+# exit(-1)
 
-full_outlier_comparison(copy.deepcopy(full_param_grid))
 full_class_distribution(copy.deepcopy(full_param_grid))
+full_outlier_comparison(copy.deepcopy(full_param_grid))
 
 full_runtime_stats(copy.deepcopy(full_param_grid))
 full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
