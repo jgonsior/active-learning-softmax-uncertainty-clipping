@@ -179,9 +179,9 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
 
         if self.save_scores:
             self.last_scores = confidence
-        print(f"clipped confidence: {confidence}")
-        print(f"{clipping_threshold}")
-        print()
+        #print(f"clipped confidence: {confidence}")
+        #print(f"{clipping_threshold}")
+        #print()
         return confidence
 
     @abstractmethod

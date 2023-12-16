@@ -195,7 +195,7 @@ def _evaluate(active_learner, train_labeled,train_unlabeled, test, query_strateg
         "y_proba_train_active_amax": y_proba_train_active_amax,
     }
 
-    print(metrics)
+    #print(metrics)
 
     if query_strategy_name == "passive":
         metrics["passive_outlier"] = np.logical_not(
