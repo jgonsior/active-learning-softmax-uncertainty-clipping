@@ -8,6 +8,7 @@ from heapq import nlargest
 import itertools
 import json
 from pathlib import Path
+import random
 from turtle import title
 from typing import Any, Dict, Tuple
 from joblib import Parallel, delayed, parallel_backend
@@ -18,6 +19,7 @@ from matplotlib.ticker import PercentFormatter
 import numpy as np
 from regex import D
 from sklearn.metrics import jaccard_score
+from transformers import DefaultFlowCallback
 
 from run_experiment import (
     full_param_grid,
@@ -55,7 +57,42 @@ sns.set_style("white")
 sns.set_context("paper")
 plt.rcParams.update(tex_fonts)  # type: ignore
 
+"""import scipy
 
+proba = np.random.rand(100000, 5)
+step = 0.05
+# proba = (
+#    np.mgrid[
+#        0 : 1 + step : step,
+#        0 : 1 + step : step,
+#        0 : 1 + step : step,
+#        0 : 1 + step : step,
+#    ]
+#    .reshape(4, -1)
+#    .T
+# )
+proba = proba[1:]
+proba = proba / np.sum(proba, axis=1)[:, None]
+ent = np.apply_along_axis(lambda x: scipy.stats.entropy(x), 1, proba)
+sns.histplot(data=ent)
+plt.savefig(
+    "plots/entropy.pdf",
+    dpi=300,
+    bbox_inches="tight",
+    pad_inches=0,
+)
+plt.clf()
+
+# plt.hist2d(x=proba[:, 0], y=proba[:, 1])
+sns.histplot(data=np.max(proba, axis=1))
+plt.savefig(
+    "plots/entropy_raw.pdf",
+    dpi=300,
+    bbox_inches="tight",
+    pad_inches=0,
+)
+exit(-1)
+"""
 # https://jwalton.info/Embed-Publication-Matplotlib-Latex/
 def set_matplotlib_size(width, fraction=1):
     """Set figure dimensions to avoid scaling in LaTeX.
@@ -120,7 +157,7 @@ def queried_samples_table(
         metric,
     )
     table_data = []
-    for (strat_a, strat_b) in itertools.combinations(grouped_data.keys(), 2):
+    for strat_a, strat_b in itertools.combinations(grouped_data.keys(), 2):
         print(f"{strat_a} vs {strat_b}")
         jaccards = []
         for random_seed_data_a, random_seed_data_b in zip(
@@ -714,7 +751,7 @@ def _rename_strat(strategy, clipping=True):
     strategy = strategy.replace("MM (softmax)", "MM")
     strategy = strategy.replace("LC (softmax)", "LC")
     strategy = strategy.replace("LC (inhibited)", "IS")
-    strategy = strategy.replace("LC (MonteCarlo)", "MoCa")
+    strategy = strategy.replace("LC (MonteCarlo)", "MC")
     strategy = strategy.replace("Ent (softmax)", "Ent")
     strategy = strategy.replace("Rand (softmax)", "Rand")
     strategy = strategy.replace("passive (softmax)", "Pass")
@@ -775,7 +812,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         table_data = []
 
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             dataset2 = _rename_dataset_name(dataset)
 
                             for k, v in group.items():
@@ -840,7 +877,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         table_data2 = []
                         stick_data = {}
 
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             dataset2 = _rename_dataset_name(dataset)
                             stick_data[dataset2] = []
 
@@ -855,8 +892,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                     print("help" * 1000)
 
                                 k = _rename_strat(k, clipping=False)
-                                if k == "Passive":
-                                    continue
+                                #    continue
                                 v = [x[-consider_last_n:] for x in v]
                                 v = np.mean(v, axis=1)
 
@@ -864,15 +900,14 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                     formatted_value *= 100
                                     table_data.append((k, formatted_value, clipping))
 
-                                    if k == "Rand":
-                                        table_data.append((k, formatted_value, "95\%"))
-
                                 formatted_value = np.mean(v) * 100
                                 table_data2.append((k, formatted_value, clipping))
-                                if k == "Rand":
-                                    table_data2.append((k, formatted_value, "95\%"))
-                                stick_data[dataset2].append(formatted_value)
 
+                                if clipping == "95\%" or k in ["Rand", "Pass"]:
+                                    table_data2.append((k, formatted_value, "0%"))
+                                # if k in ["Rand", "Pass"]:
+                                #    table_data2.append((k, formatted_value, "95\%"))
+                                stick_data[dataset2].append(formatted_value)
                         df = pd.DataFrame(
                             table_data, columns=["Method", "Acc", "clipping"]
                         )
@@ -882,15 +917,19 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             table_data2, columns=["Method", "Acc", "clipping"]
                         )
                         df4 = (
-                            df3.loc[df3["clipping"] == "95\%"]
+                            df3.loc[df3["clipping"] == "0%"]
                             .groupby(["Method", "clipping"])
                             .mean()
-                            .sort_values("Acc")
+                            .sort_values("Acc", ascending=False)
                         )
+                        df3 = df3.loc[df3["clipping"] != "0%"]
 
-                        ordering = df4.index.tolist()
-                        ordering = [o[0] for o in ordering]
-                        print(ordering)
+                        ordering = [o[0] for o in df4.index.tolist()]
+
+                        # move pass to the right, rand to the left
+                        ordering.remove("Pass")
+                        ordering.remove("Rand")
+                        ordering = ["Pass"] + ordering + ["Rand"]
 
                         fig_dim = set_matplotlib_size(width, fraction=1.0)
                         fig_dim = (fig_dim[0], fig_dim[1] * 0.6)
@@ -903,6 +942,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             hue="clipping",
                             split=True,
                             inner="stick",
+                            bw=0.05,
                         )
 
                         violins = [
@@ -914,42 +954,105 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         for violin in violins:
                             violin.set_alpha(0)
 
-                        ax2 = sns.violinplot(
+                        """ax2 = sns.violinplot(
                             data=df,
                             y="Acc",
                             x="Method",
                             order=ordering,
                             hue="clipping",
+                            inner=None,
                             split=True,
                             bw=0.4,
                             palette=[".85", ".4"],
                             # cut=1,
                             # ax=ax,
+                        )"""
+                        ax2 = sns.boxplot(
+                            data=df,
+                            x="Method",
+                            y="Acc",
+                            hue="clipping",
+                            order=ordering,
+                            # color="white",
+                            palette=[".85", ".4"],
+                            width=0.3,
+                            meanline=False,
+                            medianprops={"linewidth": 0},
+                            showmeans=True,
+                            meanprops={
+                                "marker": "D",
+                                "markersize": 1,
+                                "markeredgecolor": "#fff7aa",
+                                "markerfacecolor": "#fff7aa",
+                                "zorder": 100,
+                            },
+                            flierprops={"marker": "D", "markersize": 1}
+                            # boxprops={"zorder": 20},
+                            # ax=ax3,
                         )
                         old_handles, old_labels = ax2.get_legend_handles_labels()
                         old_handles = old_handles[2:]
 
                         dataset_colors = {
                             dataset_name: sns.color_palette(
-                                palette="colorblind", n_colors=len(stick_data.keys())
+                                palette="tab10", n_colors=len(stick_data.keys())
                             )[ix]
                             for ix, dataset_name in enumerate(stick_data.keys())
                         }
+                        dataset_transparent_colors = copy.deepcopy(dataset_colors)
                         for k, v in dataset_colors.items():
-                            dataset_colors[k] = (*v, 0.9)
+                            dataset_colors[k] = (*v, 1)
+                            dataset_transparent_colors[k] = (*v, 0.8)
+
+                        dataset_colors = dataset_transparent_colors
 
                         for l in ax.lines:
-                            for dataset_name in stick_data.keys():
+                            for dataset_ix, dataset_name in enumerate(
+                                stick_data.keys()
+                            ):
+                                if len(l.get_data()[1]) == 0:
+                                    continue
                                 if l.get_data()[1][0] in stick_data[dataset_name]:
+                                    orig_data = l.get_data()
+                                    new_data = orig_data
+                                    if new_data[0][1] == int(new_data[0][1]):
+                                        # right sticks
+                                        new_data[0][0] = -0.3 + new_data[0][1]
+                                    else:
+                                        # left sticks
+                                        new_data[0][1] = 0.3 + new_data[0][0]
+                                    l.set_data(new_data)
+
                                     l.set_color(dataset_colors[dataset_name])
-                                    l.set_linewidth(3)
-                                    l.set_linestyle("-")
+                                    l.set_linewidth(1.5)
+                                    # l.set_linestyle((dataset_ix, (1, 0.5)))
+                                    l.set_linestyle("solid")
+                                    l.set_solid_capstyle("butt")
+                                    if dataset_name in ["AG", "TR"]:
+                                        l.set(zorder=50)
+                                    else:
+                                        l.set(zorder=10)
+
+                                    # copy the line, and then insert it with a different offset, and much higher opacity
+                                    """line2 = copy.copy(l)
+                                    line2.set_linestyle((dataset_ix + 1, (1, 0.5)))
+                                    line2.set_color(
+                                        dataset_transparent_colors[dataset_name]
+                                    )
+                                    ax.add_line(line2)"""
 
                         dataset_legend_handles = []
                         for dataset, dataset_color in dataset_colors.items():
                             dataset_legend_handles.append(
                                 Line2D(
-                                    [0], [0], color=dataset_color, lw=3, label=dataset
+                                    [0],
+                                    [0],
+                                    color=dataset_color,
+                                    # linestyle=(0, (1, 0.5)),
+                                    linestyle="solid",
+                                    lw=2,
+                                    label=dataset,
+                                    solid_capstyle="butt",
                                 ),
                             )
 
@@ -959,30 +1062,41 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             handles=dataset_legend_handles,
                             loc="lower center",
                             ncol=2 + len(dataset_colors.keys()),
+                            handlelength=1.5,
                         )
 
-                        """ax.set_xticklabels(
-                            ax.get_xticklabels(),
-                            rotation=20,
-                            horizontalalignment="right",
-                        )"""
-
+                        for tick in ax.get_xticklabels():
+                            if tick._text in ["Ent", "LC", "MM"]:
+                                tick.set_color("#4c9dc9")
+                                tick.set_text("$\mathit{" + tick._text + "}")
+                            elif tick._text in ["Rand", "Pass"]:
+                                tick.set_color("#ff5858")
+                                tick.set_text("$\mathit{" + tick._text + "}")
                         plt.xlabel("")
-                        plt.ylabel("")
-                        plt.ylim(50, 100)
+                        plt.ylabel("$acc_{last5}$ (\%)", labelpad=1)
+
+                        # random hline
+                        plt.axhline(
+                            y=df4.loc["Rand", "0%"]["Acc"],
+                            color="#797979",
+                            linestyle="--",
+                            linewidth=0.5,
+                        )
+
+                        plt.ylim(61, 99)
 
                         plt.tight_layout()
                         plt.savefig(
-                            plot_file, dpi=300, bbox_inches="tight", pad_inches=0
+                            plot_file, dpi=300, bbox_inches="tight", pad_inches=0.01
                         )
                         plt.clf()
                         plt.close("all")
 
 
-def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
+def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5):
     if clipping:
         table_title_prefix = ""
-        param_grid = _filter_out_param(pg, "", [])
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [1.0, 0.9, 0.7])
     else:
         table_title_prefix = "clipped"
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
@@ -1017,7 +1131,7 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
 
                         table_data = {}
 
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             dataset2 = _rename_dataset_name(dataset)
 
                             for k, v in group.items():
@@ -1070,14 +1184,149 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         )
 
 
+def full_significance_tests(
+    pg, metric="test_acc", consider_last_n=5, transformer_model_name="bert-base-uncased"
+):
+    # a) vergleich pro datensatz, wie in CAL
+    # b) vergleich zwischen unc_clipping und nicht unc_clipping
+    # c) alle datenpunkte zwischen allen datensätzen zusammenschmeißen -> ist es im mittel besser unc_clipping zu nehmen? -> das ganze pro spalte machen?!
+    # d) schauen, ob meine 10 runs auserichend waren
+
+    pg_clipped = _filter_out_param(
+        copy.deepcopy(pg), "uncertainty_clipping", [1.0, 0.9, 0.7]
+    )
+    pg_unclipped = _filter_out_param(
+        copy.deepcopy(pg), "uncertainty_clipping", [0.95, 0.9, 0.7]
+    )
+
+    def _get_signifcance_data(param_grid):
+        for exp_name in param_grid["exp_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        datasets = param_grid["dataset"]
+
+                        groups = []
+                        for dataset in datasets:
+                            grouped_data = _load_grouped_data(
+                                exp_name,
+                                transformer_model_name,
+                                dataset,
+                                initially_labeled_samples,
+                                batch_size,
+                                param_grid,
+                                num_iteration,
+                                metric,
+                            )
+                            groups.append((dataset, grouped_data))
+                        table_data = {}
+
+                        for dataset, group in groups:
+                            dataset2 = _rename_dataset_name(dataset)
+
+                            for k, v in group.items():
+                                k = _rename_strat(k)
+                                v = [x[-consider_last_n:] for x in v]
+                                formatted_value = np.mean(v, axis=1)
+
+                                if k not in table_data.keys():
+                                    table_data[k] = {dataset2: formatted_value}
+                                else:
+                                    table_data[k][dataset2] = formatted_value
+
+                        # for k, v in table_data.items():
+                        #    table_data[k]["Mean"] = np.array(list(v.values())).flatten()
+                        df = pd.DataFrame(table_data)
+                        return df.T
+
+    clipping_data = _get_signifcance_data(pg_clipped)
+    unclipping_data = _get_signifcance_data(pg_unclipped)
+
+    print(clipping_data)
+
+    from deepsig import aso
+
+    per_dataset = [["Method", *clipping_data.columns.to_list()]]
+    for strat in unclipping_data.index:
+        if strat in ["Rand", "Pass"]:
+            continue
+
+        a = clipping_data.loc[strat + " 95"].to_numpy()
+        b = unclipping_data.loc[strat].to_numpy()
+        aso_values = [
+            aso(
+                a1,
+                b1,
+                confidence_level=0.95,
+                num_comparisons=len(clipping_data.columns),
+                show_progress=False,
+                num_jobs=8,
+            )
+            for a1, b1 in zip(a, b)
+        ]
+
+        # aso_values = [
+        #    "\\textbf{" + av + "}" if float(av) < 0.5 else av for av in aso_values
+        # ]
+        per_dataset.append([strat, *aso_values])
+
+        df = pd.DataFrame(per_dataset)
+        df.to_csv(f"final/_data_significance-{transformer_model_name}.csv", index=False)
+
+
+def full_significance_heatmaps(transformer_model_name="bert-base-uncased"):
+    df = pd.read_csv(
+        f"final/_data_significance-{transformer_model_name}.csv",
+        index_col=0,
+    )
+    print(df)
+
+    df.drop("VE", axis=0, inplace=True)
+    df.drop("KLD", axis=0, inplace=True)
+    df.drop("Ent", axis=0, inplace=True)
+
+    fig_dim = set_matplotlib_size(
+        width,
+        fraction=0.5,
+    )
+    fig = plt.figure(figsize=fig_dim)
+
+    sns.heatmap(
+        df,
+        annot=True,
+        cmap="coolwarm",
+        center=0.5,
+        fmt=".1f",
+    )
+
+    plt.xlabel("")
+    plt.ylabel("")
+
+    plt.tight_layout()
+    plt.savefig(
+        f"final/significance-{transformer_model_name}.pdf",
+        dpi=300,
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    # plt.show()
+    plt.clf()
+    plt.close("all")
+
+
 def show_values_on_bars(axs, h_v="v", space=4.0, xlim_additional=0):
     def _show_on_single_plot(ax):
         if h_v == "v":
             for p in ax.patches:
                 _x = p.get_x() + p.get_width() / 2
-                _y = p.get_y() + p.get_height()
+                _y = p.get_y() + p.get_height() + float(xlim_additional)
                 value = int(p.get_height())
+
                 ax.text(_x, _y, value, ha="center")
+
+                current_ylim = ax.get_ylim()
+                current_ylim = (current_ylim[0], current_ylim[1] + xlim_additional)
+                ax.set_ylim(current_ylim)
         elif h_v == "h":
             for p in ax.patches:
                 _x = p.get_x() + p.get_width() + float(space)
@@ -1133,10 +1382,12 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             for k, v in group.items():
+                                df_data[k] = []
                                 for value in v:
-                                    df_data[k] += sum(value)
+                                    df_data[k].append(sum(value))
+                                df_data[k] = np.mean(df_data[k])
 
                         df_data2 = []
                         for k, v in df_data.items():
@@ -1145,18 +1396,29 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                                 "passive (softmax) True/1.0",
                             ]:
                                 continue
-                            df_data2.append([_rename_strat(k, clipping=False), v / 60])
+                            df_data2.append([_rename_strat(k, clipping=False), v])
 
                         data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
 
                         data_df.sort_values(by=metric, inplace=True)
 
+                        # fig = plt.figure(figsize=(width * 0.5 / 72.27, 100 / 72.27))
                         fig = plt.figure(
                             figsize=set_matplotlib_size(width, fraction=0.5)
                         )
                         ax = sns.barplot(data=data_df, y="Strategy", x=metric)
 
-                        show_values_on_bars(ax, "h", xlim_additional=30)
+                        show_values_on_bars(ax, "h", xlim_additional=10)
+
+                        for tick in itertools.chain(
+                            ax.get_xticklabels(), ax.get_yticklabels()
+                        ):
+                            if tick._text in ["Ent", "LC", "MM"]:
+                                tick.set_color("#4c9dc9")
+                                tick.set_text("$\mathit{" + tick._text + "}")
+                            elif tick._text in ["Rand", "Pass"]:
+                                tick.set_color("#e18e4c")
+                                tick.set_text("$\mathit{" + tick._text + "}")
 
                         plt.xlabel("")
                         plt.ylabel("")
@@ -1214,7 +1476,7 @@ def full_passive_comparison(
 
                         # sum up elapsed times
                         df_data = defaultdict(lambda: 0)
-                        for (dataset, group) in groups:
+                        for dataset, group in groups:
                             for k, v in group.items():
                                 for value in v:
                                     df_data[k] += sum(value)
@@ -1262,6 +1524,8 @@ def _plot_class_heatmap(data, ax, title, v_min, v_max):
         ax=ax,
         vmin=v_min,
         vmax=v_max,
+        xticklabels=True,
+        yticklabels=True,
     )
     cbar = ax.collections[0].colorbar
     cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
@@ -1433,8 +1697,8 @@ def full_class_distribution(
         axa.set_ylabel("")
         axa.tick_params(axis="x", bottom=False)
 
-    ax00.set_ylabel("Clipping 100\%")
-    ax10.set_ylabel("Clipping 95\%")
+    ax00.set_ylabel("No Clipping")
+    ax10.set_ylabel("Uncertainty Clipping 95\%")
 
     # remove unecessary yaxis
     ax01.yaxis.set_visible(False)
@@ -1448,25 +1712,15 @@ def full_class_distribution(
     ax01.xaxis.set_label_position("top")
     plt.tight_layout()
 
-    # remove colorbars
-    """for axa in [ax00, ax01, ax10]:
-        cbar = axa.collections[0].colorbar
-        cbar.remove()
+    for ax in [ax00, ax01, ax10, ax11]:
+        for tick in itertools.chain(ax.get_xticklabels(), ax.get_yticklabels()):
+            if tick._text in ["Ent", "LC", "MM"]:
+                tick.set_color("#4c9dc9")
+                tick.set_text("$\mathit{" + tick._text + "}")
+            elif tick._text in ["Rand", "Pass", "Test", "Wrong"]:
+                tick.set_color("#e18e4c")
+                tick.set_text("$\mathit{" + tick._text + "}")
 
-    cbar11 = ax11.collections[0].colorbar
-
-    plt.tight_layout()
-
-    plt.subplots_adjust(bottom=0.11, right=0.94, top=0.95)
-    cax = plt.axes([0.95, 0, 0.02, 1.0])
-    cbar = fig.colorbar(
-        ax11.collections[0],
-        cax=cax,
-    )
-    cbar.ax.yaxis.set_major_formatter(PercentFormatter(100, 0))
-
-    cbar11.remove()
-    """
     table_file = Path(f"final/class_distributions.pdf")
     print(table_file)
     plt.savefig(table_file, dpi=300, bbox_inches="tight", pad_inches=0)
@@ -1480,7 +1734,7 @@ def _flatten(list_to_flatten):
 
 def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     results = []
-    for (a, b) in itertools.product(data.keys(), repeat=2):
+    for a, b in itertools.product(data.keys(), repeat=2):
         outliers_per_random_seed_a = set(_flatten(data[a]))
         outliers_per_random_seed_b = set(_flatten(data[b]))
 
@@ -1496,7 +1750,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
 
     if other_data:
         other_results = []
-        for (a, b) in itertools.product(other_data.keys(), repeat=2):
+        for a, b in itertools.product(other_data.keys(), repeat=2):
             outliers_per_random_seed_a = set(_flatten(other_data[a]))
             outliers_per_random_seed_b = set(_flatten(other_data[b]))
 
@@ -1518,7 +1772,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         original_df = pd.DataFrame(other_results, columns=["a", "b", "agreement"])
         original_df = original_df.pivot("a", "b", "agreement")
 
-        annotation_dataframe = original_df - new_df
+        annotation_dataframe = new_df - original_df  # - new_df
 
         annotation = annotation_dataframe
     else:
@@ -1541,8 +1795,11 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         # square=True,
         fmt=".1f",
         ax=ax,
+        # linewidths=0.5,
         vmin=vmin,
         vmax=vmax,
+        xticklabels=True,
+        yticklabels=True,
     )
     # ax.set_title(f"{title[0]}-{title[1]}")
 
@@ -1552,7 +1809,6 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
 def full_outlier_comparison(
     pg,
 ):
-
     results = []
 
     for clipping in [1.0, 0.95]:
@@ -1597,8 +1853,9 @@ def full_outlier_comparison(
                                 queried_indices[dataset] = {}
 
                                 for strategy in groups[dataset].keys():
-                                    if strategy == "Passive":
-                                        queried_indices[dataset]["Outlier"] = []
+                                    if strategy == "Pass":
+                                        strategy = "Wrong"
+                                        queried_indices[dataset][strategy] = []
                                         for random_seed in param_grid["random_seed"]:
                                             passive_path = _convert_config_to_path(
                                                 {
@@ -1627,7 +1884,7 @@ def full_outlier_comparison(
                                                 )
 
                                                 queried_indices[dataset][
-                                                    "Outlier"
+                                                    strategy
                                                 ].append(
                                                     [
                                                         int(q)
@@ -1653,13 +1910,21 @@ def full_outlier_comparison(
 
                             merged_strats = {}
 
-                            for dataset in queried_indices.keys():
+                            for ix, dataset in enumerate(queried_indices.keys()):
+                                ix += 1
                                 for strat in queried_indices[dataset].keys():
                                     if not strat in merged_strats.keys():
                                         merged_strats[strat] = []
-                                    merged_strats[strat].append(
-                                        _flatten(queried_indices[dataset][strat])
+                                    indices_of_dataset = _flatten(
+                                        queried_indices[dataset][strat]
                                     )
+
+                                    # make indices of each dataset different
+                                    indices_of_dataset = [
+                                        iod + 100**ix for iod in indices_of_dataset
+                                    ]
+
+                                    merged_strats[strat].append(indices_of_dataset)
                             results.append(
                                 (clipping, transformer_model_name, merged_strats)
                             )
@@ -1673,7 +1938,7 @@ def full_outlier_comparison(
         sharey=True,
     )
 
-    v_min = 11
+    v_min = 6
     v_max = 70
 
     ax00 = _vector_indice_heatmap(
@@ -1712,9 +1977,9 @@ def full_outlier_comparison(
     ax00.set_ylabel("BERT")
     ax10.set_ylabel("RoBERTa")
 
-    ax00.set_xlabel("Clipping: 100\%")
+    ax00.set_xlabel("No Clipping")
     ax00.xaxis.set_label_position("top")
-    ax01.set_xlabel("Clipping: 95\%")
+    ax01.set_xlabel("Uncertainty Clipping: 95\%")
     ax01.xaxis.set_label_position("top")
 
     # remove colorbars
@@ -1736,6 +2001,15 @@ def full_outlier_comparison(
 
     cbar11.remove()
 
+    for ax in [ax00, ax01, ax10, ax11]:
+        for tick in itertools.chain(ax.get_xticklabels(), ax.get_yticklabels()):
+            if tick._text in ["Ent", "LC", "MM"]:
+                tick.set_color("#4c9dc9")
+                tick.set_text("$\mathit{" + tick._text + "}")
+            elif tick._text in ["Rand", "Pass", "Wrong"]:
+                tick.set_color("#e18e4c")
+                tick.set_text("$\mathit{" + tick._text + "}")
+
     table_file = Path(f"final/vector_indices_all_datasets.pdf")
     print(table_file)
     plt.savefig(table_file, dpi=300, bbox_inches="tight", pad_inches=0)
@@ -1747,12 +2021,13 @@ def full_uncertainty_plots(
     param_grid,
     # metric="confidence_scores",
     metric="y_proba_test_active",
-    datasets=["trec6", "ag_news"],
+    datasets=["trec6"],  # , "ag_news"],
     strategies=[
-        "Rand (softmax) True/1.0",
-        "passive (softmax) True/1.0",
+        # "Rand (softmax) True/1.0",
+        # "passive (softmax) True/1.0",
         "trustscore (softmax) True/1.0",
         "LC (label_smoothing) True/1.0",
+        # "LC (evidential1) True/1.0",
     ],
     transformer_model_name="bert-base-uncased",
 ):
@@ -1782,7 +2057,10 @@ def full_uncertainty_plots(
                         if metric != "confidence_scores":
                             v = np.max(v)
                         if v < 0:
-                            v = v * (-1)
+                            print(k)
+                            # passive classifier
+                            v = 1 + v
+                        # v = 1 - v
                         df_data.append((k, v, i))
         df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
 
@@ -1822,6 +2100,8 @@ def full_uncertainty_plots(
             plt.close("all")
 
             for iteration in df["iteration"].unique():
+                if iteration != 5:
+                    continue
                 mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
                     metric
                 ].astype(np.float16)
@@ -1841,9 +2121,9 @@ def full_uncertainty_plots(
                     weights=counts,
                     bins=bins,
                 )
-
                 #  plt.title(f"{strat}: {iteration}")
                 plt.title("")
+                plt.ylabel("Freq")
                 plot_path = Path(
                     f"./plots/{metric}_{transformer_model_name}_{dataset}/{strat.replace('/', '-')}/"
                 )
@@ -1885,25 +2165,38 @@ def _generate_al_strat_abbreviations_table(pg):
     print(tabulate(df, headers="keys", showindex=False, tablefmt="latex_booktabs"))
 
 
-full_param_grid["dataset"].remove("cola")
-full_param_grid["dataset"].remove("sst2")
+# full_param_grid["dataset"].remove("cola")
+# full_param_grid["dataset"].remove("sst2")
 
 
 # _generate_al_strat_abbreviations_table(full_param_grid)
 # full_uncertainty_plots(full_param_grid, metric="confidence_scores")
+#full_uncertainty_plots(full_param_grid)
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
-# exit(-1)
+exit(-5)
+# full_outlier_comparison(copy.deepcopy(full_param_grid))
+# full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
+# full_reproducability(copy.deepcopy(full_param_grid), clipping=False)
+"""full_significance_tests(copy.deepcopy(full_param_grid))
+full_significance_tests(
+    copy.deepcopy(full_param_grid), transformer_model_name="roberta-base"
+)"""
+# full_significance_heatmaps("bert-base-uncased")
+# full_significance_heatmaps("roberta-base")
 
-full_class_distribution(copy.deepcopy(full_param_grid))
-full_outlier_comparison(copy.deepcopy(full_param_grid))
-
+full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed_model")
 full_runtime_stats(copy.deepcopy(full_param_grid))
-full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
+exit(-1)
+
 
 full_uncertainty_plots(full_param_grid)
+full_class_distribution(copy.deepcopy(full_param_grid))
+
+
+full_table_stat(full_param_grid, clipping=True)
+
 
 # full_violinplot(copy.deepcopy(full_param_grid))
-# full_table_stat(full_param_grid, clipping=True)
 
 # tables_plots(baselines_param_grid)
 # tables_plots(my_methods_param_grid)
