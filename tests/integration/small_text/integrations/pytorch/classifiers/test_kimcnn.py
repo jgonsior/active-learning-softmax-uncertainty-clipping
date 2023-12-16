@@ -60,7 +60,6 @@ class KimCNNClassifierTest(unittest.TestCase):
         ) as model_eval_spy, mock.patch.object(
             clf.model, "train", wraps=clf.model.train
         ) as model_train_spy:
-
             y_pred = clf.predict(ds)
             self.assertEqual(len(ds), y_pred.shape[0])
 
@@ -94,7 +93,6 @@ class KimCNNClassifierTest(unittest.TestCase):
         ) as model_eval_spy, mock.patch.object(
             clf.model, "train", wraps=clf.model.train
         ) as model_train_spy:
-
             loss, acc = clf.validate(ds)
             self.assertTrue(loss >= 0)
             self.assertTrue(0 <= acc <= 1)

@@ -39,7 +39,6 @@ try:
         def predict_proba(self, test_set):
             pass
 
-
 except PytorchNotFoundError:
     pass
 
@@ -186,7 +185,13 @@ class SimplePytorchClassifierTest(unittest.TestCase):
             [[2.22, -0.14, 0.13], [0.12, 1.05, 3.13], [-0.56, 0.19, 1.02]], device="cpu"
         )
 
-        cls = torch.IntTensor([[1, 0, 1], [0, 0, 1], [0, 1, 1],])
+        cls = torch.IntTensor(
+            [
+                [1, 0, 1],
+                [0, 0, 1],
+                [0, 1, 1],
+            ]
+        )
         clf = SimplePytorchClassifier(3, multi_label=True)
 
         accuracy = clf.sum_up_accuracy_(logits, cls)

@@ -39,9 +39,9 @@ font_size = 5.8
 
 tex_fonts = {
     # Use LaTeX to write all text
-    #"text.usetex": True,
+    # "text.usetex": True,
     # "text.usetex": False,
-    #"font.family": "times",
+    # "font.family": "times",
     # Use 10pt font in plots, to match 10pt font in document
     "axes.labelsize": font_size,
     "font.size": font_size,
@@ -93,6 +93,8 @@ plt.savefig(
 )
 exit(-1)
 """
+
+
 # https://jwalton.info/Embed-Publication-Matplotlib-Latex/
 def set_matplotlib_size(width, fraction=1):
     """Set figure dimensions to avoid scaling in LaTeX.
@@ -911,7 +913,9 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         df = pd.DataFrame(
                             table_data, columns=["Method", "Acc", "clipping"]
                         )
-                        df2 = df.groupby(["Method", "clipping"]).mean().sort_values("Acc")
+                        df2 = (
+                            df.groupby(["Method", "clipping"]).mean().sort_values("Acc")
+                        )
 
                         df3 = pd.DataFrame(
                             table_data2, columns=["Method", "Acc", "clipping"]
@@ -2171,7 +2175,7 @@ def _generate_al_strat_abbreviations_table(pg):
 
 # _generate_al_strat_abbreviations_table(full_param_grid)
 # full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-#full_uncertainty_plots(full_param_grid)
+# full_uncertainty_plots(full_param_grid)
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
 exit(-5)
 # full_outlier_comparison(copy.deepcopy(full_param_grid))

@@ -70,7 +70,6 @@ def kimcnn_collate_fn(batch, enc=None, max_seq_len=60, padding_idx=0, filter_pad
 
 
 class KimCNNEmbeddingMixin(EmbeddingMixin):
-
     EMBEDDING_METHOD_POOLED = "pooled"
     EMBEDDING_METHOD_GRADIENT = "gradient"
 
@@ -82,7 +81,6 @@ class KimCNNEmbeddingMixin(EmbeddingMixin):
         module_selector=lambda x: x["fc"],
         pbar="tqdm",
     ):
-
         if self.model is None:
             raise ValueError("Model is not trained. Please call fit() first.")
 
@@ -127,7 +125,6 @@ class KimCNNEmbeddingMixin(EmbeddingMixin):
         return np.array(tensors)
 
     def get_best_and_softmax(self, proba, text):
-
         self.model.zero_grad()
 
         output = self.model(text)
@@ -140,7 +137,6 @@ class KimCNNEmbeddingMixin(EmbeddingMixin):
         return best_label, sm
 
     def create_embedding(self, best_label, sm, module_selector, tensors, text):
-
         batch_len = text.size(0)
         sm_t = torch.t(sm)
 
@@ -203,7 +199,6 @@ class KimCNNClassifier(KimCNNEmbeddingMixin, PytorchClassifier):
         class_weight=None,
         verbosity=VERBOSITY_MORE_VERBOSE,
     ):
-
         super().__init__(
             multi_label=multi_label, device=device, mini_batch_size=mini_batch_size
         )
@@ -342,7 +337,6 @@ class KimCNNClassifier(KimCNNEmbeddingMixin, PytorchClassifier):
         return params, Adadelta(params, lr=base_lr, eps=1e-8)
 
     def _train(self, sub_train, sub_valid, tmp_dir, optimizer, scheduler):
-
         min_loss = float("inf")
         no_loss_reduction = 0
 
@@ -409,7 +403,6 @@ class KimCNNClassifier(KimCNNEmbeddingMixin, PytorchClassifier):
         )
 
     def _train_func(self, sub_train_, optimizer, scheduler):
-
         train_loss = 0.0
         train_acc = 0.0
 
@@ -427,7 +420,6 @@ class KimCNNClassifier(KimCNNEmbeddingMixin, PytorchClassifier):
         return train_loss / len(sub_train_), train_acc / len(sub_train_)
 
     def _train_single_batch(self, text, cls, optimizer):
-
         train_loss = 0.0
         train_acc = 0.0
 

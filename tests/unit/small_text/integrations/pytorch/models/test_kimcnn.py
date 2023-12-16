@@ -12,11 +12,9 @@ except (ImportError, PytorchNotFoundError):
 
 @pytest.mark.pytorch
 class KimCNNInitTest(unittest.TestCase):
-
     DEFAULT_KERNEL_HEIGHTS = [3, 4, 5]
 
     def test_init_parameters_default(self):
-
         vocab_size = 1000
         max_seq_length = 50
 
@@ -111,7 +109,6 @@ class KimCNNInitTest(unittest.TestCase):
         self.assertEqual(num_classes, model.fc.out_features)
 
     def test_init_with_embedding(self):
-
         vocab_size = 1000
         max_seq_length = 50
 

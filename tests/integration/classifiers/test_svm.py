@@ -15,7 +15,6 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
         return x, train.target
 
     def test_predict_binary(self):
-
         clf = ConfidenceEnhancedLinearSVC()
         x, y = self._get_20news_vectors(categories=["comp.graphics", "sci.med"])
 
@@ -28,7 +27,6 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
         self.assertTrue(all((y_pred == 0) | (y_pred == 1)))
 
     def test_predict_binary_with_probas(self):
-
         clf = ConfidenceEnhancedLinearSVC()
         x, y = self._get_20news_vectors(categories=["comp.graphics", "sci.med"])
 
@@ -77,7 +75,6 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
         self.assertTrue(all((proba.flatten() >= 0) & (proba.flatten() <= 1)))
 
     def test_predict_proba_binary(self):
-
         clf = ConfidenceEnhancedLinearSVC()
         x, y = self._get_20news_vectors(categories=["comp.graphics", "sci.med"])
 
@@ -91,7 +88,6 @@ class ConfidenceEnhancedLinearSVCIntegrationTest(unittest.TestCase):
         self.assertTrue(all((proba.flatten() >= 0) & (proba.flatten() <= 1)))
 
     def test_predict_proba_multiclass(self):
-
         clf = ConfidenceEnhancedLinearSVC()
         categories = ["alt.atheism", "comp.graphics", "sci.med"]
         x, y = self._get_20news_vectors(categories=categories)

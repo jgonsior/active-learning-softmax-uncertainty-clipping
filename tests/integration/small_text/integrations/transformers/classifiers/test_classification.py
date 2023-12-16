@@ -74,7 +74,6 @@ class EmbeddingTest(unittest.TestCase):
         with mock.patch.object(
             clf.model, "eval", wraps=clf.model.eval
         ) as model_eval_spy:
-
             embeddings = clf.embed(train_set, embedding_method=self.embedding_method)
             model_eval_spy.assert_called()
 
@@ -244,7 +243,6 @@ class _TransformerBasedClassificationTest(object):
         ) as model_eval_spy, mock.patch.object(
             clf.model, "train", wraps=clf.model.train
         ) as model_train_spy:
-
             y_pred = clf.predict(test_set)
 
             model_eval_spy.assert_called()
@@ -262,7 +260,6 @@ class _TransformerBasedClassificationTest(object):
             self.assertTrue(np.logical_or(y_pred.all() >= 0, y_pred.all() <= 3))
 
     def test_fit_validate(self):
-
         model_args = TransformerModelArguments("sshleifer/tiny-distilroberta-base")
         clf = TransformerBasedClassification(
             model_args,
@@ -282,7 +279,6 @@ class _TransformerBasedClassificationTest(object):
         ) as model_eval_spy, mock.patch.object(
             clf.model, "train", wraps=clf.model.train
         ) as model_train_spy:
-
             valid_loss, valid_acc = clf.validate(valid_set)
 
             model_eval_spy.assert_called()

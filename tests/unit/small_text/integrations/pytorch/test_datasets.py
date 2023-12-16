@@ -45,7 +45,6 @@ except (PytorchNotFoundError, ModuleNotFoundError):
     ]
 )
 class PytorchTextClassificationDatasetTest(unittest.TestCase):
-
     NUM_SAMPLES = 100
     NUM_LABELS = 3
 
@@ -213,7 +212,6 @@ class PytorchTextClassificationDatasetTest(unittest.TestCase):
 
 
 class _PytorchDatasetViewTest(object):
-
     NUM_SAMPLES = 20
     NUM_SAMPLES_VIEW = 14
 
@@ -326,7 +324,6 @@ class PytorchDatasetViewMultiLabelTest(unittest.TestCase, _PytorchDatasetViewTes
 class NestedPytorchDatasetViewSingleLabelTest(
     unittest.TestCase, _PytorchDatasetViewTest
 ):
-
     NUM_SAMPLES_VIEW_OUTER = 17
 
     def _dataset(self, num_labels=2):
@@ -346,7 +343,6 @@ class NestedPytorchDatasetViewSingleLabelTest(
 class NestedPytorchDatasetViewMultiLabelTest(
     unittest.TestCase, _PytorchDatasetViewTest
 ):
-
     NUM_SAMPLES_VIEW_OUTER = 17
 
     def _dataset(self, num_labels=2):

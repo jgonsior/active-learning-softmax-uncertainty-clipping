@@ -67,7 +67,6 @@ def perform_active_learning(active_learner, train, labeled_indices, test):
 
 
 def initialize_active_learner(active_learner, y_train):
-
     # Initialize the model - This is required for model-based query strategies.
     indices_initial = multilabel_stratified_subsets_sampling(y_train, n_samples=200)
 

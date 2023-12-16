@@ -47,7 +47,6 @@ class QueryStrategiesTest(unittest.TestCase):
         self._simple_exhaustive_active_learning_test(query_strategy, num_classes=2)
 
     def test_badge_multiclass(self):
-
         query_strategy = BADGE(6)
         self._simple_exhaustive_active_learning_test(query_strategy)
 
@@ -58,7 +57,6 @@ class QueryStrategiesTest(unittest.TestCase):
 
         query_strategy = BADGE(6)
         with mock.patch.object(KimCNNClassifier, "embed", wraps=fake_embed):
-
             self._simple_exhaustive_active_learning_test(query_strategy)
 
     def _simple_exhaustive_active_learning_test(

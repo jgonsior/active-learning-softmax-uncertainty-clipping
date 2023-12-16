@@ -13,7 +13,8 @@ from small_text.utils.classification import prediction_result
 
 class Classifier(ABC):
     """
-    Abstract base class for classifiers that can be used with the active learning components."""
+    Abstract base class for classifiers that can be used with the active learning components.
+    """
 
     @abstractmethod
     def fit(self, train_set):
@@ -151,7 +152,6 @@ class ConfidenceEnhancedLinearSVC(LinearSVC):
         super().__init__(**self.linearsvc_kwargs)
 
     def predict(self, data_set, return_proba=False):
-
         if return_proba:
             proba = self.predict_proba(data_set)
 
@@ -161,7 +161,6 @@ class ConfidenceEnhancedLinearSVC(LinearSVC):
             return super().predict(data_set)
 
     def predict_proba(self, data_set):
-
         scores = self.decision_function(data_set)
         if len(scores.shape) == 1:
             proba = np.zeros((scores.shape[0], 2))

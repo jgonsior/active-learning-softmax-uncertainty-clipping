@@ -13,7 +13,6 @@ def get_train_test():
 
 
 def preprocess_data(train, test):
-
     try:
         from torchtext import data
 

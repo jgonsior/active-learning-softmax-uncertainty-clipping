@@ -93,6 +93,8 @@ plt.savefig(
 )
 exit(-1)
 """
+
+
 # https://jwalton.info/Embed-Publication-Matplotlib-Latex/
 def set_matplotlib_size(width, fraction=1):
     """Set figure dimensions to avoid scaling in LaTeX.

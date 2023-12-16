@@ -79,7 +79,6 @@ def stratified_sampling(y, n_samples=10, enforce_min_occurrence=True):
             class_indices = np.arange(counts.shape[0])[expected_samples_per_class > 1]
             round_robin_index = 0
             for i in range(num_excessive_samples):
-
                 while expected_samples_per_class[class_indices[round_robin_index]] <= 1:
                     round_robin_index += 1
                     round_robin_index %= class_indices.shape[0]
@@ -146,7 +145,6 @@ def _assert_sample_size(y, num_samples):
 
 
 def _random_sampling(n_samples, num_classes, expected_samples_per_class, counts, y):
-
     remainder = n_samples - expected_samples_per_class.sum()
 
     for i in range(num_classes):

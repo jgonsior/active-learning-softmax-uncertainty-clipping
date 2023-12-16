@@ -44,7 +44,6 @@ def csr_to_list(mat):
 
 
 def list_to_csr(label_list, shape, dtype=np.int64):
-
     if np.all(np.array([len(item) for item in label_list]) == 0):
         return csr_matrix(shape, dtype=dtype)
 

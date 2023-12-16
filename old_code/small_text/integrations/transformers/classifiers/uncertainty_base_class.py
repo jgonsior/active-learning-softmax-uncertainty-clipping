@@ -136,7 +136,6 @@ class TemperatureScalingUncertaintyClassifier(UncertaintyBaseClass):
     # Validate:
 
     def validate(self, validation_set, epoch):
-
         valid_loss = 0.0
         acc = 0.0
 
@@ -421,7 +420,6 @@ class InhibitedSoftmaxUncertaintyClassifier(UncertaintyBaseClass):
 
     # we compute the loss like it is shown in the paper
     def _compute_loss(self, cls, outputs, epoch):
-
         # we treat the binary case as a multi-class case
         if self.num_classes == 2:
             # logits = outputs.logits
@@ -492,7 +490,6 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
         return np.array(predictions)
 
     def _compute_loss(self, cls, outputs, epoch):
-
         if self.num_classes == 2:
             logits = outputs.logits
             target = F.one_hot(cls, 2).float()
@@ -529,7 +526,6 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
         # Loglikelihood loss
 
         def loglikelihood_loss(y, alpha):
-
             y = y.to(self.device)
             alpha = alpha.to(self.device)
             S = torch.sum(alpha, dim=1, keepdim=True)
@@ -542,7 +538,6 @@ class EvidentialDeepLearning1UncertaintyClassifier(UncertaintyBaseClass):
             return loglikelihood
 
         def mse_loss(y, alpha, epoch_num, num_classes, annealing_step):
-
             y = y.to(self.device)
             alpha = alpha.to(self.device)
             loglikelihood = loglikelihood_loss(y, alpha)

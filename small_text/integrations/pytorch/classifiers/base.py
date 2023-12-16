@@ -35,7 +35,6 @@ def check_optimizer_and_scheduler_config(optimizer, scheduler):
 
 class PytorchClassifier(Classifier):
     def __init__(self, multi_label=False, device=None, mini_batch_size=32):
-
         self.multi_label = multi_label
         self.mini_batch_size = mini_batch_size
 
@@ -113,9 +112,7 @@ class PytorchClassifier(Classifier):
             return CrossEntropyLoss(weight=self.class_weights_)
 
     def _get_optimizer_and_scheduler(self, optimizer, scheduler, num_epochs, sub_train):
-
         if optimizer is None or scheduler is None:
-
             optimizer, scheduler = self._initialize_optimizer_and_scheduler(
                 optimizer, scheduler, num_epochs, sub_train, self.lr
             )
@@ -124,7 +121,6 @@ class PytorchClassifier(Classifier):
     def _initialize_optimizer_and_scheduler(
         self, optimizer, scheduler, num_epochs, sub_train, base_lr
     ):
-
         steps = (len(sub_train) // self.mini_batch_size) + int(
             len(sub_train) % self.mini_batch_size != 0
         )

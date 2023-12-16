@@ -44,7 +44,6 @@ class IsMultiLabelTest(unittest.TestCase):
     ]
 )
 class SklearnDatasetTest(unittest.TestCase):
-
     NUM_SAMPLES = 100
 
     def _dataset(self, num_samples=100, return_data=False):
@@ -78,7 +77,6 @@ class SklearnDatasetTest(unittest.TestCase):
             self.assertFalse(ds.is_multi_label)
 
     def test_init_when_some_samples_are_unlabeled(self):
-
         x, y = random_matrix_data(
             self.matrix_type, self.labels_type, num_samples=self.NUM_SAMPLES
         )
@@ -309,7 +307,6 @@ class _DatasetViewTest(object):
     ]
 )
 class DatasetViewTest(unittest.TestCase, _DatasetViewTest):
-
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):
@@ -334,7 +331,6 @@ class DatasetViewTest(unittest.TestCase, _DatasetViewTest):
     ]
 )
 class NestedDatasetViewTest(unittest.TestCase, _DatasetViewTest):
-
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):

@@ -25,7 +25,6 @@ def default_module_selector(m):
 @parameterized_class([{"embedding_method": "pooled"}, {"embedding_method": "gradient"}])
 class KimCNNEmbeddingTest(unittest.TestCase):
     def test_embed_model_not_trained(self):
-
         _, train = trec_dataset()  # use small test set as train
 
         embedding_matrix = torch.Tensor(np.random.rand(len(train.vocab), 100))
@@ -40,7 +39,6 @@ class KimCNNEmbeddingTest(unittest.TestCase):
             )
 
     def test_embed(self):
-
         _, train = trec_dataset()  # use small test set as train
 
         kwargs = dict()
@@ -54,7 +52,6 @@ class KimCNNEmbeddingTest(unittest.TestCase):
         with mock.patch.object(
             classifier.model, "eval", wraps=classifier.model.eval
         ) as model_eval_spy:
-
             embeddings = classifier.embed(
                 train, embedding_method=self.embedding_method, **kwargs
             )
@@ -78,7 +75,6 @@ class KimCNNEmbeddingTest(unittest.TestCase):
                 )
 
     def test_embed_and_predict(self):
-
         _, train = trec_dataset()  # use small test set as train
 
         kwargs = dict()
@@ -93,7 +89,6 @@ class KimCNNEmbeddingTest(unittest.TestCase):
         with mock.patch.object(
             classifier.model, "eval", wraps=classifier.model.eval
         ) as model_eval_spy:
-
             embeddings, predictions = classifier.embed(
                 train,
                 return_proba=True,

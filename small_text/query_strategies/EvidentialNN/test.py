@@ -36,7 +36,6 @@ def test_single_image(model, img_path, uncertainty=False, device=None):
         print("Uncertainty:", uncertainty)
 
     else:
-
         output = model(img_variable)
         _, preds = torch.max(output, 1)
         prob = F.softmax(output, dim=1)
@@ -109,7 +108,6 @@ def rotating_image_classification(
             lu.append(uncertainty.mean().cpu().detach())
 
         else:
-
             output = model(img_variable)
             _, preds = torch.max(output, 1)
             prob = F.softmax(output, dim=1)
@@ -135,8 +133,8 @@ def rotating_image_classification(
 
     if uncertainty:
         labels += ["uncertainty"]
-        #print("ldeg",ldeg)
-        #print("lu",lu)
+        # print("ldeg",ldeg)
+        # print("lu",lu)
         axs[2].plot(ldeg, lu, marker="<", c="red")
 
     print(classifications)

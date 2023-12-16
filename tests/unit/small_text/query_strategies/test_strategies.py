@@ -27,7 +27,6 @@ DEFAULT_QUERY_SIZE = 10
 def query_random_data(
     strategy, num_samples=100, n=10, use_embeddings=False, embedding_dim=100
 ):
-
     x = np.random.rand(num_samples, 10)
     kwargs = dict()
 
@@ -46,7 +45,6 @@ def query_random_data(
 
 
 class SamplingStrategiesTests(object):
-
     DEFAULT_NUM_SAMPLES = 100
 
     def _get_clf(self):
@@ -361,7 +359,6 @@ class SklearnClassifierWithRandomEmbeddings(SklearnClassifier):
 
 class SklearnClassifierWithRandomEmbeddingsAndProba(SklearnClassifier):
     def embed(self, dataset, return_proba=False, embed_dim=5, pbar=None):
-
         self.embeddings_ = np.random.rand(len(dataset), embed_dim)
         if return_proba:
             self.proba_ = np.random.rand(len(dataset))
@@ -690,7 +687,6 @@ class ContrastiveActiveLearningTest(unittest.TestCase):
     def test_query_with_precomputed_embeddings(
         self, n=10, num_samples=100, embedding_dim=20
     ):
-
         query_strategy = ContrastiveActiveLearning()
         clf = SklearnClassifierWithRandomEmbeddings(ConfidenceEnhancedLinearSVC, 2)
 

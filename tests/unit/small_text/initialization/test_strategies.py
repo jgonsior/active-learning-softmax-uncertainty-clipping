@@ -16,7 +16,6 @@ from tests.utils.datasets import random_sklearn_dataset
 
 class RandomInitializationTest(unittest.TestCase):
     def test_random_initialization(self):
-
         x = random_sklearn_dataset(100, vocab_size=2)
         indices = random_initialization(x)
 
@@ -25,7 +24,6 @@ class RandomInitializationTest(unittest.TestCase):
         self.assertTrue(all([i >= 0 and i < len(x) for i in indices]))
 
     def test_random_initialization_num_samples_too_large(self):
-
         dataset = random_sklearn_dataset(100, vocab_size=2)
         with self.assertRaises(ValueError):
             random_initialization(dataset, n_samples=101)

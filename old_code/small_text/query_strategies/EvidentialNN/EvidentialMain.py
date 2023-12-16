@@ -19,11 +19,12 @@ from .test import rotating_image_classification, test_single_image
 from .losses import edl_mse_loss, edl_digamma_loss, edl_log_loss, relu_evidence
 from .lenet import LeNet
 
-import os 
+import os
 
 
-def EvidentialMain(number_classes_arg,train_arg=True,dataloaders_args = None,epochs = 25): #vorher 25 epochs
-
+def EvidentialMain(
+    number_classes_arg, train_arg=True, dataloaders_args=None, epochs=25
+):  # vorher 25 epochs
     parser = argparse.ArgumentParser()
     """
     mode_group = parser.add_mutually_exclusive_group(required=True)
@@ -62,24 +63,21 @@ def EvidentialMain(number_classes_arg,train_arg=True,dataloaders_args = None,epo
     """
     args = parser.parse_args()
 
-
-    #Default für Strategy fürs erste
+    # Default für Strategy fürs erste
     args.uncertainty = True
     args.mse = True
     args.epochs = epochs
     if train_arg:
-        args.train=True
+        args.train = True
         args.test = False
-    else: 
+    else:
         args.test = True
         args.train = False
     args.examples = False
     args.dropout = False
     args.digamma = False
     args.log = False
-    #Zeile 126 geändert von dataloaders ->dataloaders_args
-
-
+    # Zeile 126 geändert von dataloaders ->dataloaders_args
 
     if args.examples:
         examples = enumerate(dataloaders["val"])
@@ -99,7 +97,7 @@ def EvidentialMain(number_classes_arg,train_arg=True,dataloaders_args = None,epo
         use_uncertainty = args.uncertainty
         num_classes = number_classes_arg
 
-        model = LeNet(number_classes_arg,dropout=args.dropout)
+        model = LeNet(number_classes_arg, dropout=args.dropout)
 
         if use_uncertainty:
             if args.digamma:
@@ -113,7 +111,9 @@ def EvidentialMain(number_classes_arg,train_arg=True,dataloaders_args = None,epo
         else:
             criterion = nn.CrossEntropyLoss()
 
-        optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=0.005) #LERNEN RATE VERÄNDERT ZUM TESTEN
+        optimizer = optim.Adam(
+            model.parameters(), lr=1e-5, weight_decay=0.005
+        )  # LERNEN RATE VERÄNDERT ZUM TESTEN
 
         exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
@@ -133,8 +133,8 @@ def EvidentialMain(number_classes_arg,train_arg=True,dataloaders_args = None,epo
         )
 
         return model
-        #print(os.path.dirname(os.path.realpath(__file__)))
-        #/home/cfalkenberg/.local/lib/python3.8/site-packages/small_text/query_strategies/EvidentialNN
+        # print(os.path.dirname(os.path.realpath(__file__)))
+        # /home/cfalkenberg/.local/lib/python3.8/site-packages/small_text/query_strategies/EvidentialNN
         state = {
             "epoch": num_epochs,
             "model_state_dict": model.state_dict(),
@@ -157,14 +157,11 @@ def EvidentialMain(number_classes_arg,train_arg=True,dataloaders_args = None,epo
             print("Saved: ./results/model.pt")
 
     elif args.test:
-
         use_uncertainty = args.uncertainty
         device = get_device()
         model = LeNet()
         model = model.to(device)
         optimizer = optim.Adam(model.parameters())
-
-
 
         if use_uncertainty:
             if args.digamma:

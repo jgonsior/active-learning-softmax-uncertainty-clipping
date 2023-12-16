@@ -163,7 +163,6 @@ class SklearnDataset(Dataset):
     """
 
     def __init__(self, x, y, target_labels=None):
-
         self._x = x
         if isinstance(y, list):
             self._y = np.array(y)

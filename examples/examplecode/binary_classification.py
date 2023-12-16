@@ -61,7 +61,6 @@ def perform_active_learning(active_learner, train, indices_labeled, test):
 
 
 def initialize_active_learner(active_learner, y_train):
-
     # Initialize the model. This is required for model-based query strategies.
     indices_pos_label = np.where(y_train == 1)[0]
     indices_neg_label = np.where(y_train == 0)[0]

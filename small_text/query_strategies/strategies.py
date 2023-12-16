@@ -407,7 +407,6 @@ class QBC_KLD(QBC_Base):
 
     # source: alipy
     def calculate_vote(self, ensemble_probas):
-
         """Calculate the average Kullback-Leibler (KL) divergence for measuring the
         level of disagreement in QBC.
         Parameters
@@ -532,7 +531,6 @@ class TemperatureScalingStrat(ConfidenceBasedQueryStrategy):
         self.alle_listen = []
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
-
         orig_model = clf.model
         former = []
         for abc in _indices_labeled:
@@ -926,7 +924,6 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
         embed_kwargs=dict(),
         save_scores=False,
     ):
-
         return super().query(
             clf,
             dataset,
@@ -983,7 +980,6 @@ class ContrastiveActiveLearning(EmbeddingBasedQueryStrategy):
         for batch_idx in np.array_split(
             np.arange(indices_unlabeled.shape[0]), num_batches, axis=0
         ):
-
             nn_indices = nn.kneighbors(
                 embeddings_unlabeled[batch_idx],
                 n_neighbors=self.k,

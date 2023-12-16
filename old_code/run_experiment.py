@@ -82,6 +82,7 @@ trustscore_param_grid = copy.deepcopy(full_param_grid)
 trustscore_param_grid["query_strategy"] = ["trustscore"]
 trustscore_param_grid["uncertainty_method"] = ["softmax"]
 
+
 # source: https://stackoverflow.com/a/54802737
 def _chunks(l, n):
     """Yield n number of striped chunks from l."""
@@ -203,7 +204,6 @@ def run_code(
 
 
 if __name__ == "__main__":
-
     import argparse
 
     random.seed(42)

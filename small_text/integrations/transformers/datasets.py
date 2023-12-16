@@ -13,8 +13,7 @@ except ModuleNotFoundError:
 
 
 class TransformersDataset(PytorchDataset):
-    """Dataset class for classifiers from Transformers Integration.
-    """
+    """Dataset class for classifiers from Transformers Integration."""
 
     INDEX_TEXT = 0
     INDEX_MASK = 1
@@ -163,7 +162,6 @@ class TransformersDataset(PytorchDataset):
         self._target_labels = target_labels
 
     def to(self, other, non_blocking=False, copy=False):
-
         data = [
             (
                 d[self.INDEX_TEXT].to(other, non_blocking=non_blocking, copy=copy),

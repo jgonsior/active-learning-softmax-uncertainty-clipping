@@ -50,7 +50,14 @@ class ClassificationUtilsTest(unittest.TestCase):
         )
         result = prediction_result(proba, True, proba.shape[1])
         expected = csr_matrix(
-            np.array([[0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],])
+            np.array(
+                [
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                ]
+            )
         )
         assert_csr_matrix_equal(expected, result)
 
@@ -67,11 +74,25 @@ class ClassificationUtilsTest(unittest.TestCase):
             proba, True, proba.shape[1], return_proba=True
         )
         expected = csr_matrix(
-            np.array([[0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],])
+            np.array(
+                [
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                ]
+            )
         )
         assert_csr_matrix_equal(expected, result)
         expected_proba = csr_matrix(
-            np.array([[0, 0, 0.6, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],])
+            np.array(
+                [
+                    [0, 0, 0.6, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                ]
+            )
         )
         assert_csr_matrix_equal(expected_proba, proba_result)
 

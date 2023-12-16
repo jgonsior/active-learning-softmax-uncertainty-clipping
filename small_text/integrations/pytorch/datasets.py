@@ -72,8 +72,7 @@ class PytorchDatasetView(DatasetView):
 
 
 class PytorchTextClassificationDataset(PytorchDataset):
-    """Dataset class for classifiers from Pytorch Integration.
-    """
+    """Dataset class for classifiers from Pytorch Integration."""
 
     INDEX_TEXT = 0
     INDEX_LABEL = 1

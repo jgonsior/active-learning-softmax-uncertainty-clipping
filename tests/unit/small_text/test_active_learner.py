@@ -35,7 +35,6 @@ class AbstractPoolBasedActiveLearnerTest(unittest.TestCase):
 
 
 class _PoolBasedActiveLearnerTest(object):
-
     NUM_CLASSES = 5
 
     NUM_SAMPLES = 100
@@ -104,7 +103,6 @@ class _PoolBasedActiveLearnerTest(object):
         return y_new
 
     def test_init(self):
-
         clf_factory = self._get_classifier_factory()
         query_strategy = RandomSampling()
 
@@ -152,7 +150,6 @@ class _PoolBasedActiveLearnerTest(object):
         x_indices_ignored=None,
         x_indices_validation=None,
     ):
-
         clf_factory = self._get_classifier_factory()
         clf_mock = Mock(clf_factory.new())
         clf_factory.new = Mock(return_value=clf_mock)
@@ -212,7 +209,6 @@ class _PoolBasedActiveLearnerTest(object):
             active_learner.query(num_samples=5)
 
     def test_query(self, num_samples=5):
-
         clf_factory = self._get_classifier_factory()
         query_strategy_mock = Mock()
         ds = self._get_random_dataset()
@@ -230,7 +226,6 @@ class _PoolBasedActiveLearnerTest(object):
         )
 
     def test_query_with_custom_representation(self, num_samples=5):
-
         clf_factory = self._get_classifier_factory()
         query_strategy_mock = Mock()
         ds = self._get_random_dataset()
@@ -249,7 +244,6 @@ class _PoolBasedActiveLearnerTest(object):
         )
 
     def test_query_with_custom_representation_invalid(self, num_samples=5):
-
         clf_factory = self._get_classifier_factory()
         query_strategy_mock = Mock()
         ds = self._get_random_dataset()
@@ -269,7 +263,6 @@ class _PoolBasedActiveLearnerTest(object):
             active_learner.query(num_samples=num_samples, representation=custom_x)
 
     def test_query_with_kwargs(self):
-
         num_samples = 5
         kwargs = {"argx_x": 1, "arg_y": 2}
 
@@ -706,7 +699,6 @@ class _PoolBasedActiveLearnerTest(object):
         )
 
     def _get_unlabeled_indices(self, indices_initial, num_samples=100):
-
         mask = np.ones(num_samples, bool)
         mask[indices_initial] = False
         indices = np.arange(num_samples)

@@ -90,7 +90,6 @@ def perform_active_learning(active_learner, train, labeled_indices, test):
 
 
 def initialize_active_learner(active_learner, y_train):
-
     indices_initial = random_initialization_stratified(y_train, n_samples=2000)
     y_initial = y_train[indices_initial]
 

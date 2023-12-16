@@ -69,7 +69,6 @@ class ConstraintTest(unittest.TestCase):
             self._test_query_strategy(sls)
 
     def _test_query_strategy(self, query_strategy, multi_label=False, num_classes=3):
-
         clf = SklearnClassifier(ConfidenceEnhancedLinearSVC(), num_classes)
         ds = random_sklearn_dataset(num_samples=100)
 

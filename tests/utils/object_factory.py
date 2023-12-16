@@ -6,7 +6,6 @@ from small_text.active_learner import PoolBasedActiveLearner
 def get_initialized_active_learner(
     clf_factory, query_strategy, dataset, initial_indices=10
 ):
-
     active_learner = PoolBasedActiveLearner(clf_factory, query_strategy, dataset)
 
     indices_initial = np.random.choice(

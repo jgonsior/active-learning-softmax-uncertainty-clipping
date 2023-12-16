@@ -43,7 +43,6 @@ def constraints(cls=None, classification_type=None):
             n=10,
             **kwargs,
         ):
-
             if classification_type is not None:
                 if isinstance(classification_type, str):
                     classification_type_ = ClassificationType.from_str(

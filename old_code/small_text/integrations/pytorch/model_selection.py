@@ -33,7 +33,6 @@ class Metric(object):
 
 
 class PytorchModelSelection(object):
-
     IDX_EPOCH = -2
 
     def __init__(self, save_directory, metrics, sort_by_idx=0):
@@ -51,7 +50,6 @@ class PytorchModelSelection(object):
         self.models = OrderedDict()
 
     def add_model(self, model, epoch, **kwargs):
-
         if not all(metric_name in kwargs for metric_name in self.metrics.keys()):
             raise ValueError(
                 "All metrics defined in the constructor must be reported. "

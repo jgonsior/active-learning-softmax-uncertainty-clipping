@@ -43,7 +43,6 @@ def load_my_dataset(dataset: str, transformer_model_name: str, tokenization=True
         tokenizer = AutoTokenizer.from_pretrained(transformer_model_name)
 
         def _get_transformers_dataset(tokenizer, data, labels, max_length=60):
-
             data_out = []
 
             for i, doc in enumerate(data):

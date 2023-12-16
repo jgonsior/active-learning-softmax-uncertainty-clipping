@@ -51,7 +51,6 @@ def greedy_coreset(
         indices_s = np.concatenate([x_indices_labeled, ind_new]).astype(np.int64)
         sims = np.array([], dtype=np.float32)
         for batch in np.array_split(x[x_indices_unlabeled], num_batches, axis=0):
-
             sim = np.matmul(batch, x[indices_s].T)
             if not normalized:
                 sim = sim / np.dot(
@@ -175,7 +174,6 @@ class LightweightCoreset(EmbeddingBasedQueryStrategy):
         embeddings,
         embeddings_proba=None,
     ):
-
         embeddings = embeddings[indices_unlabeled]
 
         embeddings_mean = np.mean(embeddings, axis=0)

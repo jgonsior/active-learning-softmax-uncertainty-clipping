@@ -17,7 +17,6 @@ class DeltaFScoreTest(unittest.TestCase):
         self.assertEqual([], stopping_criterion.delta_history)
 
     def test_init_with_kwargs(self):
-
         window_size = 5
         threshold = 0.01
 

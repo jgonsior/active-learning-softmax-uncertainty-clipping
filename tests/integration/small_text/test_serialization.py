@@ -51,7 +51,6 @@ class SerializationTest(unittest.TestCase):
                 self._load(f, query_strategy, ind_initial, ind_queried)
 
     def _write(self, file, query_strategy, clf_factory):
-
         x = random_sklearn_dataset(20, 100)
         active_learner = get_initialized_active_learner(clf_factory, query_strategy, x)
         ind_initial = active_learner.indices_labeled

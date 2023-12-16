@@ -54,14 +54,12 @@ class LabelUtilsTest(unittest.TestCase):
         assert_csr_matrix_equal(expected, result)
 
     def test_get_ignored_labels_mask_dense(self):
-
         y = np.array([1, LABEL_IGNORED, 3, 2])
         mask = get_ignored_labels_mask(y, LABEL_IGNORED)
 
         assert_array_equal(np.array([False, True, False, False]), mask)
 
     def test_get_ignored_labels_mask_sparse(self):
-
         y = csr_matrix(
             np.array(
                 [[1, 1], [LABEL_IGNORED, 0], [LABEL_IGNORED, LABEL_IGNORED], [1, 0]]

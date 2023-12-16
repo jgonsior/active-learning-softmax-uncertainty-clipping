@@ -33,7 +33,6 @@ class GreedyCoresetMethodTest(unittest.TestCase):
 
 @parameterized_class([{"normalize": True}, {"normalize": False}])
 class GreedyCoresetTest(unittest.TestCase, SamplingStrategiesTests):
-
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):
@@ -116,7 +115,6 @@ class LightweightCoresetMethodTest(unittest.TestCase):
 
 @parameterized_class([{"normalize": True}, {"normalize": False}])
 class LightweightCoresetTest(unittest.TestCase, SamplingStrategiesTests):
-
     # https://github.com/wolever/parameterized/issues/119
     @classmethod
     def setUpClass(cls):

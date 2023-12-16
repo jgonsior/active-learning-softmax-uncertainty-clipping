@@ -82,7 +82,6 @@ class ExpectedGradientLength(QueryStrategy):
         return np.array([indices_unlabeled[i] for i in indices])
 
     def compute_gradient_lengths(self, clf, criterion, gradient_lengths, offset, x):
-
         batch_len = x.size(0)
         all_classes = torch.LongTensor(
             [batch_len * [i] for i in range(self.num_classes)]
@@ -106,7 +105,6 @@ class ExpectedGradientLength(QueryStrategy):
         )
 
     def compute_gradient_lengths_batch(self, clf, criterion, x, gradients, all_classes):
-
         batch_len = x.size(0)
 
         output = clf.model(x)
@@ -123,7 +121,6 @@ class ExpectedGradientLength(QueryStrategy):
                 self.compute_gradient_length(clf, sm, gradients, j, k)
 
     def compute_gradient_length(self, clf, sm, gradients, j, k):
-
         params = [
             param.grad.flatten()
             for param in clf.model.parameters()
@@ -190,14 +187,12 @@ class ExpectedGradientLengthMaxWord(ExpectedGradientLength):
     def query(
         self, clf, dataset, indices_unlabeled, indices_labeled, y, n=10, pbar=None
     ):
-
         assert_layer_exists(clf.model, self.layer_name)
         return super().query(
             clf, dataset, indices_unlabeled, indices_labeled, y, n=n, pbar=pbar
         )
 
     def compute_gradient_lengths(self, clf, criterion, gradient_lengths, offset, x):
-
         self._words = torch.unique(x, dim=1).to(self.device)
 
         # TODO: assert layer_name is embedding layer
@@ -274,7 +269,6 @@ class ExpectedGradientLengthLayer(ExpectedGradientLength):
         self.layer_name = layer_name
 
     def compute_gradient_length(self, clf, sm, gradients, j, k):
-
         assert_layer_exists(clf.model, self.layer_name)
 
         modules = dict({name: module for name, module in clf.model.named_modules()})
@@ -312,7 +306,6 @@ class BADGE(EmbeddingBasedQueryStrategy):
         embeddings,
         embeddings_proba=None,
     ):
-
         if embeddings_proba is None:
             proba = clf.predict_proba(dataset[indices_unlabeled])
             embeddings = self.get_badge_embeddings(embeddings[indices_unlabeled], proba)
@@ -330,7 +323,6 @@ class BADGE(EmbeddingBasedQueryStrategy):
         return indices
 
     def get_badge_embeddings(self, embeddings, proba):
-
         proba_argmax = np.argmax(proba, axis=1)
         scale = -1 * proba
         scale[proba_argmax] = -1 * proba[proba_argmax]

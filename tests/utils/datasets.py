@@ -59,7 +59,6 @@ def random_labels(num_classes, multi_label=False):
 def random_sklearn_dataset(
     num_samples, vocab_size=60, num_classes=2, multi_label=False
 ):
-
     x = sparse.random(num_samples, vocab_size, density=0.15, format="csr")
 
     if multi_label:
@@ -133,7 +132,6 @@ def random_text_classification_dataset(
     target_labels="inferred",
     dtype=torch.long,
 ):
-
     if target_labels not in ["explicit", "inferred"]:
         raise ValueError(
             f"Invalid test parameter value for target_labels: {str(target_labels)}"
@@ -206,7 +204,6 @@ def random_transformer_dataset(
     target_labels="inferred",
     dtype=torch.long,
 ):
-
     if target_labels not in ["explicit", "inferred"]:
         raise ValueError(
             f"Invalid test parameter value for target_labels: {str(target_labels)}"

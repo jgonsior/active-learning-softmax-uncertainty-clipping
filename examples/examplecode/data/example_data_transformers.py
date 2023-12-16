@@ -4,7 +4,6 @@ from small_text.integrations.transformers.datasets import TransformersDataset
 
 
 def preprocess_data(tokenizer, data, labels, max_length=500, multi_label=False):
-
     data_out = []
 
     for i, doc in enumerate(data):

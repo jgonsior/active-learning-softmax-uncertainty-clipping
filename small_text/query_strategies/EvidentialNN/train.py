@@ -17,7 +17,6 @@ def train_model(
     device=None,
     uncertainty=False,
 ):
-
     since = time.time()
 
     if not device:
@@ -31,17 +30,16 @@ def train_model(
     evidences = {"evidence": [], "type": [], "epoch": []}
 
     for epoch in range(num_epochs):
-        
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
-        #print("-" * 10)
+        # print("-" * 10)
 
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
             if phase == "train":
-                #print("Training...")
+                # print("Training...")
                 model.train()  # Set model to training mode
             else:
-                #print("Validating...")
+                # print("Validating...")
                 model.eval()  # Set model to evaluate mode
 
             running_loss = 0.0
@@ -50,7 +48,6 @@ def train_model(
 
             # Iterate over data.
             for i, (inputs, labels) in enumerate(dataloaders[phase]):
-
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -60,7 +57,6 @@ def train_model(
                 # forward
                 # track history if only in train
                 with torch.set_grad_enabled(phase == "train"):
-
                     if uncertainty:
                         y = one_hot_embedding(labels, num_classes)
                         y = y.to(device)
@@ -123,7 +119,7 @@ def train_model(
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
-        #print()
+        # print()
 
     time_elapsed = time.time() - since
     print(
@@ -131,7 +127,7 @@ def train_model(
             time_elapsed // 60, time_elapsed % 60
         )
     )
-    #print("DARST ABBRECHEN Best val Acc: {:4f}".format(best_acc))
+    # print("DARST ABBRECHEN Best val Acc: {:4f}".format(best_acc))
 
     # load best model weights
     model.load_state_dict(best_model_wts)

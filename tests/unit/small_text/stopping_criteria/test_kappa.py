@@ -16,7 +16,6 @@ class KappaAverageTest(unittest.TestCase):
         self.assertEqual(2, stopping_criterion.num_classes)
 
     def test_init_with_kwargs(self):
-
         window_size = 5
         kappa = 0.95
         num_classes = 5
