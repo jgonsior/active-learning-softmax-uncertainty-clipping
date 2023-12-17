@@ -59,6 +59,7 @@ def main(
     gpu_device: int,
     lower_is_better: bool,
     uncertainty_clipping: float,
+    clipping_on_which_data:str
 ):
     train, test, num_classes = load_my_dataset(dataset, transformer_model_name)
 
@@ -87,33 +88,36 @@ def main(
 
     if query_strategy_name == "LC":
         query_strategy = LeastConfidence(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping,clipping_on_which_data=clipping_on_which_data
         )
     elif query_strategy_name == "Rand":
         query_strategy = RandomSampling()
     elif query_strategy_name == "Ent":
         query_strategy = PredictionEntropy(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping,clipping_on_which_data=clipping_on_which_data
         )
     elif query_strategy_name == "MM":
         query_strategy = BreakingTies(
-            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=lower_is_better, uncertainty_clipping=uncertainty_clipping,clipping_on_which_data=clipping_on_which_data
         )
     elif query_strategy_name == "QBC_VE":
         query_strategy = QBC_VE(
             lower_is_better=lower_is_better,
             uncertainty_clipping=uncertainty_clipping,
+            clipping_on_which_data=clipping_on_which_data,
             clf_factory=clf_factory,
         )
     elif query_strategy_name == "QBC_KLD":
         query_strategy = QBC_KLD(
             lower_is_better=lower_is_better,
             uncertainty_clipping=uncertainty_clipping,
+            clipping_on_which_data=clipping_on_which_data,
             clf_factory=clf_factory,
         )
     elif query_strategy_name == "trustscore":
         query_strategy = Trustscore2(
             uncertainty_clipping=uncertainty_clipping,
+            clipping_on_which_data=clipping_on_which_data,
         )
     elif query_strategy_name == "passive":
         query_strategy = RandomSampling()
@@ -416,6 +420,7 @@ if __name__ == "__main__":
         ],
     )
     parser.add_argument("--gpu_device", type=int, choices=[0, 1])
+    parser.add_argument("--clipping_on_which_data", choices=["unlabeled", "all"])
 
     args = parser.parse_args()
 
@@ -460,6 +465,7 @@ if __name__ == "__main__":
         gpu_device=args.gpu_device,
         lower_is_better=args.lower_is_better,
         uncertainty_clipping=args.uncertainty_clipping,
+        clipping_on_which_data=args.clipping_on_which_data
     )
 
     # create exp_results_dir

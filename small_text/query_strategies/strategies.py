@@ -107,10 +107,12 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
     To use this class, create a subclass and implement `get_confidence()`.
     """
 
-    def __init__(self, lower_is_better=False, uncertainty_clipping=1.0):
+    def __init__(self, lower_is_better=False, uncertainty_clipping=1.0,
+            clipping_on_which_data="all"):
         self.lower_is_better = lower_is_better
         self.scores_ = None
         self.uncertainty_clipping = uncertainty_clipping
+        self.clipping_on_which_data=clipping_on_which_data
 
     def query(
         self,
@@ -130,6 +132,18 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
 
         if len(indices_unlabeled) == n:
             return np.array(indices_unlabeled)
+
+        if self.clipping_on_which_data == "unlabeled":
+            clipping_threshold = np.percentile(
+                confidence[indices_unlabeled], (1 - self.uncertainty_clipping) * 100
+            )
+
+            print(f"original confidence: {confidence}")
+
+            confidence[
+                confidence < clipping_threshold
+            ] = 1  # as lower_is_better = True is default, we set it to 1 as this is then the worst possible value
+
 
         indices_partitioned = np.argpartition(confidence[indices_unlabeled], n)[:n]
         return np.array([indices_unlabeled[i] for i in indices_partitioned])
@@ -161,17 +175,17 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         confidence = self.get_confidence(
             clf, dataset, indices_unlabeled, indices_labeled, y
         )
+        
+        if self.clipping_on_which_data="all":
+            clipping_threshold = np.percentile(
+                confidence, (1 - self.uncertainty_clipping) * 100
+            )
 
+            print(f"original confidence: {confidence}")
 
-        clipping_threshold = np.percentile(
-            confidence, (1 - self.uncertainty_clipping) * 100
-        )
-
-        print(f"original confidence: {confidence}")
-
-        confidence[
-            confidence < clipping_threshold
-        ] = 1  # as lower_is_better = True is default, we set it to 1 as this is then the worst possible value
+            confidence[
+                confidence < clipping_threshold
+            ] = 1  # as lower_is_better = True is default, we set it to 1 as this is then the worst possible value
 
         self.scores_ = confidence
         if not self.lower_is_better:
@@ -216,9 +230,10 @@ class BreakingTies(ConfidenceBasedQueryStrategy):
     most likely predicted class [LUO05]_.
     """
 
-    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
+    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0,
+            clipping_on_which_data="all"):
         super().__init__(
-            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping, clipping_on_which_data=clipping_on_which_data
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
@@ -240,9 +255,10 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
     """Selects instances with the least prediction confidence (regarding the most likely class)
     [LG94]_."""
 
-    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0):
+    def __init__(self, lower_is_better=True, uncertainty_clipping=1.0,
+            clipping_on_which_data="all"):
         super().__init__(
-            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping, clipping_on_which_data=clipping_on_which_data
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
@@ -259,9 +275,10 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
 class PredictionEntropy(ConfidenceBasedQueryStrategy):
     """Selects instances with the largest prediction entropy [HOL08]_."""
 
-    def __init__(self, lower_is_better=False, uncertainty_clipping=1.0):
+    def __init__(self, lower_is_better=False, uncertainty_clipping=1.0,
+            clipping_on_which_data="all"):
         super().__init__(
-            lower_is_better=False, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=False, uncertainty_clipping=uncertainty_clipping, clipping_on_which_data=clipping_on_which_data
         )
 
     def get_confidence(self, clf, dataset, _indices_unlabeled, _indices_labeled, _y):
@@ -285,9 +302,10 @@ class Trustscore2(
     # wenn man 2 Klassen hat -> 12/13 Datenpunkte , d.h K=12 und K=13
     # Bei Trec6 ist am Anfang 4 in jeden Datenpunkt, d.h müssen ersten 1, 2 iterationen unter 10 gehen, danach sind genug dafür da
 
-    def __init__(self, uncertainty_clipping=1.0):
+    def __init__(self, uncertainty_clipping=1.0, 
+            clipping_on_which_data="all"):
         super().__init__(
-            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping, clipping_on_which_data=clipping_on_which_data
         )  # Eigentlich sollten lower Trust score gewählt weden, vor 6.7 waren alle experimente false
         #                                   TRUE IST DEFAULT am besten
         self._clsUNLABELED = None
@@ -358,10 +376,12 @@ class QBC_Base(ConfidenceBasedQueryStrategy):
         clf_factory,
         lower_is_better=True,
         uncertainty_clipping=1.0,
+
+            clipping_on_which_data="all",
         amount_of_ensembles=5,
     ):
         super().__init__(
-            lower_is_better=True, uncertainty_clipping=uncertainty_clipping
+            lower_is_better=True, uncertainty_clipping=uncertainty_clipping, clipping_on_which_data=clipping_on_which_data
         )
         self.amount_of_ensembles = amount_of_ensembles
         self.factory = clf_factory

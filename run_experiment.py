@@ -50,6 +50,7 @@ full_param_grid = {
     "num_iterations": [20],
     "uncertainty_clipping": [1.0, 0.95, 0.90],
     "lower_is_better": ["True"],  # , "False"],
+    "clipping_on_which_data": ["unlabeled",]# "all"]
 }
 
 dev_param_grid = copy.deepcopy(full_param_grid)
@@ -170,6 +171,7 @@ def run_code(
     transformer_model_name,
     lower_is_better,
     uncertainty_clipping,
+    clipping_on_which_data,
 ):
     args = OrderedDict()
 
@@ -184,15 +186,17 @@ def run_code(
     args["transformer_model_name"] = transformer_model_name
     args["lower_is_better"] = lower_is_better
     args["uncertainty_clipping"] = uncertainty_clipping
+    args["clipping_on_which_data"] = clipping_on_which_data
 
     args = OrderedDict(sorted(args.items()))
 
     if args not in open_param_list:
+        print("Unknown parameter")
         return
 
     gpu_device = random.randint(0, n_gpus - 1)
 
-    cli = f"python test.py --num_iterations {num_iterations} --batch_size {batch_size} --exp_name {exp_name} --dataset {dataset} --random_seed {random_seed} --query_strategy {query_strategy} --uncertainty_method {uncertainty_method} --initially_labeled_samples {initially_labeled_samples} --transformer_model_name {transformer_model_name} --gpu_device {gpu_device} --uncertainty_clipping {uncertainty_clipping} --lower_is_better {lower_is_better}"
+    cli = f"python test.py --num_iterations {num_iterations} --batch_size {batch_size} --exp_name {exp_name} --dataset {dataset} --random_seed {random_seed} --query_strategy {query_strategy} --uncertainty_method {uncertainty_method} --initially_labeled_samples {initially_labeled_samples} --transformer_model_name {transformer_model_name} --gpu_device {gpu_device} --uncertainty_clipping {uncertainty_clipping} --lower_is_better {lower_is_better} --clipping_on_which_data {clipping_on_which_data}"
 
     # print("#" * 100)
     print(cli)

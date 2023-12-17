@@ -2162,135 +2162,116 @@ def full_uncertainty_plots(
 
 def uncertainty_advanced_clipping_test_plots(
     param_grid,
-    # metric="confidence_scores",
-    metric="y_proba_test_active",
+    metric="confidence_scores",
+    #metric="y_proba_test_active",
     datasets=["trec6", "ag_news", "subj", "rotten", "imdb", "cola", "sst2"],
     transformer_model_name="bert-base-uncased",
-):
-      for dataset in datasets:
-        grouped_data = _load_grouped_data(
-            exp_name=param_grid["exp_name"][0],
-            transformer_model_name=transformer_model_name,
-            dataset=dataset,
-            initially_labeled_samples=param_grid["initially_labeled_samples"][0],
-            batch_size=param_grid["batch_size"][0],
-            param_grid=param_grid,
-            num_iterations=param_grid["num_iterations"][0],
-            metric=metric,
-        )
-        if len(grouped_data) == 0:
-            return
-        
-        df_data = []
-        for k, v in grouped_data.items():
-            #if k not in strategies:
-            #    continue
+    bins = 100,
+    ignore_clipping_for_random_and_passive=True
+):    
+    for dataset in datasets:
+        for query_strategy in param_grid["query_strategy"]:
+            for uncertainty_method in param_grid["uncertainty_method"]:
+                for lower_is_better in param_grid["lower_is_better"]:
+                    for uncertainty_clipping in param_grid["uncertainty_clipping"]:
+                        if (
+                            query_strategy in ["passive", "Rand"]
+                            and uncertainty_clipping != 1.0
+                            and ignore_clipping_for_random_and_passive
+                        ):
+                            continue
+                        elif (
+                            query_strategy in ["passive", "Rand"]
+                            and uncertainty_clipping != 1.0
+                            and not ignore_clipping_for_random_and_passive
+                        ):
+                            uncertainty_clipping = 1.0
+                        key = f"{query_strategy} ({uncertainty_method}) {lower_is_better}/{uncertainty_clipping}"
 
-            for random_seed in v:
-                # print(random_seed)
-                for i, iteration in enumerate(random_seed):
-                    for v in iteration:
-                        if metric != "confidence_scores":
-                            v = np.max(v)
-                        if v < 0:
-                            print(k)
-                            # passive classifier
-                            v = 1 + v
-                        # v = 1 - v
-                        df_data.append((k, v, i))
-        df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
-        
-        for strat in df["Strategy"].unique():
-            plot_path = Path(f"./plots/{metric}_{transformer_model_name}_{dataset}")
+                        for random_seed in param_grid["random_seed"]:
+                            # check if this configuration is available
+                            exp_results_dir = _convert_config_to_path(
+                                {
+                                    "uncertainty_method": uncertainty_method,
+                                    "query_strategy": query_strategy,
+                                    "exp_name": param_grid["exp_name"][0],
+                                    "transformer_model_name": transformer_model_name,
+                                    "dataset": dataset,
+                                    "initially_labeled_samples": param_grid["initially_labeled_samples"][0],
+                                    "random_seed": random_seed,
+                                    "batch_size": param_grid["batch_size"][0],
+                                    "num_iterations": param_grid["num_iterations"][0],
+                                    "uncertainty_clipping": uncertainty_clipping,
+                                    "lower_is_better": lower_is_better,
+                                }
+                            )
+                            if exp_results_dir.exists():
+                                metrics = np.load(
+                                    exp_results_dir / "metrics.npz", allow_pickle=True
+                                )
+                                print(metrics.files)
 
-            #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6"):
-            #    continue
-            
-            mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
-            if np.nanmax(mv) == np.inf:
-                max_value = np.iinfo(np.int16).max
-            else:
-                max_value = np.nanmax(mv)
-            if np.nanmin(mv) == 0 and max_value == 0:
-                continue
-            counts, bins = np.histogram(mv, bins=70, range=(np.nanmin(mv), max_value))
+                                metric_values = metrics[metric][1:]
 
-            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
-            plt.hist(
-                bins[:-1],
-                weights=counts,
-                bins=bins,
-            )
-            # plt.title(f"{strat}")
-            plt.title("")
-            plot_path.mkdir(exist_ok=True, parents=True)
 
-            plt.savefig(
-                plot_path / f"{strat.replace('/', '-')}.jpg",
-                bbox_inches="tight",
-                pad_inches=0,
-            )
-            plt.savefig(
-                plot_path / f"{strat.replace('/', '-')}.pdf",
-                dpi=300,
-                bbox_inches="tight",
-                pad_inches=0,
-            )
-            plt.clf()
-            plt.close("all")
-            for iteration in df["iteration"].unique():
-                #if iteration != 5:
-                #    continue
-                
-                plot_path = Path(
-                    f"./plots/{metric}_{transformer_model_name}_{dataset}/{strat.replace('/', '-')}/"
-                )
+                                plot_path = Path(
+                                    f"./plots/{exp_results_dir.name}/"
+                                )
+                                
+                                for iteration, mv in enumerate(metric_values):
+                                    if Path(plot_path/ f"{iteration:02d}.jpg").exists():
+                                        continue
 
-                #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6/passive (softmax) True-1.0"):
-                #    continue
-                if Path(plot_path/ f"{iteration}.jpg").exists():
-                    continue
+                                    if len(mv) == 0:
+                                        continue
 
-                mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
-                    metric
-                ].astype(np.float16)
+                                    if np.nanmax(mv) == np.inf:
+                                        max_value = np.iinfo(np.int16).max
+                                    else:
+                                        max_value = np.nanmax(mv)
+                                    if np.nanmin(mv) == 0 and max_value == 0:
+                                        continue
+                                    counts, bins = np.histogram(
+                                        mv, bins=bins, range=(0,1)#range=(np.nanmin(mv), max_value)
+                                    )
 
-                if len(mv) == 0:
-                    continue
+                                    clipping_threshold95 = np.percentile(
+                                        mv, (1 - 0.95) * 100
+                                    )
 
-                if np.nanmax(mv) == np.inf:
-                    max_value = np.iinfo(np.int16).max
-                else:
-                    max_value = np.nanmax(mv)
-                if np.nanmin(mv) == 0 and max_value == 0:
-                    continue
-                counts, bins = np.histogram(
-                    mv, bins=70, range=(np.nanmin(mv), max_value)
-                )
+                                    clipping_threshold90 = np.percentile(
+                                        mv, (1 - 0.90) * 100
+                                    )
 
-                fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
-                plt.hist(
-                    bins[:-1],
-                    weights=counts,
-                    bins=bins,
-                )
-                #  plt.title(f"{strat}: {iteration}")
-                plt.title("")
-                plt.ylabel("Freq")
-                plot_path.mkdir(exist_ok=True, parents=True)
+                                    fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.66))
 
-                plt.savefig(
-                    plot_path / f"{iteration}.jpg", bbox_inches="tight", pad_inches=0
-                )
-                plt.savefig(
-                    plot_path / f"{iteration}.pdf",
-                    dpi=300,
-                    bbox_inches="tight",
-                    pad_inches=0,
-                )
-                print(plot_path / f"{iteration}.jpg")
-                plt.clf()
-                plt.close("all")
+                                    plt.axvline(x=clipping_threshold95, color="darkred")
+                                    plt.axvline(x=clipping_threshold90, color="cyan")
+
+                                    plt.hist(
+                                        bins[:-1],
+                                        weights=counts,
+                                        bins=bins,
+                                    histtype="step"
+                                    )
+                                    #  plt.title(f"{strat}: {iteration}")
+                                    plt.title("")
+                                    plt.ylabel("Freq")
+                                    plot_path.mkdir(exist_ok=True, parents=True)
+
+                                    plt.savefig(
+                                        plot_path / f"{iteration:02d}.jpg", bbox_inches="tight", pad_inches=0
+                                    )
+                                    plt.savefig(
+                                        plot_path / f"{iteration:02d}.pdf",
+                                        dpi=300,
+                                        bbox_inches="tight",
+                                        pad_inches=0,
+                                    )
+                                    print(plot_path / f"{iteration:02d}.jpg")
+                                    plt.clf()
+                                    plt.close("all")
+
 
 
 def _generate_al_strat_abbreviations_table(pg):
@@ -2321,7 +2302,8 @@ def _generate_al_strat_abbreviations_table(pg):
 
 #_generate_al_strat_abbreviations_table(full_param_grid)
 #full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-full_uncertainty_plots(full_param_grid)
+#full_uncertainty_plots(full_param_grid)
+uncertainty_advanced_clipping_test_plots(full_param_grid)
 #full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
 #exit(-5)
 #full_outlier_comparison(copy.deepcopy(full_param_grid))
