@@ -161,10 +161,10 @@ def _evaluate(active_learner, train_labeled,train_unlabeled, test, query_strateg
     y_proba_test = active_learner.classifier.predict_proba(test)
     y_proba_test_active = active_learner.active_classifier.predict_proba(test)
 
-    y_proba_train = active_learner.classifier.predict_proba(train_unlabeled)
-    y_proba_train_amax = np.amax(active_learner.classifier.predict_proba(train_unlabeled),axis=1)
-    y_proba_train_active = active_learner.active_classifier.predict_proba(train_unlabeled)
-    y_proba_train_active_amax = np.amax(active_learner.active_classifier.predict_proba(train_unlabeled),axis=1)
+    #y_proba_train = active_learner.classifier.predict_proba(train_unlabeled)
+    #y_proba_train_amax = np.amax(active_learner.classifier.predict_proba(train_unlabeled),axis=1)
+    #y_proba_train_active = active_learner.active_classifier.predict_proba(train_unlabeled)
+    #y_proba_train_active_amax = np.amax(active_learner.active_classifier.predict_proba(train_unlabeled),axis=1)
 
     test_acc = accuracy_score(y_pred_test, test.y)
 
@@ -193,10 +193,10 @@ def _evaluate(active_learner, train_labeled,train_unlabeled, test, query_strateg
         "y_proba_test_active": y_proba_test_active,
         "acc_bins_test_active": acc_bins_test_active,
         "proba_bins_test_active": proba_bins_test_active,
-        "y_proba_train": y_proba_train,
-        "y_proba_train_active": y_proba_train_active,
-        "y_proba_train_amax": y_proba_train_amax,
-        "y_proba_train_active_amax": y_proba_train_active_amax,
+        #"y_proba_train": y_proba_train,
+        #"y_proba_train_active": y_proba_train_active,
+        #"y_proba_train_amax": y_proba_train_amax,
+        #"y_proba_train_active_amax": y_proba_train_active_amax,
     }
 
     #print(metrics)
