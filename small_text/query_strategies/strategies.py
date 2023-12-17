@@ -176,7 +176,7 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             clf, dataset, indices_unlabeled, indices_labeled, y
         )
         
-        if self.clipping_on_which_data="all":
+        if self.clipping_on_which_data=="all":
             clipping_threshold = np.percentile(
                 confidence, (1 - self.uncertainty_clipping) * 100
             )
