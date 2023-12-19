@@ -50,7 +50,7 @@ full_param_grid = {
     "num_iterations": [20],
     "uncertainty_clipping": [1.0, 0.95, 0.90],
     "lower_is_better": ["True"],  # , "False"],
-    "clipping_on_which_data": ["unlabeled",]# "all"]
+    "clipping_on_which_data": ["all"],#["unlabeled", "all"]
 }
 
 dev_param_grid = copy.deepcopy(full_param_grid)
