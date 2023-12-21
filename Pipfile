@@ -16,6 +16,7 @@ datasets = "*"
 matplotlib = "*"
 seaborn = "==0.12.2"
 tabulate = "*"
+statsmodels = "*"
 
 [dev-packages]
 black="*"

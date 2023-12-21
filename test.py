@@ -443,6 +443,7 @@ if __name__ == "__main__":
     exp_results_dir_args = Path(exp_results_dir / "args.json")
     exp_results_dir_metrics = Path(exp_results_dir / "metrics.npz")
     print(exp_results_dir_metrics)
+    
     if exp_results_dir_metrics.exists():
         print(arg_dict)
         print(exp_results_dir_metrics)

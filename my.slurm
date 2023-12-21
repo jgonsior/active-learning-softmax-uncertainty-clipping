@@ -10,7 +10,7 @@
 #SBATCH --mem=120GB
 #SBATCH --output=/beegfs/ws/1/s5968580-btw/logs/out-%A_%a.txt
 #SBATCH --error=/beegfs/ws/1/s5968580-btw/logs/error-%A_%a.txt
-#SBATCH --array 0-2101
+#SBATCH --array 0-1292
 
 
 
@@ -34,6 +34,6 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /beegfs/ws/1/s5968580-btw/active-learning-softmax-uncertainty-clipping/run_experiment.py  --taurus --workload my --n_array_jobs 2101 --array_job_id $SLURM_ARRAY_TASK_ID
+python /beegfs/ws/1/s5968580-btw/active-learning-softmax-uncertainty-clipping/run_experiment.py  --taurus --workload my --n_array_jobs 1292 --array_job_id $SLURM_ARRAY_TASK_ID
 
 exit 0

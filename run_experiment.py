@@ -48,10 +48,11 @@ full_param_grid = {
     "random_seed": [42, 43, 44, 45, 46, 47, 48, 49, 50, 51],
     "batch_size": [25],
     "num_iterations": [20],
-    "uncertainty_clipping": [1.0, 0.95, 0.90],
+    "uncertainty_clipping": [1.0, 0.95, 0.90],#"leftmost_peak", "valley_after_peak"],
     "lower_is_better": ["True"],  # , "False"],
-    "clipping_on_which_data": ["all"],#["unlabeled", "all"]
+    "clipping_on_which_data": ["unlabeled", "all"],
 }
+
 
 dev_param_grid = copy.deepcopy(full_param_grid)
 dev_param_grid["num_iterations"] = [2]
@@ -152,7 +153,7 @@ def generate_workload(
     )
 
     splitted_full_list = list(_chunks(full_param_list, n_array_jobs))
-
+    
     return done_param_list, open_param_list, splitted_full_list[array_job_id]
 
 
@@ -189,9 +190,9 @@ def run_code(
     args["clipping_on_which_data"] = clipping_on_which_data
 
     args = OrderedDict(sorted(args.items()))
-
+    
     if args not in open_param_list:
-        print("Unknown parameter")
+        #print(f"Unknown parameter: {args}")
         return
 
     gpu_device = random.randint(0, n_gpus - 1)

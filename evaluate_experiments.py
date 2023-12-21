@@ -20,7 +20,7 @@ import numpy as np
 from regex import D
 from sklearn.metrics import jaccard_score
 from transformers import DefaultFlowCallback
-
+from sklearn.neighbors import KernelDensity
 from run_experiment import (
     full_param_grid,
     dev_param_grid,
@@ -31,6 +31,8 @@ from run_experiment import (
 from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
+import statsmodels.api as sm                                      
+from scipy.signal import argrelextrema, find_peaks, argrelmax, argrelmin
 
 from dataset_loader import load_my_dataset
 from small_text import data
@@ -410,6 +412,7 @@ def _load_grouped_data(
     num_iterations: int,
     metric="test_acc",
     ignore_clipping_for_random_and_passive=True,
+    clipping_on_which_data="all"
 ):
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
@@ -445,9 +448,14 @@ def _load_grouped_data(
                                 "num_iterations": num_iterations,
                                 "uncertainty_clipping": uncertainty_clipping,
                                 "lower_is_better": lower_is_better,
+                                "clipping_on_which_data": clipping_on_which_data
                             }
                         )
                         if exp_results_dir.exists():
+                            continue
+                        else:
+                            print(exp_results_dir)
+                            continue
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
                             )
@@ -854,247 +862,254 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
-                        datasets = param_grid["dataset"]
+                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
+                            datasets = param_grid["dataset"]
 
-                        plot_file = Path(
-                            f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
-                        )
-                        print(plot_file)
-
-                        groups = []
-                        for dataset in datasets:
-                            grouped_data = _load_grouped_data(
-                                exp_name,
-                                transformer_model_name,
-                                dataset,
-                                initially_labeled_samples,
-                                batch_size,
-                                param_grid,
-                                num_iteration,
-                                metric,
+                            plot_file = Path(
+                                f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}_{clipping_on_which_data}.pdf"
                             )
-                            groups.append((dataset, grouped_data))
+                            print(plot_file)
 
-                        table_data = []
-                        table_data2 = []
-                        stick_data = {}
+                            groups = []
+                            for dataset in datasets:
+                                grouped_data = _load_grouped_data(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid,
+                                    num_iteration,
+                                    metric,
+                                    clipping_on_which_data=clipping_on_which_data
+                                )
+                                groups.append((dataset, grouped_data))
 
-                        for dataset, group in groups:
-                            dataset2 = _rename_dataset_name(dataset)
-                            stick_data[dataset2] = []
+                            table_data = []
+                            table_data2 = []
+                            stick_data = {}
 
-                            for k, v in group.items():
-                                if k[-3:] == "1.0":
-                                    clipping = "Original"
-                                elif k[-3:] == "0.9":
-                                    clipping = "90%"
-                                elif k[-4:] == "0.95":
-                                    clipping = "95\%"
-                                else:
-                                    print("help" * 1000)
+                            for dataset, group in groups:
+                                dataset2 = _rename_dataset_name(dataset)
+                                stick_data[dataset2] = []
 
-                                k = _rename_strat(k, clipping=False)
-                                #    continue
-                                v = [x[-consider_last_n:] for x in v]
-                                v = np.mean(v, axis=1)
-
-                                for formatted_value in v:
-                                    formatted_value *= 100
-                                    table_data.append((k, formatted_value, clipping))
-
-                                formatted_value = np.mean(v) * 100
-                                table_data2.append((k, formatted_value, clipping))
-
-                                if clipping == "95\%" or k in ["Rand", "Pass"]:
-                                    table_data2.append((k, formatted_value, "0%"))
-                                # if k in ["Rand", "Pass"]:
-                                #    table_data2.append((k, formatted_value, "95\%"))
-                                stick_data[dataset2].append(formatted_value)
-                        df = pd.DataFrame(
-                            table_data, columns=["Method", "Acc", "clipping"]
-                        )
-                        df2 = (
-                            df.groupby(["Method", "clipping"]).mean().sort_values("Acc")
-                        )
-
-                        df3 = pd.DataFrame(
-                            table_data2, columns=["Method", "Acc", "clipping"]
-                        )
-                        df4 = (
-                            df3.loc[df3["clipping"] == "0%"]
-                            .groupby(["Method", "clipping"])
-                            .mean()
-                            .sort_values("Acc", ascending=False)
-                        )
-                        df3 = df3.loc[df3["clipping"] != "0%"]
-
-                        ordering = [o[0] for o in df4.index.tolist()]
-
-                        # move pass to the right, rand to the left
-                        ordering.remove("Pass")
-                        ordering.remove("Rand")
-                        ordering = ["Pass"] + ordering + ["Rand"]
-
-                        fig_dim = set_matplotlib_size(width, fraction=1.0)
-                        fig_dim = (fig_dim[0], fig_dim[1] * 0.6)
-                        fig = plt.figure(figsize=fig_dim)
-                        ax = sns.violinplot(
-                            data=df3,
-                            y="Acc",
-                            x="Method",
-                            order=ordering,
-                            hue="clipping",
-                            split=True,
-                            inner="stick",
-                            bw=0.05,
-                        )
-
-                        violins = [
-                            art
-                            for art in ax.get_children()
-                            if isinstance(art, PolyCollection)
-                        ]
-
-                        for violin in violins:
-                            violin.set_alpha(0)
-
-                        """ax2 = sns.violinplot(
-                            data=df,
-                            y="Acc",
-                            x="Method",
-                            order=ordering,
-                            hue="clipping",
-                            inner=None,
-                            split=True,
-                            bw=0.4,
-                            palette=[".85", ".4"],
-                            # cut=1,
-                            # ax=ax,
-                        )"""
-                        ax2 = sns.boxplot(
-                            data=df,
-                            x="Method",
-                            y="Acc",
-                            hue="clipping",
-                            order=ordering,
-                            # color="white",
-                            palette=[".85", ".4"],
-                            width=0.3,
-                            meanline=False,
-                            medianprops={"linewidth": 0},
-                            showmeans=True,
-                            meanprops={
-                                "marker": "D",
-                                "markersize": 1,
-                                "markeredgecolor": "#fff7aa",
-                                "markerfacecolor": "#fff7aa",
-                                "zorder": 100,
-                            },
-                            flierprops={"marker": "D", "markersize": 1}
-                            # boxprops={"zorder": 20},
-                            # ax=ax3,
-                        )
-                        old_handles, old_labels = ax2.get_legend_handles_labels()
-                        old_handles = old_handles[2:]
-
-                        dataset_colors = {
-                            dataset_name: sns.color_palette(
-                                palette="tab10", n_colors=len(stick_data.keys())
-                            )[ix]
-                            for ix, dataset_name in enumerate(stick_data.keys())
-                        }
-                        dataset_transparent_colors = copy.deepcopy(dataset_colors)
-                        for k, v in dataset_colors.items():
-                            dataset_colors[k] = (*v, 1)
-                            dataset_transparent_colors[k] = (*v, 0.8)
-
-                        dataset_colors = dataset_transparent_colors
-
-                        for l in ax.lines:
-                            for dataset_ix, dataset_name in enumerate(
-                                stick_data.keys()
-                            ):
-                                if len(l.get_data()[1]) == 0:
-                                    continue
-                                if l.get_data()[1][0] in stick_data[dataset_name]:
-                                    orig_data = l.get_data()
-                                    new_data = orig_data
-                                    if new_data[0][1] == int(new_data[0][1]):
-                                        # right sticks
-                                        new_data[0][0] = -0.3 + new_data[0][1]
+                                for k, v in group.items():
+                                    if k[-3:] == "1.0":
+                                        clipping = "Original"
+                                    elif k[-3:] == "0.9":
+                                        clipping = "90%"
+                                    elif k[-4:] == "0.95":
+                                        clipping = "95\%"
                                     else:
-                                        # left sticks
-                                        new_data[0][1] = 0.3 + new_data[0][0]
-                                    l.set_data(new_data)
+                                        print("help" * 1000)
 
-                                    l.set_color(dataset_colors[dataset_name])
-                                    l.set_linewidth(1.5)
-                                    # l.set_linestyle((dataset_ix, (1, 0.5)))
-                                    l.set_linestyle("solid")
-                                    l.set_solid_capstyle("butt")
-                                    if dataset_name in ["AG", "TR"]:
-                                        l.set(zorder=50)
-                                    else:
-                                        l.set(zorder=10)
+                                    k = _rename_strat(k, clipping=False)
+                                    #    continue
+                                    v = [x[-consider_last_n:] for x in v]
+                                    v = np.mean(v, axis=1)
 
-                                    # copy the line, and then insert it with a different offset, and much higher opacity
-                                    """line2 = copy.copy(l)
-                                    line2.set_linestyle((dataset_ix + 1, (1, 0.5)))
-                                    line2.set_color(
-                                        dataset_transparent_colors[dataset_name]
-                                    )
-                                    ax.add_line(line2)"""
+                                    for formatted_value in v:
+                                        formatted_value *= 100
+                                        table_data.append((k, formatted_value, clipping))
 
-                        dataset_legend_handles = []
-                        for dataset, dataset_color in dataset_colors.items():
-                            dataset_legend_handles.append(
-                                Line2D(
-                                    [0],
-                                    [0],
-                                    color=dataset_color,
-                                    # linestyle=(0, (1, 0.5)),
-                                    linestyle="solid",
-                                    lw=2,
-                                    label=dataset,
-                                    solid_capstyle="butt",
-                                ),
+                                    formatted_value = np.mean(v) * 100
+                                    table_data2.append((k, formatted_value, clipping))
+
+                                    if clipping == "95\%" or k in ["Rand", "Pass"]:
+                                        table_data2.append((k, formatted_value, "0%"))
+                                    # if k in ["Rand", "Pass"]:
+                                    #    table_data2.append((k, formatted_value, "95\%"))
+                                    stick_data[dataset2].append(formatted_value)
+                            df = pd.DataFrame(
+                                table_data, columns=["Method", "Acc", "clipping"]
+                            )
+                            df2 = (
+                                df.groupby(["Method", "clipping"]).mean().sort_values("Acc")
                             )
 
-                        dataset_legend_handles = [*dataset_legend_handles, *old_handles]
+                            df3 = pd.DataFrame(
+                                table_data2, columns=["Method", "Acc", "clipping"]
+                            )
+                            df4 = (
+                                df3.loc[df3["clipping"] == "0%"]
+                                .groupby(["Method", "clipping"])
+                                .mean()
+                                .sort_values("Acc", ascending=False)
+                            )
+                            df3 = df3.loc[df3["clipping"] != "0%"]
 
-                        ax.legend(
-                            handles=dataset_legend_handles,
-                            loc="lower center",
-                            ncol=2 + len(dataset_colors.keys()),
-                            handlelength=1.5,
-                        )
+                            ordering = [o[0] for o in df4.index.tolist()]
 
-                        for tick in ax.get_xticklabels():
-                            if tick._text in ["Ent", "LC", "MM"]:
-                                tick.set_color("#4c9dc9")
-                                tick.set_text("$\mathit{" + tick._text + "}")
-                            elif tick._text in ["Rand", "Pass"]:
-                                tick.set_color("#ff5858")
-                                tick.set_text("$\mathit{" + tick._text + "}")
-                        plt.xlabel("")
-                        plt.ylabel("$acc_{last5}$ (\%)", labelpad=1)
+                            # move pass to the right, rand to the left
 
-                        # random hline
-                        plt.axhline(
-                            y=df4.loc["Rand", "0%"]["Acc"],
-                            color="#797979",
-                            linestyle="--",
-                            linewidth=0.5,
-                        )
+                            if "Pass" in ordering:
+                                ordering.remove("Pass")
+                                ordering = ["Pass"] + ordering 
 
-                        plt.ylim(61, 99)
+                            if "Rand" in ordering:
+                                ordering.remove("Rand")
+                                ordering =  ordering + ["Rand"]
 
-                        plt.tight_layout()
-                        plt.savefig(
-                            plot_file, dpi=300, bbox_inches="tight", pad_inches=0.01
-                        )
-                        plt.clf()
-                        plt.close("all")
+                            fig_dim = set_matplotlib_size(width, fraction=1.0)
+                            fig_dim = (fig_dim[0], fig_dim[1] * 0.6)
+                            fig = plt.figure(figsize=fig_dim)
+                            ax = sns.violinplot(
+                                data=df3,
+                                y="Acc",
+                                x="Method",
+                                order=ordering,
+                                hue="clipping",
+                                split=True,
+                                inner="stick",
+                                bw=0.05,
+                            )
+
+                            violins = [
+                                art
+                                for art in ax.get_children()
+                                if isinstance(art, PolyCollection)
+                            ]
+
+                            for violin in violins:
+                                violin.set_alpha(0)
+
+                            """ax2 = sns.violinplot(
+                                data=df,
+                                y="Acc",
+                                x="Method",
+                                order=ordering,
+                                hue="clipping",
+                                inner=None,
+                                split=True,
+                                bw=0.4,
+                                palette=[".85", ".4"],
+                                # cut=1,
+                                # ax=ax,
+                            )"""
+                            ax2 = sns.boxplot(
+                                data=df,
+                                x="Method",
+                                y="Acc",
+                                hue="clipping",
+                                order=ordering,
+                                # color="white",
+                                palette=[".85", ".4"],
+                                width=0.3,
+                                meanline=False,
+                                medianprops={"linewidth": 0},
+                                showmeans=True,
+                                meanprops={
+                                    "marker": "D",
+                                    "markersize": 1,
+                                    "markeredgecolor": "#fff7aa",
+                                    "markerfacecolor": "#fff7aa",
+                                    "zorder": 100,
+                                },
+                                flierprops={"marker": "D", "markersize": 1}
+                                # boxprops={"zorder": 20},
+                                # ax=ax3,
+                            )
+                            old_handles, old_labels = ax2.get_legend_handles_labels()
+                            old_handles = old_handles[2:]
+
+                            dataset_colors = {
+                                dataset_name: sns.color_palette(
+                                    palette="tab10", n_colors=len(stick_data.keys())
+                                )[ix]
+                                for ix, dataset_name in enumerate(stick_data.keys())
+                            }
+                            dataset_transparent_colors = copy.deepcopy(dataset_colors)
+                            for k, v in dataset_colors.items():
+                                dataset_colors[k] = (*v, 1)
+                                dataset_transparent_colors[k] = (*v, 0.8)
+
+                            dataset_colors = dataset_transparent_colors
+
+                            for l in ax.lines:
+                                for dataset_ix, dataset_name in enumerate(
+                                    stick_data.keys()
+                                ):
+                                    if len(l.get_data()[1]) == 0:
+                                        continue
+                                    if l.get_data()[1][0] in stick_data[dataset_name]:
+                                        orig_data = l.get_data()
+                                        new_data = orig_data
+                                        if new_data[0][1] == int(new_data[0][1]):
+                                            # right sticks
+                                            new_data[0][0] = -0.3 + new_data[0][1]
+                                        else:
+                                            # left sticks
+                                            new_data[0][1] = 0.3 + new_data[0][0]
+                                        l.set_data(new_data)
+
+                                        l.set_color(dataset_colors[dataset_name])
+                                        l.set_linewidth(1.5)
+                                        # l.set_linestyle((dataset_ix, (1, 0.5)))
+                                        l.set_linestyle("solid")
+                                        l.set_solid_capstyle("butt")
+                                        if dataset_name in ["AG", "TR"]:
+                                            l.set(zorder=50)
+                                        else:
+                                            l.set(zorder=10)
+
+                                        # copy the line, and then insert it with a different offset, and much higher opacity
+                                        """line2 = copy.copy(l)
+                                        line2.set_linestyle((dataset_ix + 1, (1, 0.5)))
+                                        line2.set_color(
+                                            dataset_transparent_colors[dataset_name]
+                                        )
+                                        ax.add_line(line2)"""
+
+                            dataset_legend_handles = []
+                            for dataset, dataset_color in dataset_colors.items():
+                                dataset_legend_handles.append(
+                                    Line2D(
+                                        [0],
+                                        [0],
+                                        color=dataset_color,
+                                        # linestyle=(0, (1, 0.5)),
+                                        linestyle="solid",
+                                        lw=2,
+                                        label=dataset,
+                                        solid_capstyle="butt",
+                                    ),
+                                )
+
+                            dataset_legend_handles = [*dataset_legend_handles, *old_handles]
+
+                            ax.legend(
+                                handles=dataset_legend_handles,
+                                loc="lower center",
+                                ncol=2 + len(dataset_colors.keys()),
+                                handlelength=1.5,
+                            )
+
+                            for tick in ax.get_xticklabels():
+                                if tick._text in ["Ent", "LC", "MM"]:
+                                    tick.set_color("#4c9dc9")
+                                    tick.set_text("$\mathit{" + tick._text + "}")
+                                elif tick._text in ["Rand", "Pass"]:
+                                    tick.set_color("#ff5858")
+                                    tick.set_text("$\mathit{" + tick._text + "}")
+                            plt.xlabel("")
+                            plt.ylabel("$acc_{last5}$ (\%)", labelpad=1)
+
+                            # random hline
+                            plt.axhline(
+                                y=df4.loc["Rand", "0%"]["Acc"],
+                                color="#797979",
+                                linestyle="--",
+                                linewidth=0.5,
+                            )
+
+                            plt.ylim(61, 99)
+
+                            plt.tight_layout()
+                            plt.savefig(
+                                plot_file, dpi=300, bbox_inches="tight", pad_inches=0.01
+                            )
+                            plt.clf()
+                            plt.close("all")
 
 
 def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5):
@@ -2174,6 +2189,8 @@ def uncertainty_advanced_clipping_test_plots(
             for uncertainty_method in param_grid["uncertainty_method"]:
                 for lower_is_better in param_grid["lower_is_better"]:
                     for uncertainty_clipping in param_grid["uncertainty_clipping"]:
+                        if uncertainty_clipping != 1.0:
+                            continue
                         if (
                             query_strategy in ["passive", "Rand"]
                             and uncertainty_clipping != 1.0
@@ -2186,91 +2203,152 @@ def uncertainty_advanced_clipping_test_plots(
                             and not ignore_clipping_for_random_and_passive
                         ):
                             uncertainty_clipping = 1.0
-                        key = f"{query_strategy} ({uncertainty_method}) {lower_is_better}/{uncertainty_clipping}"
 
-                        for random_seed in param_grid["random_seed"]:
-                            # check if this configuration is available
-                            exp_results_dir = _convert_config_to_path(
-                                {
-                                    "uncertainty_method": uncertainty_method,
-                                    "query_strategy": query_strategy,
-                                    "exp_name": param_grid["exp_name"][0],
-                                    "transformer_model_name": transformer_model_name,
-                                    "dataset": dataset,
-                                    "initially_labeled_samples": param_grid["initially_labeled_samples"][0],
-                                    "random_seed": random_seed,
-                                    "batch_size": param_grid["batch_size"][0],
-                                    "num_iterations": param_grid["num_iterations"][0],
-                                    "uncertainty_clipping": uncertainty_clipping,
-                                    "lower_is_better": lower_is_better,
-                                }
-                            )
-                            if exp_results_dir.exists():
-                                metrics = np.load(
-                                    exp_results_dir / "metrics.npz", allow_pickle=True
+                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
+                            for random_seed in param_grid["random_seed"]:
+                                # check if this configuration is available
+                                exp_results_dir = _convert_config_to_path(
+                                    {
+                                        "uncertainty_method": uncertainty_method,
+                                        "query_strategy": query_strategy,
+                                        "exp_name": param_grid["exp_name"][0],
+                                        "transformer_model_name": transformer_model_name,
+                                        "dataset": dataset,
+                                        "initially_labeled_samples": param_grid["initially_labeled_samples"][0],
+                                        "random_seed": random_seed,
+                                        "batch_size": param_grid["batch_size"][0],
+                                        "num_iterations": param_grid["num_iterations"][0],
+                                        "uncertainty_clipping": uncertainty_clipping,
+                                        "lower_is_better": lower_is_better,
+                                        "clipping_on_which_data": clipping_on_which_data
+                                    }
                                 )
-                                print(metrics.files)
 
-                                metric_values = metrics[metric][1:]
-
-
-                                plot_path = Path(
-                                    f"./plots/{exp_results_dir.name}/"
-                                )
-                                
-                                for iteration, mv in enumerate(metric_values):
-                                    if Path(plot_path/ f"{iteration:02d}.jpg").exists():
-                                        continue
-
-                                    if len(mv) == 0:
-                                        continue
-
-                                    if np.nanmax(mv) == np.inf:
-                                        max_value = np.iinfo(np.int16).max
-                                    else:
-                                        max_value = np.nanmax(mv)
-                                    if np.nanmin(mv) == 0 and max_value == 0:
-                                        continue
-                                    counts, bins = np.histogram(
-                                        mv, bins=bins, range=(0,1)#range=(np.nanmin(mv), max_value)
+                                if exp_results_dir.exists():
+                                    metrics = np.load(
+                                        exp_results_dir / "metrics.npz", allow_pickle=True
                                     )
+                                    
+                                    metric_values = metrics[metric][1:]
 
-                                    clipping_threshold95 = np.percentile(
-                                        mv, (1 - 0.95) * 100
+
+                                    plot_path = Path(
+                                        f"./plots/{exp_results_dir.name}/"
                                     )
+                                    
+                                    for iteration, mv in enumerate(metric_values):
+                                        if Path(plot_path/ f"{iteration:02d}.jpg").exists():
+                                            continue
 
-                                    clipping_threshold90 = np.percentile(
-                                        mv, (1 - 0.90) * 100
-                                    )
+                                        if len(mv) == 0:
+                                            continue
 
-                                    fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.66))
+                                        """if np.nanmax(mv) == np.inf:
+                                            max_value = np.iinfo(np.int16).max
+                                        else:
+                                            max_value = np.nanmax(mv)
+                                        """
+                                        if np.nanmin(mv) == 0 and max_value == 0:
+                                            continue
 
-                                    plt.axvline(x=clipping_threshold95, color="darkred")
-                                    plt.axvline(x=clipping_threshold90, color="cyan")
+                                        clipping_threshold95 = np.percentile(
+                                            mv, (1 - 0.95) * 100
+                                        )
 
-                                    plt.hist(
-                                        bins[:-1],
-                                        weights=counts,
-                                        bins=bins,
-                                    histtype="step"
-                                    )
-                                    #  plt.title(f"{strat}: {iteration}")
-                                    plt.title("")
-                                    plt.ylabel("Freq")
-                                    plot_path.mkdir(exist_ok=True, parents=True)
+                                        clipping_threshold90 = np.percentile(
+                                            mv, (1 - 0.90) * 100
+                                        )
 
-                                    plt.savefig(
-                                        plot_path / f"{iteration:02d}.jpg", bbox_inches="tight", pad_inches=0
-                                    )
-                                    plt.savefig(
-                                        plot_path / f"{iteration:02d}.pdf",
-                                        dpi=300,
-                                        bbox_inches="tight",
-                                        pad_inches=0,
-                                    )
-                                    print(plot_path / f"{iteration:02d}.jpg")
-                                    plt.clf()
-                                    plt.close("all")
+                                        """counts, bins = np.histogram(
+                                            mv, bins=bins, range=(0,1)#range=(np.nanmin(mv), max_value)
+                                        )
+
+                                        
+                                        print(mv)
+                                        kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(mv.reshape(-1,1))
+                                        X_plot = np.linspace(-1,1,1000)[:,np.newaxis]
+                                        log_dens = kde.score_samples(X_plot)
+                                        """
+
+                                        fig,ax = plt.subplots(figsize=set_matplotlib_size(width, fraction=2))
+
+                                        sns_plot = sns.histplot(data=mv, kde=True, element="step", fill=True,ax=ax)
+
+                                        kde = sm.nonparametric.KDEUnivariate(mv).fit()
+                                        kde_x, kde_y = (kde.support, kde.density)
+                                        
+                                        # find leftmost maximum point
+                                        # find leftmost minimum point
+                                        
+                                       
+                                        print(kde_y[:100])
+
+
+                                        # for local maxima
+                                        local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
+
+                                        # for local minima
+                                        local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+
+                                        print(clipping_threshold95)
+                                        print(local_maxima)
+                                        print(local_minima)
+
+
+                                        # calculate using a heuristic where to clip based on extremas
+                                        #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
+
+                                        leftmost_peak = local_maxima[0]
+                                        next_valley = None
+
+                                        for valley in local_minima:
+                                            if valley[0] > leftmost_peak[0]:
+                                                next_valley = valley
+                                                break
+                                        
+                                        if next_valley is None:
+                                            continue
+                                        
+                                        plt.axvline(x=leftmost_peak[0], color="yellow")
+                                        plt.axvline(x=next_valley[0], color="darkblue")
+
+
+                                        if leftmost_peak[0] > clipping_threshold95:
+                                            continue
+
+
+                                        #https://stackoverflow.com/questions/19936033/finding-turning-points-of-an-array-in-python
+                                        #plt.axvline(x=leftmost_maximum_point[0],color="yellow")
+                                        #plt.axvline(x=leftmost_minimum_point_after_maximum[0],color="darkblue")
+
+                                        ax.set_xlim(0,1)
+                                        #plt.fill(X_plot[:,0], np.exp(log_dens), fc="#AAAAFF")
+                                        plt.axvline(x=clipping_threshold95, color="darkred")
+                                        plt.axvline(x=clipping_threshold90, color="cyan")
+
+                                        """plt.hist(
+                                            bins[:-1],
+                                            weights=counts,
+                                            bins=bins,
+                                        histtype="step"
+                                        )"""
+                                        #  plt.title(f"{strat}: {iteration}")
+                                        plt.title("")
+                                        plt.ylabel("Freq")
+                                        plot_path.mkdir(exist_ok=True, parents=True)
+
+                                        plt.savefig(
+                                            plot_path / f"{iteration:02d}.jpg", bbox_inches="tight", pad_inches=0, dpi=300
+                                        )
+                                        plt.savefig(
+                                            plot_path / f"{iteration:02d}.pdf",
+                                            dpi=300,
+                                            bbox_inches="tight",
+                                            pad_inches=0,
+                                        )
+                                        print(plot_path / f"{iteration:02d}.jpg")
+                                        plt.clf()
+                                        plt.close("all")
 
 
 
@@ -2303,8 +2381,13 @@ def _generate_al_strat_abbreviations_table(pg):
 #_generate_al_strat_abbreviations_table(full_param_grid)
 #full_uncertainty_plots(full_param_grid, metric="confidence_scores")
 #full_uncertainty_plots(full_param_grid)
-uncertainty_advanced_clipping_test_plots(full_param_grid)
-#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
+full_param_grid["clipping_on_which_data"] = ["unlabeled"]
+#full_param_grid["clipping_on_which_data"] = ["all"]
+#full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
+
+full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
+#uncertainty_advanced_clipping_test_plots(full_param_grid)
+exit(-1)
 #exit(-5)
 #full_outlier_comparison(copy.deepcopy(full_param_grid))
 #full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
