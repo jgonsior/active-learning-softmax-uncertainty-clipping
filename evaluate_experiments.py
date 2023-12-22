@@ -451,11 +451,12 @@ def _load_grouped_data(
                                 "clipping_on_which_data": clipping_on_which_data
                             }
                         )
-                        if exp_results_dir.exists():
+                        if not exp_results_dir.exists():
+                            #print(exp_results_dir)
                             continue
                         else:
                             print(exp_results_dir)
-                            continue
+                            #continue
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
                             )
@@ -864,11 +865,10 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                     for num_iteration in param_grid["num_iterations"]:
                         for clipping_on_which_data in param_grid["clipping_on_which_data"]:
                             datasets = param_grid["dataset"]
-
                             plot_file = Path(
                                 f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}_{clipping_on_which_data}.pdf"
                             )
-                            print(plot_file)
+                            #print(plot_file)
 
                             groups = []
                             for dataset in datasets:
@@ -949,6 +949,8 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             if "Rand" in ordering:
                                 ordering.remove("Rand")
                                 ordering =  ordering + ["Rand"]
+                            
+                            print(df3)
 
                             fig_dim = set_matplotlib_size(width, fraction=1.0)
                             fig_dim = (fig_dim[0], fig_dim[1] * 0.6)
@@ -2386,7 +2388,7 @@ full_param_grid["clipping_on_which_data"] = ["unlabeled"]
 #full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
 
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
-#uncertainty_advanced_clipping_test_plots(full_param_grid)
+uncertainty_advanced_clipping_test_plots(full_param_grid)
 exit(-1)
 #exit(-5)
 #full_outlier_comparison(copy.deepcopy(full_param_grid))

@@ -22,6 +22,8 @@ from small_text.query_strategies.exceptions import (
     PoolExhaustedException,
 )
 
+import statsmodels.api as sm                                      
+from scipy.signal import argrelextrema, find_peaks, argrelmax, argrelmin
 
 class QueryStrategy(ABC):
     """Abstract base class for Query Strategies."""
@@ -134,15 +136,54 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             return np.array(indices_unlabeled)
 
         if self.clipping_on_which_data == "unlabeled":
-            clipping_threshold = np.percentile(
-                confidence[indices_unlabeled], (1 - self.uncertainty_clipping) * 100
-            )
+            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                kde = sm.nonparametric.KDEUnivariate(confidence[indices_unlabeled]).fit()
+                kde_x, kde_y = (kde.support, kde.density)
+                
+                # for local maxima
+                local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
 
-            print(f"original confidence: {confidence}")
+                # for local minima
+                local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+                
+                # calculate using a heuristic where to clip based on extremas
+                #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
+
+                leftmost_peak = local_maxima[0]
+                next_valley = None
+
+                for valley in local_minima:
+                    if valley[0] > leftmost_peak[0]:
+                        next_valley = valley
+                        break
+
+                clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.95) * 100)
+                
+                if next_valley is not None:
+                    clipping_threshold = clipping_threshold95
+                else:
+                    if self.uncertainty_clipping == "leftmost_peak":
+                        clipping_threshold = leftmost_peak[0]
+                    if self.uncertainty_clipping == "valley_after_peak":
+                        clipping_threshold = next_valley[0]
+
+                    if clipping_threshold > clipping_threshold95:
+                        clipping_threshold = clipping_threshold95
+            else:
+                self.uncertainty_clipping = float(self.uncertainty_clipping)    
+                clipping_threshold = np.percentile(
+                    confidence[indices_unlabeled], (1 - self.uncertainty_clipping) * 100
+                )
+
+                print(f"original confidence: {confidence}")
 
             confidence[
                 confidence < clipping_threshold
             ] = 1  # as lower_is_better = True is default, we set it to 1 as this is then the worst possible value
+
+
+
+
 
 
         indices_partitioned = np.argpartition(confidence[indices_unlabeled], n)[:n]
@@ -177,11 +218,46 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         )
         
         if self.clipping_on_which_data=="all":
-            clipping_threshold = np.percentile(
-                confidence, (1 - self.uncertainty_clipping) * 100
-            )
+            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                kde = sm.nonparametric.KDEUnivariate(confidence).fit()
+                kde_x, kde_y = (kde.support, kde.density)
+                
+                # for local maxima
+                local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
 
-            print(f"original confidence: {confidence}")
+                # for local minima
+                local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+                
+                # calculate using a heuristic where to clip based on extremas
+                #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
+
+                leftmost_peak = local_maxima[0]
+                next_valley = None
+
+                for valley in local_minima:
+                    if valley[0] > leftmost_peak[0]:
+                        next_valley = valley
+                        break
+
+                clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)
+                
+                if next_valley is not None:
+                    clipping_threshold = clipping_threshold95
+                else:
+                    if self.uncertainty_clipping == "leftmost_peak":
+                        clipping_threshold = leftmost_peak[0]
+                    if self.uncertainty_clipping == "valley_after_peak":
+                        clipping_threshold = next_valley[0]
+
+                    if clipping_threshold > clipping_threshold95:
+                        clipping_threshold = clipping_threshold95
+            else:
+                self.uncertainty_clipping = float(self.uncertainty_clipping)    
+                clipping_threshold = np.percentile(
+                    confidence, (1 - self.uncertainty_clipping) * 100
+                )
+
+                print(f"original confidence: {confidence}")
 
             confidence[
                 confidence < clipping_threshold

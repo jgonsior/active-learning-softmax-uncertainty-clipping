@@ -400,7 +400,7 @@ if __name__ == "__main__":
         "--lower_is_better", type=str, default="True", choices=["True", "False"]
     )
 
-    parser.add_argument("--uncertainty_clipping", type=float, default=1.0)
+    parser.add_argument("--uncertainty_clipping", type=str, default=1.0)
 
     parser.add_argument(
         "--uncertainty_method",

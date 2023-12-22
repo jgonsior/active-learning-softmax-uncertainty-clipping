@@ -48,7 +48,7 @@ full_param_grid = {
     "random_seed": [42, 43, 44, 45, 46, 47, 48, 49, 50, 51],
     "batch_size": [25],
     "num_iterations": [20],
-    "uncertainty_clipping": [1.0, 0.95, 0.90],#"leftmost_peak", "valley_after_peak"],
+    "uncertainty_clipping": [1.0, 0.95, 0.90, "leftmost_peak", "valley_after_peak"],
     "lower_is_better": ["True"],  # , "False"],
     "clipping_on_which_data": ["unlabeled", "all"],
 }
