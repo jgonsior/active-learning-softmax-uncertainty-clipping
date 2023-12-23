@@ -2383,12 +2383,12 @@ def _generate_al_strat_abbreviations_table(pg):
 #_generate_al_strat_abbreviations_table(full_param_grid)
 #full_uncertainty_plots(full_param_grid, metric="confidence_scores")
 #full_uncertainty_plots(full_param_grid)
-full_param_grid["clipping_on_which_data"] = ["unlabeled"]
+#full_param_grid["clipping_on_which_data"] = ["unlabeled"]
 #full_param_grid["clipping_on_which_data"] = ["all"]
-#full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
+full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
 
 full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
-uncertainty_advanced_clipping_test_plots(full_param_grid)
+#uncertainty_advanced_clipping_test_plots(full_param_grid)
 exit(-1)
 #exit(-5)
 #full_outlier_comparison(copy.deepcopy(full_param_grid))
