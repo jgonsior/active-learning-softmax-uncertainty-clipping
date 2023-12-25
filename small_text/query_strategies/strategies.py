@@ -237,18 +237,17 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
                         next_valley = valley
                         break
 
-                clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)
+                clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)                
+                clipping_threshold = clipping_threshold95
                 
-                if next_valley is not None:
-                    clipping_threshold = clipping_threshold95
-                else:
-                    if self.uncertainty_clipping == "leftmost_peak":
-                        clipping_threshold = leftmost_peak[0]
-                    if self.uncertainty_clipping == "valley_after_peak":
-                        clipping_threshold = next_valley[0]
+                if self.uncertainty_clipping == "leftmost_peak" and leftmost_peak is not None:
+                    clipping_threshold = leftmost_peak[0]
+                if self.uncertainty_clipping == "valley_after_peak" and next_valley is not None:
+                    clipping_threshold = next_valley[0]
 
-                    if clipping_threshold > clipping_threshold95:
-                        clipping_threshold = clipping_threshold95
+                if clipping_threshold > clipping_threshold95:
+                    clipping_threshold = clipping_threshold95
+
             else:
                 self.uncertainty_clipping = float(self.uncertainty_clipping)    
                 clipping_threshold = np.percentile(
