@@ -203,7 +203,7 @@ def _evaluate(active_learner, train_labeled,train_unlabeled, test, query_strateg
 
     if query_strategy_name == "passive":
         metrics["passive_outlier"] = np.logical_not(
-            np.equal(train.y, y_pred_train)
+            np.equal(train_unlabeled.y, y_pred_train)
         ).nonzero()
 
         print(metrics["passive_outlier"])
