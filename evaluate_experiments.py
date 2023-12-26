@@ -455,7 +455,7 @@ def _load_grouped_data(
                             #print(exp_results_dir)
                             continue
                         else:
-                            print(exp_results_dir)
+                            #print(exp_results_dir)
                             #continue
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
@@ -779,6 +779,8 @@ def _rename_strat(strategy, clipping=True):
         strategy = strategy.replace(" 100", "")
         strategy = strategy.replace(" 95", "")
         strategy = strategy.replace(" 90", "")
+        strategy = strategy.replace(" leftmost_peak", "")
+        strategy = strategy.replace(" valley_after_peak", "")
     else:
         strategy = strategy.replace(" 100", "")
 
@@ -855,7 +857,7 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         plt.close("all")
 
 
-def full_violinplot(pg, metric="test_acc", consider_last_n=21):
+def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="clipping"):
     param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
 
     for exp_name in param_grid["exp_name"]:
@@ -866,7 +868,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                         for clipping_on_which_data in param_grid["clipping_on_which_data"]:
                             datasets = param_grid["dataset"]
                             plot_file = Path(
-                                f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}_{clipping_on_which_data}.pdf"
+                                f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}_{clipping_on_which_data}_{clipping_method}.pdf"
                             )
                             #print(plot_file)
 
@@ -900,8 +902,15 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                                         clipping = "90%"
                                     elif k[-4:] == "0.95":
                                         clipping = "95\%"
+                                    elif k.endswith("valley_after_peak"):
+                                        clipping="vap"
+                                    elif k.endswith("leftmost_peak"):
+                                        clipping="lp"
                                     else:
-                                        print("help" * 1000)
+                                        print("\n"*10)
+                                        print(f"{k} - {v}")
+                                        print("help" * 100)
+                                        print("\n"*10)
 
                                     k = _rename_strat(k, clipping=False)
                                     #    continue
@@ -949,8 +958,19 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             if "Rand" in ordering:
                                 ordering.remove("Rand")
                                 ordering =  ordering + ["Rand"]
+
+                            if clipping_method == "clipping":
+                                df3 = df3[~df3["clipping"].isin(["vap", "lp"])]
+                                df = df[~df["clipping"].isin(["vap", "lp"])]
+                            elif clipping_method == "leftmost_peak":
+                                df3 = df3[~df3["clipping"].isin(["95\%", "lp"])]
+                                df = df[~df["clipping"].isin(["95\%", "lp"])]
+                            elif clipping_method == "valley_after_peak":
+                                df3 = df3[~df3["clipping"].isin(["vap", "95\%"])]
+                                df = df[~df["clipping"].isin(["vap", "95\%"])]
                             
                             print(df3)
+                            #print(df)
 
                             fig_dim = set_matplotlib_size(width, fraction=1.0)
                             fig_dim = (fig_dim[0], fig_dim[1] * 0.6)
@@ -1114,7 +1134,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21):
                             plt.close("all")
 
 
-def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5):
+def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, clipping_method="clipping"):
     if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [1.0, 0.9, 0.7])
@@ -2387,8 +2407,14 @@ def _generate_al_strat_abbreviations_table(pg):
 #full_param_grid["clipping_on_which_data"] = ["all"]
 full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
 
-full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5)
+#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="clipping")
+#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="valley_after_peak")
+#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
 #uncertainty_advanced_clipping_test_plots(full_param_grid)
+consider_last_n=5
+full_table_stat(full_param_grid, clipping=True, consider_last_n=consider_last_n, clipping_method="clipping")
+full_table_stat(full_param_grid, clipping=True,  consider_last_n=consider_last_n,clipping_method="valley_after_peak")
+full_table_stat(full_param_grid, clipping=True,  consider_last_n=consider_last_n,clipping_method="leftmost_peak")
 exit(-1)
 #exit(-5)
 #full_outlier_comparison(copy.deepcopy(full_param_grid))
@@ -2411,7 +2437,6 @@ full_uncertainty_plots(full_param_grid)
 full_class_distribution(copy.deepcopy(full_param_grid))
 
 
-full_table_stat(full_param_grid, clipping=True)
 
 
 # full_violinplot(copy.deepcopy(full_param_grid))
