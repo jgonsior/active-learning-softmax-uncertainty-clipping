@@ -41,9 +41,9 @@ font_size = 5.8
 
 tex_fonts = {
     # Use LaTeX to write all text
-    # "text.usetex": True,
+    "text.usetex": True,
     # "text.usetex": False,
-    # "font.family": "times",
+    "font.family": "times",
     # Use 10pt font in plots, to match 10pt font in document
     "axes.labelsize": font_size,
     "font.size": font_size,
@@ -412,7 +412,7 @@ def _load_grouped_data(
     num_iterations: int,
     metric="test_acc",
     ignore_clipping_for_random_and_passive=True,
-    clipping_on_which_data="all"
+    clipping_on_which_data="all",
 ):
     grouped_data = {}
     for query_strategy in param_grid["query_strategy"]:
@@ -448,7 +448,7 @@ def _load_grouped_data(
                                 "num_iterations": num_iterations,
                                 "uncertainty_clipping": uncertainty_clipping,
                                 "lower_is_better": lower_is_better,
-                                "clipping_on_which_data": clipping_on_which_data
+                                "clipping_on_which_data": clipping_on_which_data,
                             }
                         )
                         if not exp_results_dir.exists():
@@ -1135,13 +1135,15 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
 
 
 def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, clipping_method="clipping"):
-    if clipping:
+    """if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [1.0, 0.9, 0.7])
     else:
         table_title_prefix = "clipped"
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
-
+    """
+    table_title_prefix = ""
+    param_grid = pg #_filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
@@ -1150,9 +1152,6 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                         datasets = param_grid["dataset"]
                         table_file = Path(
                             f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
-                        )
-                        plot_file = Path(
-                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
                         )
                         print(table_file)
 
@@ -1193,6 +1192,8 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                                 np.mean([float(x[:5]) for x in v.values()])
                             )
                         df = pd.DataFrame(table_data)
+                        
+
                         df = df.T
                         df.reset_index(inplace=True)
                         df = df.rename(columns={"index": "Method"})
@@ -1201,9 +1202,11 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                         df["Method"] = df["Method"].apply(
                             lambda x: _rename_strat(x, clipping=clipping)
                         )
-
+                        
+                        #print(df)
+                       
                         # df = df.set_index("Method")
-                        print(df)
+                        #print(df)
 
                         print(
                             tabulate(
@@ -1223,6 +1226,111 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                                 floatfmt=("0.2f"),
                             )
                         )
+
+def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
+    """if clipping:
+        table_title_prefix = ""
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [1.0, 0.9, 0.7])
+    else:
+        table_title_prefix = "clipped"
+        param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
+    """
+    table_title_prefix = ""
+    param_grid = pg #_filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
+
+                            datasets = param_grid["dataset"]
+                            table_file = Path(
+                                f"final/merge_datasets_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                            )
+                            print(table_file)
+
+                            groups = []
+                            for dataset in datasets:
+                                grouped_data = _load_grouped_data(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid,
+                                    num_iteration,
+                                    metric,
+                                    clipping_on_which_data=clipping_on_which_data
+                                )
+                                groups.append((dataset, grouped_data))
+
+                            table_data = []
+
+                            for dataset, group in groups:
+
+                                for k, v in group.items():
+                                    if k[-3:] == "1.0":
+                                        clipping = "Original"
+                                    elif k[-3:] == "0.9":
+                                        clipping = "90%"
+                                    elif k[-4:] == "0.95":
+                                        clipping = "95\%"
+                                    elif k.endswith("valley_after_peak"):
+                                        clipping="vap"
+                                    elif k.endswith("leftmost_peak"):
+                                        clipping="lp"
+                                    else:
+                                        print("\n"*10)
+                                        print(f"{k} - {v}")
+                                        print("help" * 100)
+                                        print("\n"*10)
+
+                                    k = _rename_strat(k, clipping=False)
+                                    #    continue
+                                    v = [x[-consider_last_n:] for x in v]
+                                    v = np.mean(v, axis=1)
+
+                                    for formatted_value in v:
+                                        formatted_value *= 100
+                                        table_data.append((k, formatted_value, clipping))
+
+                                    formatted_value = np.mean(v) * 100
+                            df = pd.DataFrame(
+                                table_data, columns=["Method", "Acc", "clipping"]
+                            )        
+
+                            # Pass, Rand, VE, KLD, Etn
+                            #df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE"])]
+                            df = df[~df["Method"].isin(["Pass", "Rand", "90%"])]
+                            
+                            #df = df.groupby(['Method', "clipping"]).mean()     
+                            df = df.drop("Method", axis=1)
+                            df = df.groupby(["clipping"]).mean()     
+                            
+                            df = df.sort_values(by="Acc")           
+
+                            
+                            print(
+                                tabulate(
+                                    df,
+                                    headers="keys",
+                                    floatfmt=("0.2f"),
+                                )
+                            )
+                            continue
+                            exit(-1)
+                            table_file.parent.mkdir(parents=True, exist_ok=True)
+                            table_file.write_text(
+                                tabulate(
+                                    df,
+                                    headers="keys",
+                                    tablefmt="latex_booktabs",
+                                    showindex=False,
+                                    floatfmt=("0.2f"),
+                                )
+                            )
+
 
 
 def full_significance_tests(
@@ -1385,7 +1493,7 @@ def show_values_on_bars(axs, h_v="v", space=4.0, xlim_additional=0):
         _show_on_single_plot(axs)
 
 
-def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_n=21):
+def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_n=21, clipping_on_which_data="all", clipping_method="clipping"):
     if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
@@ -1400,7 +1508,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
                         table_file = Path(
-                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{clipping_on_which_data}_{clipping_method}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
                         )
                         print(table_file)
 
@@ -1415,6 +1523,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                                 param_grid,
                                 num_iteration,
                                 metric,
+                                clipping_on_which_data=clipping_on_which_data,
                             )
                             groups.append((dataset, grouped_data))
 
@@ -1425,10 +1534,13 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                         df_data = defaultdict(lambda: 0)
                         for dataset, group in groups:
                             for k, v in group.items():
+                                if not k.endswith(clipping_method):
+                                    continue
                                 df_data[k] = []
                                 for value in v:
                                     df_data[k].append(sum(value))
                                 df_data[k] = np.mean(df_data[k])
+
 
                         df_data2 = []
                         for k, v in df_data.items():
@@ -1443,6 +1555,7 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
 
                         data_df.sort_values(by=metric, inplace=True)
 
+                        
                         # fig = plt.figure(figsize=(width * 0.5 / 72.27, 100 / 72.27))
                         fig = plt.figure(
                             figsize=set_matplotlib_size(width, fraction=0.5)
@@ -1581,6 +1694,7 @@ def full_class_distribution(
     datasets_to_consider=["trec6", "ag_news"],
     clippings=[1.0, 0.95],
     transformer_model_name="bert-base-uncased",
+      clipping_on_which_data="all", 
 ):
     # train/test class distribution
     # class distribution per strategy
@@ -1637,6 +1751,7 @@ def full_class_distribution(
                                     param_grid,
                                     num_iteration,
                                     metric="queried_indices",
+                                    clipping_on_which_data=clipping_on_which_data
                                 )
                                 grouped_data = {
                                     _rename_strat(k, clipping=False): v
@@ -1809,9 +1924,9 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
                 )
             )
         new_df = pd.DataFrame(results, columns=["a", "b", "agreement"])
-        new_df = new_df.pivot("a", "b", "agreement")
+        new_df = new_df.pivot(index="a", columns="b", values="agreement")
         original_df = pd.DataFrame(other_results, columns=["a", "b", "agreement"])
-        original_df = original_df.pivot("a", "b", "agreement")
+        original_df = original_df.pivot(index="a", columns="b", values="agreement")
 
         annotation_dataframe = new_df - original_df  # - new_df
 
@@ -1824,7 +1939,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     print("smallest: ", result_df["agreement"].min())
     print("second largest: ", np.unique(result_df["agreement"].to_numpy())[-2])
 
-    result_df = result_df.pivot("a", "b", "agreement")
+    result_df = result_df.pivot(index="a", columns="b", values="agreement")
     mask = np.zeros_like(result_df.to_numpy())
     mask[np.diag_indices_from(mask)] = True
 
@@ -1834,7 +1949,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         mask=mask,
         cmap=sns.color_palette("husl", as_cmap=True),
         # square=True,
-        fmt=".1f",
+        fmt=".0f",
         ax=ax,
         # linewidths=0.5,
         vmin=vmin,
@@ -1848,11 +1963,11 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
 
 
 def full_outlier_comparison(
-    pg,
+    pg,clipping_method=0.95,clipping_on_which_data="all"
 ):
     results = []
 
-    for clipping in [1.0, 0.95]:
+    for clipping in [1.0, clipping_method]:
         param_grid = copy.deepcopy(pg)
         param_grid["uncertainty_clipping"] = [clipping]
         for transformer_model_name in param_grid["transformer_model_name"]:
@@ -1876,11 +1991,13 @@ def full_outlier_comparison(
                                     num_iteration,
                                     metric="queried_indices",
                                     ignore_clipping_for_random_and_passive=False,
+                                    clipping_on_which_data=clipping_on_which_data
                                 )
                                 grouped_data = {
                                     _rename_strat(k, clipping=False): v
                                     for k, v in grouped_data.items()
                                 }
+
                                 groups[dataset] = grouped_data
 
                             if len(grouped_data) == 0:
@@ -1911,6 +2028,7 @@ def full_outlier_comparison(
                                                     "num_iterations": num_iteration,
                                                     "uncertainty_clipping": "1.0",
                                                     "lower_is_better": True,
+                                                    "clipping_on_which_data": clipping_on_which_data
                                                 }
                                             )
                                             if passive_path.exists():
@@ -1934,6 +2052,8 @@ def full_outlier_comparison(
                                                         ][0][0].tolist()
                                                     ]
                                                 )
+                                            else:
+                                                print("Alarm"*100)
                                     else:
                                         queried_indices[dataset][strategy] = []
                                         for random_seed in range(
@@ -1969,7 +2089,7 @@ def full_outlier_comparison(
                             results.append(
                                 (clipping, transformer_model_name, merged_strats)
                             )
-
+    
     # create 4 supblots
     fig, axs = plt.subplots(
         2,
@@ -2411,13 +2531,18 @@ full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
 #full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="valley_after_peak")
 #full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
 #uncertainty_advanced_clipping_test_plots(full_param_grid)
-consider_last_n=5
-full_table_stat(full_param_grid, clipping=True, consider_last_n=consider_last_n, clipping_method="clipping")
-full_table_stat(full_param_grid, clipping=True,  consider_last_n=consider_last_n,clipping_method="valley_after_peak")
-full_table_stat(full_param_grid, clipping=True,  consider_last_n=consider_last_n,clipping_method="leftmost_peak")
+
+merged_stats_table(full_param_grid, clipping=True,  consider_last_n=5)
+
+
+full_class_distribution(copy.deepcopy(full_param_grid),clippings=[1.0,"leftmost_peak"], clipping_on_which_data="unlabeled")
+full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed", clipping_method="leftmost_peak", clipping_on_which_data="unlabeled")
+full_outlier_comparison(copy.deepcopy(full_param_grid), clipping_method="leftmost_peak", clipping_on_which_data="unlabeled")
+full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
+
+
 exit(-1)
 #exit(-5)
-#full_outlier_comparison(copy.deepcopy(full_param_grid))
 #full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
 
 #full_reproducability(copy.deepcopy(full_param_grid), clipping=False)
@@ -2425,16 +2550,10 @@ exit(-1)
 full_significance_tests(
     copy.deepcopy(full_param_grid), transformer_model_name="roberta-base"
 )"""
-# full_significance_heatmaps("bert-base-uncased")
-# full_significance_heatmaps("roberta-base")
-
-#full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed_model")
-#full_runtime_stats(copy.deepcopy(full_param_grid))
 exit(-1)
 
 
 full_uncertainty_plots(full_param_grid)
-full_class_distribution(copy.deepcopy(full_param_grid))
 
 
 

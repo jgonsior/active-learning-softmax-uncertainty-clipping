@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=alpha
-#SBATCH --time=23:59:59   # walltime
+#SBATCH --time=123:59:59   # walltime
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --ntasks=1      # limit to one node
 #SBATCH --cpus-per-task=8  # number of processor cores (i.e. threads)
@@ -10,7 +10,7 @@
 #SBATCH --mem=120GB
 #SBATCH --output=/beegfs/ws/1/s5968580-btw/logs/out-%A_%a.txt
 #SBATCH --error=/beegfs/ws/1/s5968580-btw/logs/error-%A_%a.txt
-#SBATCH --array 0-353
+#SBATCH --array 0-20
 
 
 # Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
@@ -33,6 +33,6 @@ mkdir -p $TRANSFORMERS_CACHE
 
 #pip install dill scikit-learn tqdm matplotlib seaborn
 #pip install torchtext transformers datasets
-python /beegfs/ws/1/s5968580-btw/active-learning-softmax-uncertainty-clipping/run_experiment.py --taurus --workload passive --n_array_jobs 353 --array_job_id $SLURM_ARRAY_TASK_ID
+python /beegfs/ws/1/s5968580-btw/active-learning-softmax-uncertainty-clipping/run_experiment.py --taurus --workload passive --n_array_jobs 20 --array_job_id $SLURM_ARRAY_TASK_ID
 
 exit 0
