@@ -136,7 +136,7 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             return np.array(indices_unlabeled)
 
         if self.clipping_on_which_data == "unlabeled":
-            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak", "leftmost_peak90", "valley_after_peak90"]:
                 if len(np.unique(confidence[indices_unlabeled])) > 1:
                     kde = sm.nonparametric.KDEUnivariate(confidence[indices_unlabeled]).fit()
                     kde_x, kde_y = (kde.support, kde.density)
@@ -157,19 +157,26 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
                         if valley[0] > leftmost_peak[0]:
                             next_valley = valley
                             break
+                    
+                    if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                        clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.95) * 100)
+                    else:
+                        clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.90) * 100)
 
-                    clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.95) * 100)
                     clipping_threshold = clipping_threshold95
                     
-                    if self.uncertainty_clipping == "leftmost_peak" and leftmost_peak is not None:
+                    if self.uncertainty_clipping.startswith("leftmost_peak") and leftmost_peak is not None:
                         clipping_threshold = leftmost_peak[0]
-                    if self.uncertainty_clipping == "valley_after_peak" and next_valley is not None:
+                    if self.uncertainty_clipping.startswith("valley_after_peak") and next_valley is not None:
                         clipping_threshold = next_valley[0]
 
                     if clipping_threshold > clipping_threshold95:
                         clipping_threshold = clipping_threshold95
                 else:
-                    clipping_threshold = np.percentile(confidence[indices_unlabeled], (1 - 0.95) * 100)
+                    if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                        clipping_threshold = np.percentile(confidence[indices_unlabeled], (1 - 0.90) * 100)
+                    else:
+                        clipping_threshold = np.percentile(confidence[indices_unlabeled], (1 - 0.90) * 100)
 
             else:
                 self.uncertainty_clipping = float(self.uncertainty_clipping)    
@@ -220,7 +227,7 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         )
         
         if self.clipping_on_which_data=="all":
-            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak", "leftmost_peak90", "valley_after_peak90"]:
                 if len(np.unique(confidence)) > 1:
                     kde = sm.nonparametric.KDEUnivariate(confidence).fit()
                     kde_x, kde_y = (kde.support, kde.density)
@@ -241,19 +248,25 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
                         if valley[0] > leftmost_peak[0]:
                             next_valley = valley
                             break
-
-                    clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)                
+                    
+                    if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                        clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)                
+                    else:
+                        clipping_threshold95 = np.percentile(confidence, (1 - 0.90) * 100)                
                     clipping_threshold = clipping_threshold95
                     
-                    if self.uncertainty_clipping == "leftmost_peak" and leftmost_peak is not None:
+                    if self.uncertainty_clipping.startswith("leftmost_peak") and leftmost_peak is not None:
                         clipping_threshold = leftmost_peak[0]
-                    if self.uncertainty_clipping == "valley_after_peak" and next_valley is not None:
+                    if self.uncertainty_clipping.startswith("valley_after_peak") and next_valley is not None:
                         clipping_threshold = next_valley[0]
 
                     if clipping_threshold > clipping_threshold95:
                         clipping_threshold = clipping_threshold95
                 else:
-                    clipping_threshold = np.percentile(confidence, (1 - 0.95) * 100)                
+                    if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                        clipping_threshold = np.percentile(confidence, (1 - 0.95) * 100)                
+                    else:
+                        clipping_threshold = np.percentile(confidence, (1 - 0.90) * 100)                                   
             else:
                 self.uncertainty_clipping = float(self.uncertainty_clipping)    
                 clipping_threshold = np.percentile(
