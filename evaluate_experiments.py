@@ -776,6 +776,8 @@ def _rename_strat(strategy, clipping=True):
     strategy = strategy.replace("LC (temp_scaling)", "TeSc")
 
     if not clipping:
+        strategy = strategy.replace(" leftmost_peak90", "")
+        strategy = strategy.replace(" valley_after_peak90", "")
         strategy = strategy.replace(" 100", "")
         strategy = strategy.replace(" 95", "")
         strategy = strategy.replace(" 90", "")
@@ -1246,7 +1248,7 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
 
                             datasets = param_grid["dataset"]
                             table_file = Path(
-                                f"final/merge_datasets_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                                f"final/merged_stats_datasets_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
                             )
                             print(table_file)
 
@@ -1266,9 +1268,9 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                                 groups.append((dataset, grouped_data))
 
                             table_data = []
+                            table_data2 = []
 
                             for dataset, group in groups:
-
                                 for k, v in group.items():
                                     if k[-3:] == "1.0":
                                         clipping = "Original"
@@ -1280,6 +1282,10 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                                         clipping="vap"
                                     elif k.endswith("leftmost_peak"):
                                         clipping="lp"
+                                    elif k.endswith("valley_after_peak90"):
+                                        clipping="vap90"
+                                    elif k.endswith("leftmost_peak90"):
+                                        clipping="lp90"
                                     else:
                                         print("\n"*10)
                                         print(f"{k} - {v}")
@@ -1289,26 +1295,45 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                                     k = _rename_strat(k, clipping=False)
                                     #    continue
                                     v = [x[-consider_last_n:] for x in v]
+                                    #v = np.mean(v, axis=1)
+
                                     v = np.mean(v, axis=1)
+                                    #std_v = np.std(v) * 100
+                                    #mean_v = np.mean(v) * 100
+
+                                    
 
                                     for formatted_value in v:
                                         formatted_value *= 100
+                                        #formatted_value2 = f"{mean_v:0.2f} +- ({std_v:0.2f})"
                                         table_data.append((k, formatted_value, clipping))
+                                        #table_data2.append((k, formatted_value2, clipping))
 
-                                    formatted_value = np.mean(v) * 100
+                                    #formatted_value = np.mean(v) * 100
                             df = pd.DataFrame(
                                 table_data, columns=["Method", "Acc", "clipping"]
                             )        
 
                             # Pass, Rand, VE, KLD, Etn
-                            #df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE"])]
-                            df = df[~df["Method"].isin(["Pass", "Rand", "90%"])]
+                            #df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE", "90%"])]
+                            df = df[~df["Method"].isin(["Pass", "Rand", "90%", "KLD", "Ent"])]
                             
                             #df = df.groupby(['Method', "clipping"]).mean()     
                             df = df.drop("Method", axis=1)
+
+                            print(df)
+                            df2 = df.groupby(["clipping"]).agg({'Acc':list}) 
+                            df2['Acc'] = df2['Acc'].apply(lambda r: f"{np.mean(r):0.2f} +-{np.std(r):0.2f}")
                             df = df.groupby(["clipping"]).mean()     
+
                             
-                            df = df.sort_values(by="Acc")           
+                            df = df.sort_values(by="Acc")  
+                            df2 = df2.sort_values(by="Acc")  
+
+                            print(df)
+                            print(df2)
+
+                            exit(-1)         
 
                             
                             print(
@@ -1318,8 +1343,134 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                                     floatfmt=("0.2f"),
                                 )
                             )
-                            continue
+
+                            table_file.parent.mkdir(parents=True, exist_ok=True)
+                            table_file.write_text(
+                                tabulate(
+                                    df,
+                                    headers="keys",
+                                    tablefmt="latex_booktabs",
+                                    showindex=False,
+                                    floatfmt=("0.2f"),
+                                )
+                            )
+
+
+def strat_dataset_improvements_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
+    """
+    1. for each dataset: take original, unclipped as "base value"
+    2. calculate improvement/dispromvent for each clipped version compared to base value for this dataset
+    3. sum up relative improvements per dataset (percentages)
+    4. display averaged relative improvements per strat and per clipping method
+    """
+    table_title_prefix = ""
+    param_grid = pg
+    for exp_name in param_grid["exp_name"]:
+        for transformer_model_name in param_grid["transformer_model_name"]:
+            for initially_labeled_samples in param_grid["initially_labeled_samples"]:
+                for batch_size in param_grid["batch_size"]:
+                    for num_iteration in param_grid["num_iterations"]:
+                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
+
+                            datasets = param_grid["dataset"]
+                            table_file = Path(
+                                f"final/strat_dataset_improvements_table_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                            )
+                            print(table_file)
+
+                            groups = []
+                            for dataset in datasets:
+                                grouped_data = _load_grouped_data(
+                                    exp_name,
+                                    transformer_model_name,
+                                    dataset,
+                                    initially_labeled_samples,
+                                    batch_size,
+                                    param_grid,
+                                    num_iteration,
+                                    metric,
+                                    clipping_on_which_data=clipping_on_which_data
+                                )
+                                groups.append((dataset, grouped_data))
+
+                            base_values = {}
+
+                            for dataset, group in groups:
+                                for k,v in group.items():
+                                    print(k)
+                                    if k.endswith("1.0"):  
+                                        k = _rename_strat(k, clipping=False)
+
+                                        if (dataset,k) in base_values.keys():
+                                            base_values[(dataset, k)].append([vvv[-consider_last_n:] for vvv in v])
+                                        else:
+                                            base_values[(dataset, k)] = [[vvv[-consider_last_n:] for vvv in v]]
+                            for k in base_values.keys():
+                                base_values[k] = np.mean(base_values[k])
+
+                            table_data = []
+                            for dataset, group in groups:
+                                for k, v in group.items():
+                                    if k[-3:] == "1.0":
+                                        clipping = "Original"
+                                    elif k[-3:] == "0.9":
+                                        clipping = "90%"
+                                    elif k[-4:] == "0.95":
+                                        clipping = "95\%"
+                                    elif k.endswith("valley_after_peak"):
+                                        clipping="vap"
+                                    elif k.endswith("leftmost_peak"):
+                                        clipping="lp"
+                                    elif k.endswith("valley_after_peak90"):
+                                        clipping="vap90"
+                                    elif k.endswith("leftmost_peak90"):
+                                        clipping="lp90"
+                                    else:
+                                        print("\n"*10)
+                                        print(f"{k} - {v}")
+                                        print("help" * 100)
+                                        print("\n"*10)
+
+                                    k = _rename_strat(k, clipping=False)
+                                    #    continue
+                                    v = [x[-consider_last_n:] for x in v]
+                                    #v = np.mean(v, axis=1)
+
+                                    v = np.mean(v)
+                                    if (dataset,k) in base_values.keys():
+                                        v = v - base_values[(dataset, k)]
+                                    else:
+                                        v = -99
+                                    #std_v = np.std(v) * 100
+                                    #mean_v = np.mean(v) * 100
+
+                                    
+
+                                    table_data.append((k, v*100, clipping))
+                                        
+                            df = pd.DataFrame(
+                                table_data, columns=["Method", "Acc", "clipping"]
+                            )        
+
+                            # Pass, Rand, VE, KLD, Etn
+                            #df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE", "90%"])]
+                            #df = df[~df["Method"].isin(["Pass", "Rand", "90%", "KLD", "Ent"])]
+                            df = df[~df["Method"].isin(["Pass", "Rand"])]
+                            
+                            df = pd.pivot_table(df, values="Acc", index="clipping", columns="Method")
+                            print(df)
+                            print("todo: sortierung!")
+
                             exit(-1)
+                            
+                            print(
+                                tabulate(
+                                    df,
+                                    headers="keys",
+                                    floatfmt=("0.2f"),
+                                )
+                            )
+
                             table_file.parent.mkdir(parents=True, exist_ok=True)
                             table_file.write_text(
                                 tabulate(
@@ -2532,8 +2683,9 @@ full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
 #full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
 #uncertainty_advanced_clipping_test_plots(full_param_grid)
 
+strat_dataset_improvements_table(full_param_grid, clipping=True,  consider_last_n=5)
+exit(-2)
 merged_stats_table(full_param_grid, clipping=True,  consider_last_n=5)
-
 
 full_class_distribution(copy.deepcopy(full_param_grid),clippings=[1.0,"leftmost_peak"], clipping_on_which_data="unlabeled")
 full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed", clipping_method="leftmost_peak", clipping_on_which_data="unlabeled")

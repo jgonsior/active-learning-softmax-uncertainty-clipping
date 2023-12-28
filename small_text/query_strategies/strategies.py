@@ -136,42 +136,45 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
             return np.array(indices_unlabeled)
 
         if self.clipping_on_which_data == "unlabeled":
-            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak", "leftmost_peak90", "valley_after_peak90"]:
-                if len(np.unique(confidence[indices_unlabeled])) > 1:
+            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak", "leftmost_peak90", "valley_after_peak90", "global_max_sampling"]:                if len(np.unique(confidence[indices_unlabeled])) > 1:
                     kde = sm.nonparametric.KDEUnivariate(confidence[indices_unlabeled]).fit()
                     kde_x, kde_y = (kde.support, kde.density)
                     
                     # for local maxima
                     local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
-
-                    # for local minima
-                    local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
                     
-                    # calculate using a heuristic where to clip based on extremas
-                    #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
-
-                    leftmost_peak = local_maxima[0]
-                    next_valley = None
-
-                    for valley in local_minima:
-                        if valley[0] > leftmost_peak[0]:
-                            next_valley = valley
-                            break
-                    
-                    if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
-                        clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.95) * 100)
+                    if self.uncertainty_clipping == "global_max_sampling":
+                        self.global_max_peak = sorted(local_maxima, key=lambda vvv:-vvv[1])[0][0]
+                        clipping_threshold = np.max(confidence[indices_unlabeled])+1
                     else:
-                        clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.90) * 100)
+                        # for local minima
+                        local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+                        
+                        # calculate using a heuristic where to clip based on extremas
+                        #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
 
-                    clipping_threshold = clipping_threshold95
-                    
-                    if self.uncertainty_clipping.startswith("leftmost_peak") and leftmost_peak is not None:
-                        clipping_threshold = leftmost_peak[0]
-                    if self.uncertainty_clipping.startswith("valley_after_peak") and next_valley is not None:
-                        clipping_threshold = next_valley[0]
+                        leftmost_peak = local_maxima[0]
+                        next_valley = None
 
-                    if clipping_threshold > clipping_threshold95:
+                        for valley in local_minima:
+                            if valley[0] > leftmost_peak[0]:
+                                next_valley = valley
+                                break
+                        
+                        if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                            clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.95) * 100)
+                        else:
+                            clipping_threshold95 = np.percentile(confidence[indices_unlabeled], (1 - 0.90) * 100)
+
                         clipping_threshold = clipping_threshold95
+                        
+                        if self.uncertainty_clipping.startswith("leftmost_peak") and leftmost_peak is not None:
+                            clipping_threshold = leftmost_peak[0]
+                        if self.uncertainty_clipping.startswith("valley_after_peak") and next_valley is not None:
+                            clipping_threshold = next_valley[0]
+
+                        if clipping_threshold > clipping_threshold95:
+                            clipping_threshold = clipping_threshold95
                 else:
                     if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
                         clipping_threshold = np.percentile(confidence[indices_unlabeled], (1 - 0.90) * 100)
@@ -227,7 +230,7 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
         )
         
         if self.clipping_on_which_data=="all":
-            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak", "leftmost_peak90", "valley_after_peak90"]:
+            if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak", "leftmost_peak90", "valley_after_peak90", "global_max_sampling"]:
                 if len(np.unique(confidence)) > 1:
                     kde = sm.nonparametric.KDEUnivariate(confidence).fit()
                     kde_x, kde_y = (kde.support, kde.density)
@@ -235,33 +238,37 @@ class ConfidenceBasedQueryStrategy(QueryStrategy):
                     # for local maxima
                     local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
 
-                    # for local minima
-                    local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
-                    
-                    # calculate using a heuristic where to clip based on extremas
-                    #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
-
-                    leftmost_peak = local_maxima[0]
-                    next_valley = None
-
-                    for valley in local_minima:
-                        if valley[0] > leftmost_peak[0]:
-                            next_valley = valley
-                            break
-                    
-                    if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
-                        clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)                
+                    if self.uncertainty_clipping == "global_max_sampling":
+                        self.global_max_peak = sorted(local_maxima, key=lambda vvv:-vvv[1])[0][0]
+                        clipping_threshold = np.max(confidence)+1
                     else:
-                        clipping_threshold95 = np.percentile(confidence, (1 - 0.90) * 100)                
-                    clipping_threshold = clipping_threshold95
-                    
-                    if self.uncertainty_clipping.startswith("leftmost_peak") and leftmost_peak is not None:
-                        clipping_threshold = leftmost_peak[0]
-                    if self.uncertainty_clipping.startswith("valley_after_peak") and next_valley is not None:
-                        clipping_threshold = next_valley[0]
+                        # for local minima
+                        local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+                        
+                        # calculate using a heuristic where to clip based on extremas
+                        #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
 
-                    if clipping_threshold > clipping_threshold95:
+                        leftmost_peak = local_maxima[0]
+                        next_valley = None
+
+                        for valley in local_minima:
+                            if valley[0] > leftmost_peak[0]:
+                                next_valley = valley
+                                break
+                        
+                        if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
+                            clipping_threshold95 = np.percentile(confidence, (1 - 0.95) * 100)                
+                        else:
+                            clipping_threshold95 = np.percentile(confidence, (1 - 0.90) * 100)                
                         clipping_threshold = clipping_threshold95
+                        
+                        if self.uncertainty_clipping.startswith("leftmost_peak") and leftmost_peak is not None:
+                            clipping_threshold = leftmost_peak[0]
+                        if self.uncertainty_clipping.startswith("valley_after_peak") and next_valley is not None:
+                            clipping_threshold = next_valley[0]
+
+                        if clipping_threshold > clipping_threshold95:
+                            clipping_threshold = clipping_threshold95
                 else:
                     if self.uncertainty_clipping in ["leftmost_peak", "valley_after_peak"]:
                         clipping_threshold = np.percentile(confidence, (1 - 0.95) * 100)                
@@ -349,6 +356,7 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
 
     def __init__(self, lower_is_better=True, uncertainty_clipping=1.0,
             clipping_on_which_data="all"):
+        self.global_threshold = None
         super().__init__(
             lower_is_better=True, uncertainty_clipping=uncertainty_clipping, clipping_on_which_data=clipping_on_which_data
         )
@@ -357,8 +365,18 @@ class LeastConfidence(ConfidenceBasedQueryStrategy):
         if self.predict_proba_with_labeled_data:
             clf.tell_me_so_far_labeled_data(X=dataset[_indices_labeled].x, Y=_y)
         proba = clf.predict_proba(dataset)
+        
+        if self.uncertainty_clipping == "global_max_sampling" and self.global_threshold is not None:
+            proba[
+                proba > self.global_threshold
+            ] = 1
+            self.global_threshold =None
+            proba = np.delete(proba, proba=1)
 
-        return np.amax(proba, axis=1)
+            np.random.shuffle(proba)
+            return proba
+        else:
+            return np.amax(proba, axis=1)
 
     def __str__(self):
         return "LeastConfidence()"
