@@ -28,10 +28,10 @@ from run_experiment import (
     my_methods_param_grid,
     generate_workload,
 )
-from tabulate import tabulate
+from tabulate import tabulate, SEPARATING_LINE
 import pandas as pd
 import seaborn as sns
-import statsmodels.api as sm                                      
+import statsmodels.api as sm
 from scipy.signal import argrelextrema, find_peaks, argrelmax, argrelmin
 
 from dataset_loader import load_my_dataset
@@ -57,6 +57,7 @@ tex_fonts = {
 
 sns.set_style("white")
 sns.set_context("paper")
+sns.set_palette("colorblind")
 plt.rcParams.update(tex_fonts)  # type: ignore
 
 """import scipy
@@ -98,7 +99,7 @@ exit(-1)
 
 
 # https://jwalton.info/Embed-Publication-Matplotlib-Latex/
-def set_matplotlib_size(width, fraction=1):
+def set_matplotlib_size(width, fraction=1, half_height=False):
     """Set figure dimensions to avoid scaling in LaTeX.
 
     Parameters
@@ -128,6 +129,8 @@ def set_matplotlib_size(width, fraction=1):
     # Figure height in inches
     fig_height_in = fig_width_in * golden_ratio
 
+    if half_height:
+        fig_height_in *= 0.7
     fig_dim = (fig_width_in, fig_height_in)
 
     return fig_dim
@@ -452,11 +455,11 @@ def _load_grouped_data(
                             }
                         )
                         if not exp_results_dir.exists():
-                            #print(exp_results_dir)
+                            # print(exp_results_dir)
                             continue
                         else:
-                            #print(exp_results_dir)
-                            #continue
+                            # print(exp_results_dir)
+                            # continue
                             metrics = np.load(
                                 exp_results_dir / "metrics.npz", allow_pickle=True
                             )
@@ -803,6 +806,8 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
+
+                        
                         table_file = Path(
                             f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
                         )
@@ -859,7 +864,9 @@ def full_boxplot(pg, clipping=True, metric="test_acc", consider_last_n=21):
                         plt.close("all")
 
 
-def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="clipping"):
+def full_violinplot(
+    pg, metric="test_acc", consider_last_n=21, clipping_method="clipping"
+):
     param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
 
     for exp_name in param_grid["exp_name"]:
@@ -867,12 +874,25 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
-                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
+                        for clipping_on_which_data in param_grid[
+                            "clipping_on_which_data"
+                        ]:
                             datasets = param_grid["dataset"]
+
+
+
+                            if transformer_model_name == "bert-base-uncased":
+                                ftmn= "b"
+                            elif transformer_model_name == "roberta-base":
+                                ftmn = "r"
+
                             plot_file = Path(
-                                f"final/violinplots_{metric}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}_{clipping_on_which_data}_{clipping_method}.pdf"
+                                f"final/v_{metric}_{exp_name}_{ftmn}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}_{clipping_on_which_data}_{clipping_method}.pdf"
                             )
-                            #print(plot_file)
+
+                            if len(plot_file.name) > 60:
+                                exit(-1)
+                            # print(plot_file)
 
                             groups = []
                             for dataset in datasets:
@@ -885,7 +905,7 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
                                     param_grid,
                                     num_iteration,
                                     metric,
-                                    clipping_on_which_data=clipping_on_which_data
+                                    clipping_on_which_data=clipping_on_which_data,
                                 )
                                 groups.append((dataset, grouped_data))
 
@@ -905,14 +925,18 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
                                     elif k[-4:] == "0.95":
                                         clipping = "95\%"
                                     elif k.endswith("valley_after_peak"):
-                                        clipping="vap"
+                                        clipping = "vap"
                                     elif k.endswith("leftmost_peak"):
-                                        clipping="lp"
+                                        clipping = "First Peak"
+                                    elif k.endswith("valley_after_peak90"):
+                                        clipping = "vap90"
+                                    elif k.endswith("leftmost_peak90"):
+                                        clipping = "lp90"
                                     else:
-                                        print("\n"*10)
+                                        print("\n" * 10)
                                         print(f"{k} - {v}")
                                         print("help" * 100)
-                                        print("\n"*10)
+                                        print("\n" * 10)
 
                                     k = _rename_strat(k, clipping=False)
                                     #    continue
@@ -921,7 +945,9 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
 
                                     for formatted_value in v:
                                         formatted_value *= 100
-                                        table_data.append((k, formatted_value, clipping))
+                                        table_data.append(
+                                            (k, formatted_value, clipping)
+                                        )
 
                                     formatted_value = np.mean(v) * 100
                                     table_data2.append((k, formatted_value, clipping))
@@ -935,7 +961,9 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
                                 table_data, columns=["Method", "Acc", "clipping"]
                             )
                             df2 = (
-                                df.groupby(["Method", "clipping"]).mean().sort_values("Acc")
+                                df.groupby(["Method", "clipping"])
+                                .mean()
+                                .sort_values("Acc")
                             )
 
                             df3 = pd.DataFrame(
@@ -955,24 +983,24 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
 
                             if "Pass" in ordering:
                                 ordering.remove("Pass")
-                                ordering = ["Pass"] + ordering 
+                                ordering = ["Pass"] + ordering
 
                             if "Rand" in ordering:
                                 ordering.remove("Rand")
-                                ordering =  ordering + ["Rand"]
+                                ordering = ordering + ["Rand"]
 
                             if clipping_method == "clipping":
-                                df3 = df3[~df3["clipping"].isin(["vap", "lp"])]
-                                df = df[~df["clipping"].isin(["vap", "lp"])]
+                                to_be_deleted = ["vap", "vap90", "First Peak", "lp90"]
                             elif clipping_method == "leftmost_peak":
-                                df3 = df3[~df3["clipping"].isin(["95\%", "lp"])]
-                                df = df[~df["clipping"].isin(["95\%", "lp"])]
+                                to_be_deleted = ["vap", "95\%", "vap90", "lp90"]
                             elif clipping_method == "valley_after_peak":
-                                df3 = df3[~df3["clipping"].isin(["vap", "95\%"])]
-                                df = df[~df["clipping"].isin(["vap", "95\%"])]
-                            
+                                to_be_deleted=["95\%", "First Peak", "lp90", "vap90"]
+                                
+                            df3 = df3[~df3["clipping"].isin(to_be_deleted)]
+                            df = df[~df["clipping"].isin(to_be_deleted)]
+
                             print(df3)
-                            #print(df)
+                            # print(df)
 
                             fig_dim = set_matplotlib_size(width, fraction=1.0)
                             fig_dim = (fig_dim[0], fig_dim[1] * 0.6)
@@ -1099,7 +1127,10 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
                                     ),
                                 )
 
-                            dataset_legend_handles = [*dataset_legend_handles, *old_handles]
+                            dataset_legend_handles = [
+                                *dataset_legend_handles,
+                                *old_handles,
+                            ]
 
                             ax.legend(
                                 handles=dataset_legend_handles,
@@ -1136,7 +1167,9 @@ def full_violinplot(pg, metric="test_acc", consider_last_n=21, clipping_method="
                             plt.close("all")
 
 
-def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, clipping_method="clipping"):
+def full_table_stat(
+    pg, clipping=True, metric="test_acc", consider_last_n=5, clipping_method="clipping"
+):
     """if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [1.0, 0.9, 0.7])
@@ -1145,15 +1178,21 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
     """
     table_title_prefix = ""
-    param_grid = pg #_filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
+    param_grid = pg  # _filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
+
+
+                        if transformer_model_name == "bert-base-uncased":
+                            ftmn= "b"
+                        elif transformer_model_name == "roberta-base":
+                            ftmn = "r"
                         table_file = Path(
-                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                            f"final/md_{metric}_{table_title_prefix}_{exp_name}_{ftmn}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
                         )
                         print(table_file)
 
@@ -1194,7 +1233,6 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                                 np.mean([float(x[:5]) for x in v.values()])
                             )
                         df = pd.DataFrame(table_data)
-                        
 
                         df = df.T
                         df.reset_index(inplace=True)
@@ -1204,11 +1242,11 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                         df["Method"] = df["Method"].apply(
                             lambda x: _rename_strat(x, clipping=clipping)
                         )
-                        
-                        #print(df)
-                       
+
+                        # print(df)
+
                         # df = df.set_index("Method")
-                        #print(df)
+                        # print(df)
 
                         print(
                             tabulate(
@@ -1229,6 +1267,7 @@ def full_table_stat(pg, clipping=True, metric="test_acc", consider_last_n=5, cli
                             )
                         )
 
+
 def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
     """if clipping:
         table_title_prefix = ""
@@ -1238,14 +1277,15 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
     """
     table_title_prefix = ""
-    param_grid = pg #_filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
+    param_grid = pg  # _filter_out_param(pg, "uncertainty_clipping", [0.9, 0.7])
     for exp_name in param_grid["exp_name"]:
         for transformer_model_name in param_grid["transformer_model_name"]:
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
-                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
-
+                        for clipping_on_which_data in param_grid[
+                            "clipping_on_which_data"
+                        ]:
                             datasets = param_grid["dataset"]
                             table_file = Path(
                                 f"final/merged_stats_datasets_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
@@ -1263,7 +1303,7 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                                     param_grid,
                                     num_iteration,
                                     metric,
-                                    clipping_on_which_data=clipping_on_which_data
+                                    clipping_on_which_data=clipping_on_which_data,
                                 )
                                 groups.append((dataset, grouped_data))
 
@@ -1279,63 +1319,67 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                                     elif k[-4:] == "0.95":
                                         clipping = "95\%"
                                     elif k.endswith("valley_after_peak"):
-                                        clipping="vap"
+                                        clipping = "vap"
                                     elif k.endswith("leftmost_peak"):
-                                        clipping="lp"
+                                        clipping = "lp"
                                     elif k.endswith("valley_after_peak90"):
-                                        clipping="vap90"
+                                        clipping = "vap90"
                                     elif k.endswith("leftmost_peak90"):
-                                        clipping="lp90"
+                                        clipping = "lp90"
                                     else:
-                                        print("\n"*10)
+                                        print("\n" * 10)
                                         print(f"{k} - {v}")
                                         print("help" * 100)
-                                        print("\n"*10)
+                                        print("\n" * 10)
 
                                     k = _rename_strat(k, clipping=False)
                                     #    continue
                                     v = [x[-consider_last_n:] for x in v]
-                                    #v = np.mean(v, axis=1)
+                                    # v = np.mean(v, axis=1)
 
                                     v = np.mean(v, axis=1)
-                                    #std_v = np.std(v) * 100
-                                    #mean_v = np.mean(v) * 100
-
-                                    
+                                    # std_v = np.std(v) * 100
+                                    # mean_v = np.mean(v) * 100
 
                                     for formatted_value in v:
                                         formatted_value *= 100
-                                        #formatted_value2 = f"{mean_v:0.2f} +- ({std_v:0.2f})"
-                                        table_data.append((k, formatted_value, clipping))
-                                        #table_data2.append((k, formatted_value2, clipping))
+                                        # formatted_value2 = f"{mean_v:0.2f} +- ({std_v:0.2f})"
+                                        table_data.append(
+                                            (k, formatted_value, clipping)
+                                        )
+                                        # table_data2.append((k, formatted_value2, clipping))
 
-                                    #formatted_value = np.mean(v) * 100
+                                    # formatted_value = np.mean(v) * 100
                             df = pd.DataFrame(
                                 table_data, columns=["Method", "Acc", "clipping"]
-                            )        
+                            )
 
                             # Pass, Rand, VE, KLD, Etn
-                            #df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE", "90%"])]
-                            df = df[~df["Method"].isin(["Pass", "Rand", "90%", "KLD", "Ent"])]
-                            
-                            #df = df.groupby(['Method', "clipping"]).mean()     
+                            # df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE", "90%"])]
+                            df = df[
+                                ~df["Method"].isin(
+                                    ["Pass", "Rand", "90%", "KLD", "Ent"]
+                                )
+                            ]
+
+                            # df = df.groupby(['Method', "clipping"]).mean()
                             df = df.drop("Method", axis=1)
 
                             print(df)
-                            df2 = df.groupby(["clipping"]).agg({'Acc':list}) 
-                            df2['Acc'] = df2['Acc'].apply(lambda r: f"{np.mean(r):0.2f} +-{np.std(r):0.2f}")
-                            df = df.groupby(["clipping"]).mean()     
+                            df2 = df.groupby(["clipping"]).agg({"Acc": list})
+                            df2["Acc"] = df2["Acc"].apply(
+                                lambda r: f"{np.mean(r):0.2f} +-{np.std(r):0.2f}"
+                            )
+                            df = df.groupby(["clipping"]).mean()
 
-                            
-                            df = df.sort_values(by="Acc")  
-                            df2 = df2.sort_values(by="Acc")  
+                            df = df.sort_values(by="Acc")
+                            df2 = df2.sort_values(by="Acc")
 
                             print(df)
                             print(df2)
 
-                            exit(-1)         
+                            exit(-1)
 
-                            
                             print(
                                 tabulate(
                                     df,
@@ -1356,7 +1400,9 @@ def merged_stats_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
                             )
 
 
-def strat_dataset_improvements_table(pg, clipping=True, metric="test_acc", consider_last_n=5):
+def strat_dataset_improvements_table(
+    pg, clipping=True, metric="test_acc", consider_last_n=5
+):
     """
     1. for each dataset: take original, unclipped as "base value"
     2. calculate improvement/dispromvent for each clipped version compared to base value for this dataset
@@ -1370,13 +1416,21 @@ def strat_dataset_improvements_table(pg, clipping=True, metric="test_acc", consi
             for initially_labeled_samples in param_grid["initially_labeled_samples"]:
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
-                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
-
+                        for clipping_on_which_data in param_grid[
+                            "clipping_on_which_data"
+                        ]:
                             datasets = param_grid["dataset"]
+
+                            if transformer_model_name == "bert-base-uncased":
+                                ftmn= "b"
+                            elif transformer_model_name == "roberta-base":
+                                ftmn = "r"
                             table_file = Path(
-                                f"final/strat_dataset_improvements_table_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
+                                f"final/s_{metric}_{clipping_on_which_data}_{table_title_prefix}_{exp_name}_{ftmn}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.tex"
                             )
                             print(table_file)
+                            if len(table_file.name) > 60:
+                                exit(-1)
 
                             groups = []
                             for dataset in datasets:
@@ -1389,26 +1443,33 @@ def strat_dataset_improvements_table(pg, clipping=True, metric="test_acc", consi
                                     param_grid,
                                     num_iteration,
                                     metric,
-                                    clipping_on_which_data=clipping_on_which_data
+                                    clipping_on_which_data=clipping_on_which_data,
                                 )
                                 groups.append((dataset, grouped_data))
 
                             base_values = {}
 
                             for dataset, group in groups:
-                                for k,v in group.items():
-                                    print(k)
-                                    if k.endswith("1.0"):  
+                                for k, v in group.items():
+                                    #print(k)
+                                    #if k.endswith("0.95"):
+                                    if k.endswith("1.0"):
                                         k = _rename_strat(k, clipping=False)
 
-                                        if (dataset,k) in base_values.keys():
-                                            base_values[(dataset, k)].append([vvv[-consider_last_n:] for vvv in v])
+                                        if (dataset, k) in base_values.keys():
+                                            base_values[(dataset, k)].append(
+                                                [vvv[-consider_last_n:] for vvv in v]
+                                            )
                                         else:
-                                            base_values[(dataset, k)] = [[vvv[-consider_last_n:] for vvv in v]]
+                                            base_values[(dataset, k)] = [
+                                                [vvv[-consider_last_n:] for vvv in v]
+                                            ]
                             for k in base_values.keys():
-                                base_values[k] = np.mean(base_values[k])
+                                base_values[k] = np.mean(base_values[k], axis=2)
+                                #base_values[k] = base_values[k][0]
 
                             table_data = []
+                            table_data2 = []
                             for dataset, group in groups:
                                 for k, v in group.items():
                                     if k[-3:] == "1.0":
@@ -1416,72 +1477,131 @@ def strat_dataset_improvements_table(pg, clipping=True, metric="test_acc", consi
                                     elif k[-3:] == "0.9":
                                         clipping = "90%"
                                     elif k[-4:] == "0.95":
-                                        clipping = "95\%"
+                                        clipping = "Top-$k$"
                                     elif k.endswith("valley_after_peak"):
-                                        clipping="vap"
+                                        clipping = "First Valley"
                                     elif k.endswith("leftmost_peak"):
-                                        clipping="lp"
+                                        clipping = "First Peak"
                                     elif k.endswith("valley_after_peak90"):
-                                        clipping="vap90"
+                                        clipping = "First Valley 90"
                                     elif k.endswith("leftmost_peak90"):
-                                        clipping="lp90"
+                                        clipping = "First Peak 90"
                                     else:
-                                        print("\n"*10)
+                                        print("\n" * 10)
                                         print(f"{k} - {v}")
                                         print("help" * 100)
-                                        print("\n"*10)
+                                        print("\n" * 10)
 
                                     k = _rename_strat(k, clipping=False)
                                     #    continue
                                     v = [x[-consider_last_n:] for x in v]
-                                    #v = np.mean(v, axis=1)
+                                    v = np.mean(v, axis=1)
 
+                                    #print(np.shape(v))
+                                    #print(np.shape(base_values[(dataset, k)]))
+                                    new_v = []
+                                    for clipped_value, original_value in zip(v, base_values[(dataset, k)][0]):
+                                        new_v.append(clipped_value/original_value)
+                                    #print(new_v)
+                                    #v = np.mean(v, axis=1)
+                                    v = new_v
                                     v = np.mean(v)
-                                    if (dataset,k) in base_values.keys():
-                                        v = v - base_values[(dataset, k)]
+                                    if (dataset, k) in base_values.keys():
+                                        #v = f"{(v*100):2.2f} ({(v - base_values[(dataset, k)]):2.2%})"
+                                        v2 = v
+                                        #v = v/base_values[(dataset, k)]
+                                        v2 = v-1
                                     else:
                                         v = -99
-                                    #std_v = np.std(v) * 100
-                                    #mean_v = np.mean(v) * 100
+                                        v2=v
+                                    # std_v = np.std(v) * 100
+                                    # mean_v = np.mean(v) * 100
 
-                                    
+                                    table_data.append((k, v , clipping))
+                                    table_data2.append((k, v2 , clipping))
 
-                                    table_data.append((k, v*100, clipping))
-                                        
                             df = pd.DataFrame(
                                 table_data, columns=["Method", "Acc", "clipping"]
-                            )        
-
-                            # Pass, Rand, VE, KLD, Etn
-                            #df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE", "90%"])]
-                            #df = df[~df["Method"].isin(["Pass", "Rand", "90%", "KLD", "Ent"])]
-                            df = df[~df["Method"].isin(["Pass", "Rand"])]
-                            
-                            df = pd.pivot_table(df, values="Acc", index="clipping", columns="Method")
-                            print(df)
-                            print("todo: sortierung!")
-
-                            exit(-1)
-                            
-                            print(
-                                tabulate(
-                                    df,
-                                    headers="keys",
-                                    floatfmt=("0.2f"),
-                                )
                             )
 
+                            df2 = pd.DataFrame(
+                                table_data2, columns=["Method", "OriAcc", "clipping"]
+                            )
+                            # Pass, Rand, VE, KLD, Etn
+                            # df = df[~df["Method"].isin(["Pass", "Rand", "Ent", "KLD","VE", "90%"])]
+                            # df = df[~df["Method"].isin(["Pass", "Rand", "90%", "KLD", "Ent"])]
+                            #df = df[~df["Method"].isin(["KLD", "VE"])]
+                            #df2 = df2[~df2["Method"].isin(["KLD", "VE"])]
+                            df = df[~df["Method"].isin(["Pass", "Rand"])]
+                            df2 = df2[~df2["Method"].isin(["Pass", "Rand"])]
+
+                            df = df[~df["clipping"].isin(["90%","First Peak 90", "First Valley 90"])]
+                            df2 = df2[~df2["clipping"].isin(["90%","First Peak 90", "First Valley 90"])]
+
+                            df = pd.pivot_table(
+                                df, values="Acc", index="clipping", columns="Method"
+                            )
+                            df2 = pd.pivot_table(
+                                df2, values="OriAcc", index="clipping", columns="Method"
+                            )
+                            df = df.map(lambda x : [x])
+                            df2 = df2.map(lambda x: [x])
+                            df = df+df2
+
+                            df = df.drop("Original",axis=0)
+
+                            df = df.map(lambda x: x[1])
+                            df.loc[:,'Sum'] = df.sum(axis=1)
+                            df.loc['Sum', :] = df.sum(axis=0)
+
+                            
+                            #df = df.map(lambda x: f"{x[0]:6.2%} ({x[1]:+6.2%})")
+                            df = df.map(lambda x: x*100)
+                            #df = df.map(lambda x: f"{x:4.2f}")
+                            #df = df.map(lambda x: ":.2f".format(x))
+                            df = df.sort_values(by=['Sum'])
+                            #df.loc["Sum", "Sum"] = ""
+                            df = df.reset_index()
+                            #df = df.map(lambda x: f"{x[0]:+6.2%}")
+                            #print(df)
+                            #print("todo: sortierung!")
+
+                            #exit(-1)
+                            table_list =df.values.tolist()
+                            table_list = sorted(table_list, key=lambda vvv: vvv[0])
+
+                            sum_index = None
+                            for ix, r in enumerate(table_list):
+                                if r[0] == "Sum":
+                                    sum_index = ix
+                                    
+                            table_list.insert(len(table_list), table_list.pop(sum_index))
+                            
+                            table_list.insert(-1, SEPARATING_LINE)
+
+                            table_list[-1][-1] = 0
+                            print(
+                                tabulate(
+                                    table_list,
+                                    headers=["", *df.columns[1:]],
+
+                                floatfmt="0.2f",
+                                    #headers="firstrow",
+                                    #colalign=["left", *["right" for _ in range(0,len(df.columns))]]
+                                )
+                            )
                             table_file.parent.mkdir(parents=True, exist_ok=True)
                             table_file.write_text(
                                 tabulate(
-                                    df,
-                                    headers="keys",
+                                    table_list,
+                                    headers=["", *df.columns[1:]],
                                     tablefmt="latex_booktabs",
-                                    showindex=False,
-                                    floatfmt=("0.2f"),
-                                )
-                            )
 
+                                floatfmt=("0.2f"),
+                                    showindex=False,
+                                    colalign=["left", *["right" for _ in range(1,len(df.columns))]]
+                                ).replace(f"{SEPARATING_LINE} \\\\", "\midrule").replace("\\$", "$").replace("0.00", "")
+                            )
 
 
 def full_significance_tests(
@@ -1644,7 +1764,14 @@ def show_values_on_bars(axs, h_v="v", space=4.0, xlim_additional=0):
         _show_on_single_plot(axs)
 
 
-def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_n=21, clipping_on_which_data="all", clipping_method="clipping"):
+def full_runtime_stats(
+    pg,
+    clipping=True,
+    metric="times_elapsed",
+    consider_last_n=21,
+    clipping_on_which_data="all",
+    clipping_method="clipping",
+):
     if clipping:
         table_title_prefix = ""
         param_grid = _filter_out_param(pg, "uncertainty_clipping", [0.95, 0.9, 0.7])
@@ -1658,8 +1785,19 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                 for batch_size in param_grid["batch_size"]:
                     for num_iteration in param_grid["num_iterations"]:
                         datasets = param_grid["dataset"]
+                        
+
+                        if transformer_model_name == "bert-base-uncased":
+                            ftmn= "b"
+                        elif transformer_model_name == "roberta-base":
+                            ftmn = "r"
+
+                        if metric =="times_elapsed":
+                            mm="te"
+                        else:
+                            mm="tem"
                         table_file = Path(
-                            f"final/merge_datasets_{metric}_{table_title_prefix}_{exp_name}_{clipping_on_which_data}_{clipping_method}_{transformer_model_name}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
+                            f"final/md_{mm}_{table_title_prefix}_{exp_name}_{clipping_on_which_data}_{clipping_method}_{ftmn}_{consider_last_n}_{initially_labeled_samples}_{batch_size}_{num_iteration}.pdf"
                         )
                         print(table_file)
 
@@ -1688,11 +1826,11 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                                 if not k.endswith(clipping_method):
                                     continue
                                 df_data[k] = []
+                                
                                 for value in v:
-                                    df_data[k].append(sum(value))
+                                    df_data[k].append(np.mean(value, axis=0))
                                 df_data[k] = np.mean(df_data[k])
-
-
+                        
                         df_data2 = []
                         for k, v in df_data.items():
                             if k in [
@@ -1703,17 +1841,17 @@ def full_runtime_stats(pg, clipping=True, metric="times_elapsed", consider_last_
                             df_data2.append([_rename_strat(k, clipping=False), v])
 
                         data_df = pd.DataFrame(df_data2, columns=["Strategy", metric])
-
+                        #print(data_df)
+                        #exit(-1)
                         data_df.sort_values(by=metric, inplace=True)
 
-                        
                         # fig = plt.figure(figsize=(width * 0.5 / 72.27, 100 / 72.27))
                         fig = plt.figure(
                             figsize=set_matplotlib_size(width, fraction=0.5)
                         )
                         ax = sns.barplot(data=data_df, y="Strategy", x=metric)
 
-                        show_values_on_bars(ax, "h", xlim_additional=10)
+                        show_values_on_bars(ax, "h", xlim_additional=0, space=0)
 
                         for tick in itertools.chain(
                             ax.get_xticklabels(), ax.get_yticklabels()
@@ -1845,7 +1983,7 @@ def full_class_distribution(
     datasets_to_consider=["trec6", "ag_news"],
     clippings=[1.0, 0.95],
     transformer_model_name="bert-base-uncased",
-      clipping_on_which_data="all", 
+    clipping_on_which_data="all",
 ):
     # train/test class distribution
     # class distribution per strategy
@@ -1902,7 +2040,7 @@ def full_class_distribution(
                                     param_grid,
                                     num_iteration,
                                     metric="queried_indices",
-                                    clipping_on_which_data=clipping_on_which_data
+                                    clipping_on_which_data=clipping_on_which_data,
                                 )
                                 grouped_data = {
                                     _rename_strat(k, clipping=False): v
@@ -2005,7 +2143,7 @@ def full_class_distribution(
         axa.tick_params(axis="x", bottom=False)
 
     ax00.set_ylabel("No Clipping")
-    ax10.set_ylabel("Uncertainty Clipping 95\%")
+    ax10.set_ylabel("Uncertainty Clipping")
 
     # remove unecessary yaxis
     ax01.yaxis.set_visible(False)
@@ -2098,7 +2236,8 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
         result_df,
         annot=annotation,
         mask=mask,
-        cmap=sns.color_palette("husl", as_cmap=True),
+        #cmap=sns.color_palette("vlag", as_cmap=True),
+        #cmap=sns.color_palette("husl", as_cmap=True),
         # square=True,
         fmt=".0f",
         ax=ax,
@@ -2113,9 +2252,7 @@ def _vector_indice_heatmap(data, ax, title, vmin, vmax, other_data=None):
     return ax
 
 
-def full_outlier_comparison(
-    pg,clipping_method=0.95,clipping_on_which_data="all"
-):
+def full_outlier_comparison(pg, clipping_method=0.95, clipping_on_which_data="all"):
     results = []
 
     for clipping in [1.0, clipping_method]:
@@ -2142,7 +2279,7 @@ def full_outlier_comparison(
                                     num_iteration,
                                     metric="queried_indices",
                                     ignore_clipping_for_random_and_passive=False,
-                                    clipping_on_which_data=clipping_on_which_data
+                                    clipping_on_which_data=clipping_on_which_data,
                                 )
                                 grouped_data = {
                                     _rename_strat(k, clipping=False): v
@@ -2179,7 +2316,7 @@ def full_outlier_comparison(
                                                     "num_iterations": num_iteration,
                                                     "uncertainty_clipping": "1.0",
                                                     "lower_is_better": True,
-                                                    "clipping_on_which_data": clipping_on_which_data
+                                                    "clipping_on_which_data": clipping_on_which_data,
                                                 }
                                             )
                                             if passive_path.exists():
@@ -2204,7 +2341,8 @@ def full_outlier_comparison(
                                                     ]
                                                 )
                                             else:
-                                                print("Alarm"*100)
+                                                print(passive_path)
+                                                print("Alarm" * 100)
                                     else:
                                         queried_indices[dataset][strategy] = []
                                         for random_seed in range(
@@ -2240,7 +2378,7 @@ def full_outlier_comparison(
                             results.append(
                                 (clipping, transformer_model_name, merged_strats)
                             )
-    
+
     # create 4 supblots
     fig, axs = plt.subplots(
         2,
@@ -2291,7 +2429,7 @@ def full_outlier_comparison(
 
     ax00.set_xlabel("No Clipping")
     ax00.xaxis.set_label_position("top")
-    ax01.set_xlabel("Uncertainty Clipping: 95\%")
+    ax01.set_xlabel("Uncertainty Clipping")
     ax01.xaxis.set_label_position("top")
 
     # remove colorbars
@@ -2329,7 +2467,7 @@ def full_outlier_comparison(
     plt.close("all")
 
 
-def full_uncertainty_plots(
+def exemplatory_uncertainty_plots(
     param_grid,
     # metric="confidence_scores",
     metric="y_proba_test_active",
@@ -2356,11 +2494,13 @@ def full_uncertainty_plots(
         )
         if len(grouped_data) == 0:
             return
-        
+
         df_data = []
         for k, v in grouped_data.items():
-            #if k not in strategies:
-            #    continue
+            if k != "LC (label_smoothing) True/1.0":
+                continue
+            if not k.endswith("1.0"):
+                continue
 
             for random_seed in v:
                 # print(random_seed)
@@ -2369,7 +2509,7 @@ def full_uncertainty_plots(
                         if metric != "confidence_scores":
                             v = np.max(v)
                         if v < 0:
-                            print(k)
+                            #print(k)
                             # passive classifier
                             v = 1 + v
                         # v = 1 - v
@@ -2379,9 +2519,9 @@ def full_uncertainty_plots(
         for strat in df["Strategy"].unique():
             plot_path = Path(f"./plots/{metric}_{transformer_model_name}_{dataset}")
 
-            #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6"):
+            # if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6"):
             #    continue
-            
+
             mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
             if np.nanmax(mv) == np.inf:
                 max_value = np.iinfo(np.int16).max
@@ -2415,16 +2555,201 @@ def full_uncertainty_plots(
             plt.clf()
             plt.close("all")
             for iteration in df["iteration"].unique():
-                #if iteration != 5:
+                if iteration not in [5, 14]:
+                    continue
+                # if iteration != 5:
                 #    continue
-                
+
                 plot_path = Path(
                     f"./plots/{metric}_{transformer_model_name}_{dataset}/{strat.replace('/', '-')}/"
                 )
 
-                #if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6/passive (softmax) True-1.0"):
+                # if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6/passive (softmax) True-1.0"):
                 #    continue
-                if Path(plot_path/ f"{iteration}.jpg").exists():
+                #if Path(plot_path / f"{iteration}.jpg").exists():
+                #    continue
+
+                mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
+                    metric
+                ]
+
+                if iteration == 5:
+                    mv = 1-mv
+
+                kde = sm.nonparametric.KDEUnivariate(mv).fit()
+                kde_x, kde_y = (kde.support, kde.density)
+                
+                # for local maxima
+                local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
+                
+                global_max_peak = sorted(local_maxima, key=lambda vvv:-vvv[1])[0][0]
+                # for local minima
+                local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+
+                leftmost_peak = local_maxima[0]
+                next_valley = None
+
+                for valley in local_minima:
+                    if valley[0] > leftmost_peak[0]:
+                        next_valley = valley
+                        break
+
+                leftmost_peak = leftmost_peak[0]
+                next_valley = next_valley[0]
+                
+                print(leftmost_peak)
+                print(next_valley)
+                print(global_max_peak)
+                clipping_threshold95 = np.percentile(mv, (1 - 0.9) * 100)
+
+                
+                fig = plt.figure(figsize=set_matplotlib_size(width, fraction=1, half_height=True))
+
+                plt.axvline(x=leftmost_peak, color=sns.color_palette("colorblind")[1])
+                plt.axvline(x=next_valley, color=sns.color_palette("colorblind")[2])
+                #plt.axvline(x=global_max_peak, color=sns.color_palette("colorblind")[3])
+                plt.axvline(x=clipping_threshold95, color=sns.color_palette("colorblind")[4])
+
+                if iteration == 14:
+                    plt.text(leftmost_peak-.003,2400,'First Peak',rotation=90)
+                    plt.text(next_valley-.003,2300,'First Valley',rotation=90)
+                    #plt.text(global_max_peak-.003,2800,'Global Maximum')#,rotation=90)
+                    plt.text(clipping_threshold95-.003,2500,'$k=95\%$',rotation=90)
+                else:
+                    plt.text(leftmost_peak-.01,1800,'First Peak')#,rotation=90)
+                    plt.text(next_valley-.01,2300,'First Valley')#,rotation=90)
+                    plt.text(global_max_peak-.01,2300,'Global Maximum')#,rotation=90)
+
+                ax = sns.histplot(mv, bins=70, kde=True)
+                plt.title("")
+                plt.ylabel("Freq")
+                plt.xlabel("")
+                ax.set_xlim(0.1,0.9)
+
+                original_ticks = copy.deepcopy(ax.get_xticks())
+                print(original_ticks)
+
+                plt.gca().invert_xaxis()
+
+                print(ax.get_xticks())
+                #ax.set_xticks([str(o) for o in original_ticks])
+                ax.set_xticks(original_ticks, labels=[f"{o:.1f}" for o in reversed(original_ticks)])
+                print(ax.get_xticks())
+
+                plot_path.mkdir(exist_ok=True, parents=True)
+
+                plt.savefig(
+                    plot_path / f"{iteration}.jpg", bbox_inches="tight", pad_inches=0,
+                    dpi=300,
+                )
+                plt.savefig(
+                    plot_path / f"{iteration}.pdf",
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0,
+                )
+                print(plot_path / f"{iteration}.jpg")
+                plt.clf()
+                plt.close("all")
+        #exit(-1)
+
+
+def full_uncertainty_plots(
+    param_grid,
+    # metric="confidence_scores",
+    metric="y_proba_test_active",
+    datasets=["trec6"],  # , "ag_news"],
+    strategies=[
+        # "Rand (softmax) True/1.0",
+        # "passive (softmax) True/1.0",
+        "trustscore (softmax) True/1.0",
+        "LC (label_smoothing) True/1.0",
+        # "LC (evidential1) True/1.0",
+    ],
+    transformer_model_name="bert-base-uncased",
+):
+    for dataset in datasets:
+        grouped_data = _load_grouped_data(
+            exp_name=param_grid["exp_name"][0],
+            transformer_model_name=transformer_model_name,
+            dataset=dataset,
+            initially_labeled_samples=param_grid["initially_labeled_samples"][0],
+            batch_size=param_grid["batch_size"][0],
+            param_grid=param_grid,
+            num_iterations=param_grid["num_iterations"][0],
+            metric=metric,
+        )
+        if len(grouped_data) == 0:
+            return
+
+        df_data = []
+        for k, v in grouped_data.items():
+            # if k not in strategies:
+            #    continue
+
+            for random_seed in v:
+                # print(random_seed)
+                for i, iteration in enumerate(random_seed):
+                    for v in iteration:
+                        if metric != "confidence_scores":
+                            v = np.max(v)
+                        if v < 0:
+                            print(k)
+                            # passive classifier
+                            v = 1 + v
+                        # v = 1 - v
+                        df_data.append((k, v, i))
+        df = pd.DataFrame(data=df_data, columns=["Strategy", metric, "iteration"])
+
+        for strat in df["Strategy"].unique():
+            plot_path = Path(f"./plots/{metric}_{transformer_model_name}_{dataset}")
+
+            # if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6"):
+            #    continue
+
+            mv = df.loc[df["Strategy"] == strat][metric].astype(np.float16)
+            if np.nanmax(mv) == np.inf:
+                max_value = np.iinfo(np.int16).max
+            else:
+                max_value = np.nanmax(mv)
+            if np.nanmin(mv) == 0 and max_value == 0:
+                continue
+            counts, bins = np.histogram(mv, bins=70, range=(np.nanmin(mv), max_value))
+
+            fig = plt.figure(figsize=set_matplotlib_size(width, fraction=0.33))
+            plt.hist(
+                bins[:-1],
+                weights=counts,
+                bins=bins,
+            )
+            # plt.title(f"{strat}")
+            plt.title("")
+            plot_path.mkdir(exist_ok=True, parents=True)
+
+            plt.savefig(
+                plot_path / f"{strat.replace('/', '-')}.jpg",
+                bbox_inches="tight",
+                pad_inches=0,
+            )
+            plt.savefig(
+                plot_path / f"{strat.replace('/', '-')}.pdf",
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0,
+            )
+            plt.clf()
+            plt.close("all")
+            for iteration in df["iteration"].unique():
+                # if iteration != 5:
+                #    continue
+
+                plot_path = Path(
+                    f"./plots/{metric}_{transformer_model_name}_{dataset}/{strat.replace('/', '-')}/"
+                )
+
+                # if plot_path != Path("plots/y_proba_test_active_bert-base-uncased_trec6/passive (softmax) True-1.0"):
+                #    continue
+                if Path(plot_path / f"{iteration}.jpg").exists():
                     continue
 
                 mv = df.loc[(df["Strategy"] == strat) & (df["iteration"] == iteration)][
@@ -2468,15 +2793,16 @@ def full_uncertainty_plots(
                 plt.clf()
                 plt.close("all")
 
+
 def uncertainty_advanced_clipping_test_plots(
     param_grid,
     metric="confidence_scores",
-    #metric="y_proba_test_active",
+    # metric="y_proba_test_active",
     datasets=["trec6", "ag_news", "subj", "rotten", "imdb", "cola", "sst2"],
     transformer_model_name="bert-base-uncased",
-    bins = 100,
-    ignore_clipping_for_random_and_passive=True
-):    
+    bins=100,
+    ignore_clipping_for_random_and_passive=True,
+):
     for dataset in datasets:
         for query_strategy in param_grid["query_strategy"]:
             for uncertainty_method in param_grid["uncertainty_method"]:
@@ -2497,7 +2823,9 @@ def uncertainty_advanced_clipping_test_plots(
                         ):
                             uncertainty_clipping = 1.0
 
-                        for clipping_on_which_data in param_grid["clipping_on_which_data"]:
+                        for clipping_on_which_data in param_grid[
+                            "clipping_on_which_data"
+                        ]:
                             for random_seed in param_grid["random_seed"]:
                                 # check if this configuration is available
                                 exp_results_dir = _convert_config_to_path(
@@ -2507,30 +2835,34 @@ def uncertainty_advanced_clipping_test_plots(
                                         "exp_name": param_grid["exp_name"][0],
                                         "transformer_model_name": transformer_model_name,
                                         "dataset": dataset,
-                                        "initially_labeled_samples": param_grid["initially_labeled_samples"][0],
+                                        "initially_labeled_samples": param_grid[
+                                            "initially_labeled_samples"
+                                        ][0],
                                         "random_seed": random_seed,
                                         "batch_size": param_grid["batch_size"][0],
-                                        "num_iterations": param_grid["num_iterations"][0],
+                                        "num_iterations": param_grid["num_iterations"][
+                                            0
+                                        ],
                                         "uncertainty_clipping": uncertainty_clipping,
                                         "lower_is_better": lower_is_better,
-                                        "clipping_on_which_data": clipping_on_which_data
+                                        "clipping_on_which_data": clipping_on_which_data,
                                     }
                                 )
 
                                 if exp_results_dir.exists():
                                     metrics = np.load(
-                                        exp_results_dir / "metrics.npz", allow_pickle=True
+                                        exp_results_dir / "metrics.npz",
+                                        allow_pickle=True,
                                     )
-                                    
+
                                     metric_values = metrics[metric][1:]
 
+                                    plot_path = Path(f"./plots/{exp_results_dir.name}/")
 
-                                    plot_path = Path(
-                                        f"./plots/{exp_results_dir.name}/"
-                                    )
-                                    
                                     for iteration, mv in enumerate(metric_values):
-                                        if Path(plot_path/ f"{iteration:02d}.jpg").exists():
+                                        if Path(
+                                            plot_path / f"{iteration:02d}.jpg"
+                                        ).exists():
                                             continue
 
                                         if len(mv) == 0:
@@ -2563,33 +2895,46 @@ def uncertainty_advanced_clipping_test_plots(
                                         log_dens = kde.score_samples(X_plot)
                                         """
 
-                                        fig,ax = plt.subplots(figsize=set_matplotlib_size(width, fraction=2))
+                                        fig, ax = plt.subplots(
+                                            figsize=set_matplotlib_size(
+                                                width, fraction=2
+                                            )
+                                        )
 
-                                        sns_plot = sns.histplot(data=mv, kde=True, element="step", fill=True,ax=ax)
+                                        sns_plot = sns.histplot(
+                                            data=mv,
+                                            kde=True,
+                                            element="step",
+                                            fill=True,
+                                            ax=ax,
+                                        )
 
                                         kde = sm.nonparametric.KDEUnivariate(mv).fit()
                                         kde_x, kde_y = (kde.support, kde.density)
-                                        
+
                                         # find leftmost maximum point
                                         # find leftmost minimum point
-                                        
-                                       
+
                                         print(kde_y[:100])
 
-
                                         # for local maxima
-                                        local_maxima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmax(kde_y)[0]]
+                                        local_maxima = [
+                                            (kde_x[abcde], kde_y[abcde])
+                                            for abcde in argrelmax(kde_y)[0]
+                                        ]
 
                                         # for local minima
-                                        local_minima = [(kde_x[abcde], kde_y[abcde]) for abcde in argrelmin(kde_y)[0]]
+                                        local_minima = [
+                                            (kde_x[abcde], kde_y[abcde])
+                                            for abcde in argrelmin(kde_y)[0]
+                                        ]
 
                                         print(clipping_threshold95)
                                         print(local_maxima)
                                         print(local_minima)
 
-
                                         # calculate using a heuristic where to clip based on extremas
-                                        #find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
+                                        # find leftmost peak, then leftmost minima, and then clip at the minima, or use 5%!
 
                                         leftmost_peak = local_maxima[0]
                                         next_valley = None
@@ -2598,26 +2943,28 @@ def uncertainty_advanced_clipping_test_plots(
                                             if valley[0] > leftmost_peak[0]:
                                                 next_valley = valley
                                                 break
-                                        
+
                                         if next_valley is None:
                                             continue
-                                        
+
                                         plt.axvline(x=leftmost_peak[0], color="yellow")
                                         plt.axvline(x=next_valley[0], color="darkblue")
-
 
                                         if leftmost_peak[0] > clipping_threshold95:
                                             continue
 
+                                        # https://stackoverflow.com/questions/19936033/finding-turning-points-of-an-array-in-python
+                                        # plt.axvline(x=leftmost_maximum_point[0],color="yellow")
+                                        # plt.axvline(x=leftmost_minimum_point_after_maximum[0],color="darkblue")
 
-                                        #https://stackoverflow.com/questions/19936033/finding-turning-points-of-an-array-in-python
-                                        #plt.axvline(x=leftmost_maximum_point[0],color="yellow")
-                                        #plt.axvline(x=leftmost_minimum_point_after_maximum[0],color="darkblue")
-
-                                        ax.set_xlim(0,1)
-                                        #plt.fill(X_plot[:,0], np.exp(log_dens), fc="#AAAAFF")
-                                        plt.axvline(x=clipping_threshold95, color="darkred")
-                                        plt.axvline(x=clipping_threshold90, color="cyan")
+                                        ax.set_xlim(0, 1)
+                                        # plt.fill(X_plot[:,0], np.exp(log_dens), fc="#AAAAFF")
+                                        plt.axvline(
+                                            x=clipping_threshold95, color="darkred"
+                                        )
+                                        plt.axvline(
+                                            x=clipping_threshold90, color="cyan"
+                                        )
 
                                         """plt.hist(
                                             bins[:-1],
@@ -2631,7 +2978,10 @@ def uncertainty_advanced_clipping_test_plots(
                                         plot_path.mkdir(exist_ok=True, parents=True)
 
                                         plt.savefig(
-                                            plot_path / f"{iteration:02d}.jpg", bbox_inches="tight", pad_inches=0, dpi=300
+                                            plot_path / f"{iteration:02d}.jpg",
+                                            bbox_inches="tight",
+                                            pad_inches=0,
+                                            dpi=300,
                                         )
                                         plt.savefig(
                                             plot_path / f"{iteration:02d}.pdf",
@@ -2642,7 +2992,6 @@ def uncertainty_advanced_clipping_test_plots(
                                         print(plot_path / f"{iteration:02d}.jpg")
                                         plt.clf()
                                         plt.close("all")
-
 
 
 def _generate_al_strat_abbreviations_table(pg):
@@ -2671,33 +3020,68 @@ def _generate_al_strat_abbreviations_table(pg):
 # full_param_grid["dataset"].remove("sst2")
 
 
-#_generate_al_strat_abbreviations_table(full_param_grid)
-#full_uncertainty_plots(full_param_grid, metric="confidence_scores")
-#full_uncertainty_plots(full_param_grid)
-#full_param_grid["clipping_on_which_data"] = ["unlabeled"]
-#full_param_grid["clipping_on_which_data"] = ["all"]
-full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
+# _generate_al_strat_abbreviations_table(full_param_grid)
+# full_uncertainty_plots(full_param_grid, metric="confidence_scores")
+# full_uncertainty_plots(full_param_grid)
+full_param_grid["clipping_on_which_data"] = ["unlabeled"]
+# full_param_grid["clipping_on_which_data"] = ["all"]
+#full_param_grid["clipping_on_which_data"] = ["all", "unlabeled"]
+full_runtime_stats(
+    copy.deepcopy(full_param_grid),
+    metric="times_elapsed_model",
+    clipping_method="leftmost_peak",
+    clipping_on_which_data="all",
+)
+full_runtime_stats(
+    copy.deepcopy(full_param_grid),
+    metric="times_elapsed",
+    clipping_method="leftmost_peak",
+    clipping_on_which_data="all",
+)
+exit(-1)
 
-#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="clipping")
-#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="valley_after_peak")
-#full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
-#uncertainty_advanced_clipping_test_plots(full_param_grid)
+full_violinplot(
+    copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak"
+)
+#full_violinplot(
+#    copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="clipping"
+#)
+strat_dataset_improvements_table(full_param_grid, clipping=True, consider_last_n=5)
+# full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="clipping")
+# full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="valley_after_peak")
+# full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
+# uncertainty_advanced_clipping_test_plots(full_param_grid)
 
-strat_dataset_improvements_table(full_param_grid, clipping=True,  consider_last_n=5)
-exit(-2)
-merged_stats_table(full_param_grid, clipping=True,  consider_last_n=5)
+#exit(-2)
+#merged_stats_table(full_param_grid, clipping=True, consider_last_n=5)
 
-full_class_distribution(copy.deepcopy(full_param_grid),clippings=[1.0,"leftmost_peak"], clipping_on_which_data="unlabeled")
-full_runtime_stats(copy.deepcopy(full_param_grid), metric="times_elapsed", clipping_method="leftmost_peak", clipping_on_which_data="unlabeled")
-full_outlier_comparison(copy.deepcopy(full_param_grid), clipping_method="leftmost_peak", clipping_on_which_data="unlabeled")
-full_violinplot(copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak")
+full_class_distribution(
+    copy.deepcopy(full_param_grid),
+    clippings=[1.0, "leftmost_peak"],
+    clipping_on_which_data="unlabeled",
+)
+full_runtime_stats(
+    copy.deepcopy(full_param_grid),
+    metric="times_elapsed",
+    clipping_method="leftmost_peak",
+    clipping_on_which_data="all",
+)
+full_outlier_comparison(
+    copy.deepcopy(full_param_grid),
+    clipping_method="leftmost_peak",
+    clipping_on_which_data="unlabeled",
+)
+#full_violinplot(
+#    copy.deepcopy(full_param_grid), consider_last_n=5, clipping_method="leftmost_peak"
+#)
+exemplatory_uncertainty_plots(full_param_grid, metric="confidence_scores")
 
 
 exit(-1)
-#exit(-5)
-#full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
+# exit(-5)
+# full_table_stat(copy.deepcopy(full_param_grid), clipping=False)
 
-#full_reproducability(copy.deepcopy(full_param_grid), clipping=False)
+# full_reproducability(copy.deepcopy(full_param_grid), clipping=False)
 """full_significance_tests(copy.deepcopy(full_param_grid))
 full_significance_tests(
     copy.deepcopy(full_param_grid), transformer_model_name="roberta-base"
@@ -2706,8 +3090,6 @@ exit(-1)
 
 
 full_uncertainty_plots(full_param_grid)
-
-
 
 
 # full_violinplot(copy.deepcopy(full_param_grid))
